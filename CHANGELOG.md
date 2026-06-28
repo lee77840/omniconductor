@@ -3,6 +3,11 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [0.2.2] — 2026-06-28
+
+### Changed
+- `package.json` `author` generalized to **LFamily Labs LLC** (removed the maintainer's personal name from the published package — the framework is vendor- and person-agnostic). No code change.
+
 ## [0.2.1] — 2026-06-28
 
 ### Changed

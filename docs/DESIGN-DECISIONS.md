@@ -135,7 +135,7 @@ ADR-style decision records. Each entry: Status / Context / Decision / Consequenc
 
 **Status**: ~~Accepted (revised 2026-05-10 — copyright holder clarified)~~ — **SUPERSEDED by ADR-029 (2026-06-28)**: license changed MIT → Apache 2.0 (code) + CONDUCTOR-name trademark. The ownership decision (LFamily Labs LLC) stands.
 
-**Context**: The discipline embedded in CONDUCTOR is hard-won and could be commercialized (paid tier, hosted dashboard, etc.). MIT means anyone can fork and ship a commercial version without sharing back. The project is an asset of LFamily Labs LLC (Sangyoub Lee's company); explicit attribution to the LLC, not to an individual, makes ownership unambiguous for downstream contributors and forks.
+**Context**: The discipline embedded in CONDUCTOR is hard-won and could be commercialized (paid tier, hosted dashboard, etc.). MIT means anyone can fork and ship a commercial version without sharing back. The project is an asset of LFamily Labs LLC; explicit attribution to the LLC, not to an individual, makes ownership unambiguous for downstream contributors and forks.
 
 **Decision**: MIT, permissive, no restrictions. Copyright holder = **LFamily Labs LLC** (not individual). Standard OSS conventions — anyone may use, modify, sublicense, and sell, including commercial forks. No trademark restriction beyond standard MIT terms.
 

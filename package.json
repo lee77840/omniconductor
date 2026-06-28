@@ -1,9 +1,9 @@
 {
   "name": "omniconductor",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Multi-coding-agent workflow framework. Write your project's rules, workflow, and discipline ONCE — install into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, or Windsurf. Encodes the discipline developers most often skip — spec-before-code, review gates, session continuity — so your AI agents catch what's easy to miss.",
   "license": "Apache-2.0",
-  "author": "Sangyoub Lee",
+  "author": "LFamily Labs LLC",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lee77840/omniconductor.git"
