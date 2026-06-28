@@ -1,0 +1,9 @@
+# Recipe-scoped hookify templates (ADR-028).
+# Format: <template-basename-without-.template>  <recipe-name>
+# A template listed here is emitted by transform.sh ONLY when its recipe is in --recipes.
+# Templates NOT listed here are always-on (the default set).
+warn-create-table-without-access-control.local.md  database-discipline
+warn-security-definer-without-search-path.local.md  database-discipline
+warn-raw-hex-instead-of-token.local.md  design-system
+warn-hardcoded-text-without-i18n-key.local.md  i18n
+block-direct-push-protected-branch.local.md  branch-strategy

@@ -1,0 +1,56 @@
+---
+name: block-completion-claim-without-push
+enabled: true
+event: stop
+action: block
+conditions:
+  - field: transcript
+    operator: regex_match
+    pattern: ✅\s*(완료|DONE|SHIPPED|done|shipped)|(?:Task|Phase|PR)\s*#?\d+\s*(완료|done|shipped|✅)|구현\s*완료|개발\s*완료|기능\s*완료|implementation\s+complete|feature\s+complete
+  - field: transcript
+    operator: not_contains
+    pattern: git push origin
+---
+
+🚨 **Verify before completion claim — completion declared without `git push` evidence**
+
+The session transcript contains a completion claim ("✅ DONE / SHIPPED / 완료 / implementation complete / feature complete") but no `git push origin` trace.
+
+This rule enforces the **verification-before-completion** principle from `core/universal-rules/quality-gates.md` Q4. False completion claims are the highest-friction failure mode — they cascade into stale documentation, wasted next-session investigation time, and broken downstream work.
+
+### Required evidence checklist
+
+**1. Code / docs change evidence**:
+```bash
+git status --short                          # uncommitted = incomplete
+git log --oneline origin/<branch>..HEAD     # local-only commit?
+```
+
+**2. If the claim concerns features / implementation**:
+- Read the relevant file(s) and confirm the implementation lines exist.
+- Confirm test PASS output (e.g., test runner exit 0).
+- Confirm spec frontmatter `last-updated` and body sections were updated (per `core/universal-rules/spec-as-you-go.md`).
+
+**3. If the claim concerns a PR merge**:
+- `gh pr view <#> --json mergedAt,state` actually verified.
+- `git log origin/<branch>` contains the merge sha.
+
+**4. Cross-doc flip** (per `core/universal-rules/spec-as-you-go.md` §3 same-turn rule):
+- `${CONDUCTOR_REMAINING_TASKS_PATH}` task item closed.
+- `${CONDUCTOR_CURRENT_WORK_PATH}` `+N` entry appended.
+- The relevant plan/spec frontmatter status flipped (e.g., `APPROVED → SHIPPED`).
+- Any related runbook checklists closed.
+
+### Stop-gate decision
+
+- All four pieces of evidence verified → run `git push origin <branch>` then Stop.
+- Work is in progress → restate as "in progress / partially complete / blocked on X" and Stop.
+- Some items false-claimed → retract the claim and report accurate state.
+
+### Refresh logic (loop prevention)
+
+Once `git push origin` appears in the transcript at least once, this rule no longer fires (the work has actually been pushed). The goal is to block the *first* false claim within a single session.
+
+### Project-local note
+
+If `${CONDUCTOR_PROJECT_NAME}` does not use `git push origin` as the canonical "shipped" signal (e.g., trunk-based with direct deploy from CI artifact), edit this rule body's "evidence" section to match the actual shipped signal. Do NOT delete the rule outright — the underlying principle (verify-before-claim) is universal.

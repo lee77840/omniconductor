@@ -1,0 +1,42 @@
+---
+name: block-force-push-protected-branch
+enabled: true
+event: bash
+action: block
+conditions:
+  - field: command
+    operator: regex_match
+    pattern: \bgit\s+push\b.*(?:--force\b|--force-with-lease\b|-f\b).*\borigin\s+(main|release)\b
+---
+
+🚨 **Protected-branch force push blocked**
+
+`git push --force` (or `--force-with-lease` / `-f`) targeting `origin (main|release)` detected. **Forbidden operation** per `core/recipes/branch-strategy.md`.
+
+### Why force push to protected branches is dangerous
+
+- `--force` overwrites remote history — every collaborator's commit on top of the prior tip is lost or orphaned.
+- `--force-with-lease` is safer in spirit but still race-prone: a fetch immediately before push satisfies the lease while another collaborator's just-pushed work is lost.
+- Auto-deploy branches force-pushed mid-deploy can produce a half-deployed system (CDN cached old, origin holds new, etc.).
+- Audit trails break: bisects past the rewrite point fail, blame loses authorship continuity.
+
+### Recovery / alternative workflow
+
+If the goal was to remove a bad commit from a protected branch:
+
+```bash
+# Revert via additional commit (preserves history)
+git checkout -b <branch>-revert-<topic>
+git revert <bad-commit>             # or cherry-pick a fix commit
+gh pr create --base <protected> --head <branch>-revert-<topic>
+```
+
+### Explicit user override
+
+The framework's branch-strategy recipe records that on **non-protected** branches (feature / fix / chore branches), force push may be the user's preference (faster than rebasing carefully). On protected branches, it is never acceptable without an incident-response justification.
+
+### Project-local note
+
+`main|release` is an alternation regex matching your project's protected branches. If you have GitHub branch protection rules enforcing the same constraint server-side, this rule provides the client-side early stop (faster feedback than waiting for the server reject).
+
+**Block — operation halted. Use revert-via-PR workflow and retry.**

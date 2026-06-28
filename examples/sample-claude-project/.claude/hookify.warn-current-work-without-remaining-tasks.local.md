@@ -1,0 +1,36 @@
+---
+name: warn-current-work-without-remaining-tasks
+enabled: true
+event: file
+conditions:
+  - field: file_path
+    operator: regex_match
+    pattern: docs/CURRENT_WORK.md$
+---
+
+⚠️ **Cross-doc status flip check — REMAINING_TASKS sync reminder**
+
+You are editing `docs/CURRENT_WORK.md`. In the same turn, `docs/REMAINING_TASKS.md` likely also needs an update.
+
+This rule enforces the same-turn cross-doc flip pattern from `core/universal-rules/spec-as-you-go.md` §3 and the broader workflow from `core/universal-rules/workflow.md`. The originating production project caught this gap repeatedly: CURRENT_WORK was updated, but REMAINING_TASKS still showed the same item as `⏳`, producing stale-context confusion in the next session.
+
+### Cross-doc flip checklist
+
+When CURRENT_WORK gets a new completion / progress entry, also touch:
+
+1. **`docs/REMAINING_TASKS.md`** — flip the matching task ID to ✅ (or update the status column).
+2. **`docs/specs/<area>.md`** — frontmatter `last-updated: <today>`, plus body sections affected by the change.
+3. **`docs/plans/<plan>.plan.md`** (if applicable) — frontmatter `status: APPROVED → SHIPPED` once the plan completes.
+4. **`docs/runbooks/<runbook>.md`** (if applicable) — close the corresponding manual checklist item.
+
+### Common skip patterns to watch for
+
+- **External-dependency completion** (vendor approvals, DNS records propagated, third-party service activations): the user often reports "X is done" verbally — the manual completion does NOT auto-update REMAINING_TASKS. Update both.
+- **Phase progression**: CURRENT_WORK gains a "Phase N complete" entry but REMAINING_TASKS' phase table column doesn't move. Update both.
+- **Sub-task completion**: CURRENT_WORK records the sub-task; REMAINING_TASKS' parent task remains `⏳` because not every sub-task is done. Update the relevant rows; leave the parent until truly done.
+
+### Origin
+
+Repeated stale-doc occurrences in production work where one of the two files was treated as the "real" log and the other rotted. Promoted to a same-turn rule because cross-session context loss is expensive.
+
+**Warn-only — operation proceeds. The reminder is the value.**

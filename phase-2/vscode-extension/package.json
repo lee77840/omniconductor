@@ -1,0 +1,107 @@
+{
+  "name": "conductor",
+  "displayName": "Conductor — Production-grade workflow framework",
+  "description": "Install Conductor rules, hooks, and recipes for Claude Code, Cursor, or GitHub Copilot from your editor. Thin wrapper around the validated bash adapters.",
+  "publisher": "lfamily-labs",
+  "version": "0.3.0",
+  "license": "Apache-2.0",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cursor",
+    "copilot",
+    "rules",
+    "workflow",
+    "tdd",
+    "ai",
+    "agent",
+    "framework"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lee77840/omniconductor.git"
+  },
+  "homepage": "https://github.com/lee77840/omniconductor#readme",
+  "bugs": {
+    "url": "https://github.com/lee77840/omniconductor/issues"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onCommand:conductor.installClaude",
+    "onCommand:conductor.installCursor",
+    "onCommand:conductor.installCopilot",
+    "onCommand:conductor.install"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "conductor.install",
+        "title": "Conductor: Install (auto-detect IDE)",
+        "category": "Conductor"
+      },
+      {
+        "command": "conductor.installClaude",
+        "title": "Conductor: Install Claude rules",
+        "category": "Conductor"
+      },
+      {
+        "command": "conductor.installCursor",
+        "title": "Conductor: Install Cursor rules",
+        "category": "Conductor"
+      },
+      {
+        "command": "conductor.installCopilot",
+        "title": "Conductor: Install Copilot rules",
+        "category": "Conductor"
+      }
+    ],
+    "configuration": {
+      "title": "Conductor",
+      "properties": {
+        "conductor.repoPath": {
+          "type": "string",
+          "default": "~/.conductor",
+          "description": "Path to the Conductor framework repository (cloned from github.com/lee77840/omniconductor). Tilde (~) is expanded to the user's home directory."
+        },
+        "conductor.recipes": {
+          "type": "string",
+          "default": "",
+          "description": "Comma-separated recipe list passed to transform.sh (e.g. 'monorepo,coding-conventions,tdd'). Leave empty for adapter defaults."
+        },
+        "conductor.dryRun": {
+          "type": "boolean",
+          "default": false,
+          "description": "Pass --dry-run to transform.sh — preview the changes without writing to disk."
+        },
+        "conductor.shellPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override path to bash. Leave empty for auto-detection (Mac/Linux: 'bash'; Windows: Git Bash → WSL2 fallback)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish:vscode": "vsce publish",
+    "publish:openvsx": "ovsx publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "ovsx": "^0.9.0",
+    "typescript": "^5.4.0"
+  }
+}

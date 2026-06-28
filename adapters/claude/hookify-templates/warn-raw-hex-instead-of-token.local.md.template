@@ -1,0 +1,21 @@
+---
+name: warn-raw-hex-instead-of-token
+enabled: true
+event: file
+action: warn
+conditions:
+  - field: file_path
+    operator: regex_match
+    pattern: \.(tsx|jsx|css|scss)$
+  - field: new_text
+    operator: regex_match
+    pattern: (style\s*=\s*\{\{[^}]*#[0-9a-fA-F]{6}|:\s*#[0-9a-fA-F]{6})
+---
+
+⚠️ **Raw hex color — use a design token**
+
+An inline raw hex color was added. Reference a design token (color variable) instead, so theming and dark-mode stay consistent.
+
+If this is an intentional one-off outside the token system (e.g. a third-party embed), justify it in the change and proceed.
+
+**warn — operation proceeds; message injected.**

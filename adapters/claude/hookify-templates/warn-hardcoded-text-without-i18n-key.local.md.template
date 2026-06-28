@@ -1,0 +1,21 @@
+---
+name: warn-hardcoded-text-without-i18n-key
+enabled: true
+event: file
+action: warn
+conditions:
+  - field: file_path
+    operator: regex_match
+    pattern: \.(tsx|jsx)$
+  - field: new_text
+    operator: regex_match
+    pattern: >\s*[A-Z][a-zA-Z]{3,}(\s+[A-Z]?[a-zA-Z]+)*\s*<
+---
+
+⚠️ **Hardcoded user-facing text — possible missing i18n key**
+
+A literal user-facing string was rendered directly in a component. On a multi-locale project, user-facing text must come from a translation key, not a hardcoded literal.
+
+If this string is not user-facing (a test id, a constant, a non-translated proper noun), proceed.
+
+**warn — operation proceeds; message injected.**

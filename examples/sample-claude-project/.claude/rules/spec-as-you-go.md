@@ -1,0 +1,128 @@
+---
+paths:
+  - "**"
+---
+
+---
+rule_id: spec-as-you-go
+rule_name: "Same-turn spec update + real-time docs sync"
+severity: ABSOLUTE
+applies_to: ["all-tools"]
+violation_count: 5+
+enforcement:
+  - hook: stop-session-log-check
+  - llm-self-discipline
+linked_rules:
+  - workflow
+  - quality-gates
+---
+
+# Spec-as-you-go — Same-Turn Documentation Sync
+
+> Bundles W3 (spec update in same turn as code edit) and O1 (real-time docs sync). Documentation drift is the most common rule violation in production; the rule treats it as a code-level concern, not a "will do later" concern.
+
+## 1. The Same-Turn Update Rule (W3)
+
+Code change without same-turn doc update is a rule violation, period.
+
+### 1.1 What "same turn" means
+
+If the orchestrator (or a delegated role) edits a source file in turn N, the corresponding spec / architecture / decision doc MUST be updated **in the same turn N**, not in a follow-up turn, not in an end-of-session batch, not in tomorrow's commit.
+
+### 1.2 What needs same-turn update — by change type
+
+| Code change | Doc to update (same turn) |
+|---|---|
+| New API route / endpoint | spec for that area + frontmatter `api_routes:` list |
+| New page / route | spec for that area + frontmatter `pages:` list |
+| New component (reusable) | spec for that area + frontmatter `components:` list |
+| New service / hook | spec for that area + frontmatter `services:` / `hooks:` list |
+| Behavior change (existing flow) | "Flow" or "Known constraints" section of relevant spec |
+| New DB table / column | DB schema spec section (or dedicated `DATABASE.md`) |
+| New environment variable | env-vars section of relevant spec + onboarding doc |
+| New external service integration | architecture doc + services index |
+
+### 1.3 Why same-turn (not end-of-session)
+
+End-of-session batching always loses fidelity. By turn N+5, the orchestrator no longer remembers that turn N also touched a database column. Stop-hook reminders catch some of this post-hoc, but the rule is designed to make Stop-hook unnecessary in the first place.
+
+Documented production failure: a multi-file refactor changed 4 service signatures. The session ended without spec update. Days later a different agent edited one of those services, read the stale spec, and reverted to the old signature. The fix took longer than the original refactor.
+
+### 1.4 Where to put a new spec
+
+If the area you're touching does not yet have a `docs/specs/<area>.md`, CREATE IT in the same turn. Use `core/docs-templates/specs/_example.md` (shipped by every CONDUCTOR adapter) as the starting point.
+
+---
+
+## 2. Real-Time Docs Sync (O1)
+
+When work is committed and pushed, the orchestrator MUST update the following docs in the same turn:
+
+- `docs/CURRENT_WORK.md` — session state, what was done, what's next.
+- `docs/REMAINING_TASKS.md` (if it exists) — mark completed tasks, surface new ones.
+- `docs/TASKS.md` (if it exists) — phase-level checklist.
+- The relevant spec(s) per the table in section 1.2.
+- `docs/INDEX.md` (if a new doc was created in this turn).
+
+### 2.1 The "completed task delete" sub-rule
+
+When a task in CURRENT_WORK.md or TASKS.md is moved to status `completed`, it should be DELETED in the next session boundary, not left as historical clutter. The session log itself is the historical record. CURRENT_WORK.md is for what is current, not what was done last week. (Full rule: `operations.md` section 2.)
+
+### 2.2 What the orchestrator does NOT update
+
+- Session transcripts / chat exports — those are tool-specific and out of scope.
+- External tracker tickets (Jira / Linear / GitHub Issues) — those are explicit user actions, not auto-sync.
+- Generated files (lockfiles, type-gen output) — those self-update via tooling.
+
+---
+
+## 3. Frontmatter convention (CONDUCTOR schema)
+
+Spec files use YAML frontmatter so adapter `transform.sh` can route them. The CONDUCTOR-native fields:
+
+```yaml
+---
+spec_id: <kebab-case-area-name>
+api_routes:
+  - "/api/foo"
+  - "/api/bar"
+pages:
+  - "/foo"
+components:
+  - FooCard
+services:
+  - getFooById
+hooks:
+  - useFooState
+---
+```
+
+Per-tool transformations:
+
+- **Claude Code**: keep as-is in `docs/specs/<area>.md`. Stop-hook checks for stale frontmatter when source files in that area are touched.
+- **Cursor / Copilot / Windsurf**: same file path, frontmatter preserved. Tool-specific scoping (`globs:` / `applyTo:`) added by the relevant adapter when the file lives under `.cursor/rules/` or `.github/instructions/`.
+- **Gemini / Codex**: file is referenced by path inside the single GEMINI.md / codex.md.
+
+---
+
+## 4. Enforcement mechanism matrix
+
+| Mechanism | Trigger | Action |
+|---|---|---|
+| `stop-session-log-check` (Claude hook) | Recent commit + stale CURRENT_WORK.md | Block stop, inject reminder |
+| `stop-session-log-check` (Claude hook) | Source files changed > 3 + zero spec files touched | Block stop, inject "spec-as-you-go" reminder |
+| Rule text (other tools) | Same as above | Manual reminder; user catches |
+
+For tools without hook support, the orchestrator MUST self-check before declaring a turn complete:
+
+1. Did this turn write to source files? → spec update done?
+2. Did this turn produce a commit? → CURRENT_WORK.md updated?
+3. Did this turn complete a task? → status moved to `completed`, scheduled for delete?
+
+If any answer is "no", the turn is not complete.
+
+---
+
+## 5. Test coverage sync (cross-link)
+
+Test coverage sync (every new feature / changed behavior MUST have a corresponding e2e test added or updated in the same PR) is documented in `quality-gates.md` section 3. This rule and that rule are siblings: spec-as-you-go covers documentation; test coverage sync covers verifiability. Both are ABSOLUTE.

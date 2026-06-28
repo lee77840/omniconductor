@@ -1,0 +1,18 @@
+---
+name: block-direct-push-protected-branch
+enabled: true
+event: bash
+action: block
+conditions:
+  - field: command
+    operator: regex_match
+    pattern: git\s+push\b.*\b(${CONDUCTOR_PROTECTED_BRANCHES})\b
+---
+
+🚫 **Direct push to a protected branch (blocked)**
+
+A direct `git push` to a protected branch (`${CONDUCTOR_PROTECTED_BRANCHES}`) was attempted. Open a PR and merge through review instead.
+
+If your project is trunk-based and pushes to its mainline by design, this rule should not be installed — remove it or do not select the `branch-strategy` recipe.
+
+**block — operation halted. Push to a feature branch and open a PR.**

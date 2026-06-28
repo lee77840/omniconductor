@@ -1,0 +1,40 @@
+---
+name: warn-user-manual-completion
+enabled: true
+event: prompt
+conditions:
+  - field: user_prompt
+    operator: regex_match
+    pattern: (했어|완료했|끝냈|활성화\s*했|등록했|push\s*했|푸시했|푸쉬했|deploy\s*했|배포했|머지했|merge\s*했|발급받았|승인됐|approved|done\s+manually|finished\s+manually|deployed|activated|registered)
+---
+
+⚠️ **User reports manual completion — immediate docs sync required**
+
+The user just reported a manual / external completion (vendor approval, DNS propagation, deploy, key issuance, dashboard configuration, etc.). Per `core/universal-rules/spec-as-you-go.md` §3 (real-time docs sync), this triggers an **immediate** same-turn update across multiple docs. **Do not defer.**
+
+### Same-turn updates
+
+1. **`docs/CURRENT_WORK.md`** — append `+N` entry: date, manual action description, outcome, references (file / env var / dashboard URL).
+2. **`docs/REMAINING_TASKS.md`** — flip the matching item to ✅ (e.g., user-manual list, A.x action items, external-dependency list, phase checklist).
+3. **`docs/specs/<area>.md`** — frontmatter `last-updated: <today>` + body section "Current state" updated.
+4. **Memory / reference docs** — if the manual action introduced new credentials, expiry dates, or vendor-specific facts, add or update the corresponding `reference_<name>.md` memory file.
+
+### Common manual-completion categories
+
+- External account signup / approval (payment provider, financial-data provider, identity provider, partner program).
+- DNS / Cloudflare records (DKIM, DMARC, SPF, DNSSEC).
+- Hosting platform env-var registration / redeploy trigger.
+- App store / marketplace submissions or approvals.
+- API key / token issuance.
+
+### Why this rule exists (origin)
+
+Production pattern: user reported a manual completion verbally; the orchestrator updated CURRENT_WORK and one memory file but missed REMAINING_TASKS / runbook / spec. Resulting stale state for several days, until a subsequent audit dispatch surfaced the discrepancy. The user explicitly flagged this as a recurring failure mode → promoted to same-turn ABSOLUTE.
+
+### Verification self-prompt
+
+> "Is the just-reported completion now reflected in `docs/REMAINING_TASKS.md` AND `docs/CURRENT_WORK.md` AND the relevant spec?"
+
+If any answer is no, update those documents in this same turn before proceeding.
+
+**Warn-only — operation proceeds. Treat the warn as a blocker on declaring the task done.**

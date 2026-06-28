@@ -1,0 +1,35 @@
+---
+name: warn-create-table-without-access-control
+enabled: true
+event: file
+action: warn
+conditions:
+  - field: file_path
+    operator: regex_match
+    pattern: \.sql$
+  - field: new_text
+    operator: regex_match
+    pattern: CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?\w
+  - field: new_text
+    operator: not_contains
+    pattern: ENABLE ROW LEVEL SECURITY
+---
+
+⚠️ **New table without row-level access control**
+
+A `CREATE TABLE` was added but the same change does not enable row-level access control.
+
+### Required pattern
+
+```sql
+CREATE TABLE <table> ( ... );
+ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "<name>" ON <table>
+  FOR <operation>
+  TO <explicit-role>          -- name the role; never rely on a permissive default
+  USING (<owner-predicate>);
+```
+
+A policy with no explicit role grants access by default — a security hole. Read-only reference tables may scope SELECT broadly but should still enable access control.
+
+**warn — operation proceeds; message injected. Do not merge a table without access control.**

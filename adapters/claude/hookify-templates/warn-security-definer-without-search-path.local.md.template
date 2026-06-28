@@ -1,0 +1,30 @@
+---
+name: warn-security-definer-without-search-path
+enabled: true
+event: file
+action: warn
+conditions:
+  - field: file_path
+    operator: regex_match
+    pattern: \.sql$
+  - field: new_text
+    operator: regex_match
+    pattern: SECURITY\s+DEFINER
+  - field: new_text
+    operator: not_contains
+    pattern: SET search_path
+---
+
+⚠️ **SECURITY DEFINER function without an explicit search_path**
+
+A `SECURITY DEFINER` function runs with the definer's privileges. Without `SET search_path`, a caller can shadow objects via their own schema and hijack the elevated execution.
+
+### Required
+
+```sql
+CREATE FUNCTION ... SECURITY DEFINER
+  SET search_path = <trusted-schemas>
+AS $$ ... $$;
+```
+
+**warn — operation proceeds; message injected.**

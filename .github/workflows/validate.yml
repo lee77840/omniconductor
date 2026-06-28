@@ -1,0 +1,89 @@
+name: validate
+
+# CONDUCTOR CI — framework purity + per-adapter install/validate + CLI sanity.
+# Dependency-light: only bash + node (both pre-installed on ubuntu-latest).
+# The CLI is dependency-free, so no `npm install` step is required.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Framework purity — no reference-adopter-specific tokens in framework body.
+  # ---------------------------------------------------------------------------
+  purity:
+    name: framework purity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run purity check
+        run: bash tools/check-framework-purity.sh
+
+  # ---------------------------------------------------------------------------
+  # 2. Per-adapter install + validate (matrix over the 6 supported tools).
+  #    Installs into a fresh temp dir with representative recipes, then runs
+  #    the structural validator. Both steps fail the build on non-zero exit.
+  # ---------------------------------------------------------------------------
+  adapters:
+    name: adapter ${{ matrix.tool }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [claude, cursor, copilot, gemini, codex, windsurf]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install adapter into fresh temp dir
+        run: |
+          rm -rf "/tmp/ci-${{ matrix.tool }}"
+          mkdir -p "/tmp/ci-${{ matrix.tool }}"
+          bash "adapters/${{ matrix.tool }}/transform.sh" \
+            "/tmp/ci-${{ matrix.tool }}" \
+            --no-prompt \
+            --recipes=tdd,debugging
+      - name: Validate adapter output
+        run: |
+          bash tools/validate-adapter-output.sh \
+            "/tmp/ci-${{ matrix.tool }}" \
+            "${{ matrix.tool }}"
+
+  # ---------------------------------------------------------------------------
+  # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a
+  #    --dry-run install writes 0 files.
+  # ---------------------------------------------------------------------------
+  cli:
+    name: cli sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CLI list shows all 6 adapters implemented
+        run: |
+          out="$(node bin/omniconductor.js list)"
+          echo "$out"
+          for tool in claude cursor copilot gemini codex windsurf; do
+            if ! printf '%s\n' "$out" | grep -E "^[[:space:]]*${tool}[[:space:]]" | grep -q "transform.sh"; then
+              echo "ERROR: adapter '${tool}' not shown as implemented in CLI list output" >&2
+              exit 1
+            fi
+          done
+          echo "All 6 adapters reported as implemented."
+
+      - name: Dry-run writes zero files
+        run: |
+          rm -rf /tmp/ci-dryrun
+          mkdir -p /tmp/ci-dryrun
+          node bin/omniconductor.js init --target=claude /tmp/ci-dryrun \
+            --no-prompt --dry-run --recipes=tdd,debugging
+          count="$(find /tmp/ci-dryrun -type f | wc -l | tr -d '[:space:]')"
+          echo "Files written by --dry-run: ${count}"
+          if [ "${count}" != "0" ]; then
+            echo "ERROR: --dry-run wrote ${count} file(s); expected 0" >&2
+            find /tmp/ci-dryrun -type f >&2
+            exit 1
+          fi
+          echo "Dry-run wrote 0 files (as expected)."

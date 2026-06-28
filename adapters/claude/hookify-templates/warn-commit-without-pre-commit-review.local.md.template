@@ -1,0 +1,52 @@
+---
+name: warn-commit-without-pre-commit-review
+enabled: true
+event: bash
+conditions:
+  - field: command
+    operator: regex_match
+    pattern: \bgit\s+commit\s+-m\b
+---
+
+⚠️ **Pre-commit code review (Q1) reminder before `git commit`**
+
+A `git commit` is about to run. Per `core/universal-rules/quality-gates.md` Q1 (pre-commit code review), an automated reviewer must inspect the diff before commit. HIGH-confidence issues (severity ≥ 75) are blockers; LOWER severity becomes follow-up.
+
+### Reviewer routing (model selection)
+
+| Diff size / nature | Reviewer model |
+|---|---|
+| Multi-file (3+ files cross-cutting) | Opus-tier |
+| Single-file change | Sonnet-tier |
+| Type-design heavy diff | Specialized type-design reviewer if available |
+| Error-handling heavy diff | Specialized silent-failure-hunter if available |
+
+When in doubt, upgrade one tier.
+
+### Exemptions (no review needed)
+
+- 100% docs-only changes (`docs/**`, `*.md` only).
+- Auto-generated lockfile bumps.
+- Auto-generated codegen output (e.g., types from a schema).
+- Hookify rule config files (`.claude/hookify.*.local.md`) — config, not code.
+
+Mixed PRs (docs + code) are NOT exempt — any code in the diff triggers review.
+
+### What "block on HIGH-confidence" means
+
+If the reviewer reports any issue with confidence ≥ 75 and severity ≥ HIGH:
+
+1. Commit must NOT proceed.
+2. Fix the issue or document a justified exception in the commit message.
+3. Re-run reviewer on the updated diff.
+4. Only when no HIGH-confidence issues remain: commit.
+
+### Verification prompt (orchestrator self-check)
+
+> "Is this diff trivial (docs-only / lockfile / codegen) or substantive? If substantive, run Q1 reviewer first. If trivial, note the exemption category in the commit message."
+
+### Origin
+
+Production pattern: pre-merge review (Q2) caught build-blocker issues that pre-commit review (Q1) would have caught earlier and cheaper. Promoted Q1 to ABSOLUTE.
+
+**Warn-only — operation proceeds. Bypassing Q1 puts the burden on Q2.**

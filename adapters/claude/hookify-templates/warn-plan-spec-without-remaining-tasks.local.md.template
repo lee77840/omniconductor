@@ -1,0 +1,44 @@
+---
+name: warn-plan-spec-without-remaining-tasks
+enabled: true
+event: file
+conditions:
+  - field: file_path
+    operator: regex_match
+    pattern: docs/(plans|specs)/.*\.md$
+---
+
+⚠️ **Plan / spec edit — cross-doc flip check**
+
+You are editing `docs/plans/*.md` or `docs/specs/*.md`. In the same turn, `${CONDUCTOR_REMAINING_TASKS_PATH}` and `${CONDUCTOR_CURRENT_WORK_PATH}` likely also need updates.
+
+This rule enforces the 4-spot flip pattern from `core/universal-rules/spec-as-you-go.md` §3. The originating project caught this gap repeatedly: a plan flipped to "shipped" in body text but its frontmatter status stayed `APPROVED`, so audit dispatches kept finding it as a stale unfinished item.
+
+### 4-spot flip (same turn)
+
+1. **`${CONDUCTOR_REMAINING_TASKS_PATH}`** — task status / external-dependency list / phase checklist (search by task ID *and* keyword to catch drift).
+2. **This plan/spec frontmatter** — flip `status: APPROVED → SHIPPED` (or equivalent) directly in the YAML block, not just the prose.
+3. **`docs/runbooks/<runbook>.md`** — close any manual checklist tied to the change.
+4. **`docs/audits/<latest>.md`** — close findings that this change resolves (do NOT modify dated historical audit snapshots; create a follow-up note instead).
+
+### Frontmatter completeness (related — `core/universal-rules/spec-as-you-go.md` §1.2)
+
+When editing a spec body, also update:
+
+- `last-updated: YYYY-MM-DD` — today's date.
+- `last-tested: YYYY-MM-DD` (if the spec tracks it) — date of most recent verified pass.
+- `status` field, if present.
+- The `api_routes:` / `pages:` / `components:` / `services:` / `hooks:` lists, if you added or removed any.
+
+Body changes without frontmatter changes leave future audits unable to detect staleness.
+
+### Origin
+
+Two recurring patterns in production:
+
+1. Plan body text said "shipped" but frontmatter status stayed `APPROVED` → audit dispatch flagged plan as still pending → wasted investigation cycles.
+2. Spec body added new API routes but `api_routes:` frontmatter list wasn't extended → other agents loading the spec by route name missed the addition.
+
+Both promoted to same-turn ABSOLUTE per `spec-as-you-go.md`.
+
+**Warn-only — operation proceeds.**
