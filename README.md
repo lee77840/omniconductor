@@ -49,6 +49,8 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 ### 빠른 시작 — 5분
 
+> 가장 간단(클론 불필요): `npx omniconductor init --target=claude .` — 아래는 클론+bash 방식입니다.
+
 ```bash
 # 1. CONDUCTOR 클론
 git clone https://github.com/lee77840/omniconductor ~/conductor
@@ -100,6 +102,8 @@ Three layers:
 
 ### Quick Start (5 minutes, Claude)
 
+> Simplest (no clone): `npx omniconductor init --target=claude .` — the clone+bash steps below are equivalent.
+
 ```bash
 git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
@@ -136,31 +140,23 @@ Full per-feature matrix: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-M
 
 ## Install paths
 
-There are **three install paths**, listed in order of recommendation. Use Path B today; Path A is roadmap.
+There are three install paths. **`npx omniconductor` (Path A) is the easiest — no clone needed.**
 
-### Path A — Marketplace install (Phase 2 — v0.3.0)
+### Path A — `npx omniconductor` (npm — recommended, works today)
 
-> **Status**: extension code shipped under [`phase-2/vscode-extension/`](./phase-2/vscode-extension/) (v0.3.0, ADR-025). First marketplace upload pending — see [`docs/PUBLISH-GUIDE.md`](./docs/PUBLISH-GUIDE.md). Once published, install via:
-
-**VSCode users** — VSCode Marketplace:
-
-1. Cmd/Ctrl+Shift+X → search **"Conductor"** → **Install**.
-2. Cmd/Ctrl+Shift+P → **"Conductor: Install (auto-detect IDE)"** → pick adapter.
-
-**Cursor users** — Open VSX Registry (Cursor cannot pull from the Microsoft marketplace per Microsoft's ToS, see ADR-023):
-
-1. Cursor extensions panel (Open VSX-backed) → search **"Conductor"** → **Install**.
-2. Same Command Palette flow as above.
-
-**Prerequisites** (one-time): clone the Conductor repo so the extension can find the bash adapters:
+No clone required. Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor):
 
 ```bash
-git clone https://github.com/lee77840/omniconductor ~/.conductor
+# Install CONDUCTOR's workflow into your project — for any of the 6 tools:
+npx omniconductor init --target=claude ~/your-project --recipes=coding-conventions,tdd
+# targets: claude | cursor | copilot | gemini | codex | windsurf
+
+npx omniconductor list                                # list the 6 adapters
+npx omniconductor init --target=claude . --dry-run --no-prompt   # preview, writes nothing
+npx omniconductor init --target=claude . --uninstall             # revert
 ```
 
-Custom location? Set `conductor.repoPath` in extension settings. Windows users need either Git for Windows (Git Bash) or WSL2 — the extension auto-detects both per ADR-025.
-
-If you prefer to skip the extension, Path B (bash adapter) below is fully equivalent — the extension is a launcher, not a re-implementation.
+> **VSCode Marketplace extension** — a Cmd/Ctrl+Shift+P "install" launcher — is **NOT yet published**. It is optional future work (Phase 2 / v0.3; scaffold under [`phase-2/vscode-extension/`](./phase-2/vscode-extension/), procedure in [`docs/PUBLISH-GUIDE.md`](./docs/PUBLISH-GUIDE.md)). `npx omniconductor` and the bash adapter (Path B) already cover every install — the extension would only add a GUI button, and (per ADR-025) it still needs a local clone to run, so `npx` is the better path. Searching the Marketplace today will **not** find it.
 
 ### Path B — bash adapter (Phase 1 — recommended today)
 
