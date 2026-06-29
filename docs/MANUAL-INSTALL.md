@@ -216,7 +216,7 @@ applyTo: '**'
 ---
 ```
 
-> **Copilot CSV gotcha**: the `applyTo:` value MUST be a single quoted string. Array form `applyTo: ['a', 'b']` is silently ignored.
+> **Copilot CSV pitfall**: the `applyTo:` value MUST be a single quoted string. Array form `applyTo: ['a', 'b']` is silently ignored.
 
 ### Verification
 

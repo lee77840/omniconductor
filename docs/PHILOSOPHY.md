@@ -22,7 +22,7 @@ Every team starts with great docs. Six months later, the docs lie. New contribut
 
 ### 4. Two-stage review is cheap insurance.
 
-Stage A (local pre-commit) catches the dumb stuff before history records it. Stage B (PR pre-merge) provides an audit trail. Both run in seconds via specialized review agents (Claude) or rule reminders (other tools). Skip them once and you'll merge a regression you knew about.
+Stage A (local pre-commit) catches the obvious mistakes before history records it. Stage B (PR pre-merge) provides an audit trail. Both run in seconds via specialized review agents (Claude) or rule reminders (other tools). Skip them once and you'll merge a regression you knew about.
 
 ### 5. Token economy isn't optional.
 
@@ -34,7 +34,7 @@ Rules in `core/universal-rules/*` are universal: every agent in every situation.
 
 ### 7. Honest about limits beats appearing complete.
 
-CONDUCTOR will list, prominently, what each tool *cannot* do. Other multi-tool projects fudge this and call it "abstract over differences." Fudging causes user pain three weeks in when the magic stops working. Honest documentation up front means users pick the right tool for the job knowingly.
+CONDUCTOR will list, prominently, what each tool *cannot* do. Other multi-tool projects gloss over this and call it "abstract over differences." Glossing over it causes user pain three weeks in, when the abstraction breaks down. Honest documentation up front means users pick the right tool for the job knowingly.
 
 ### 8. Bilingual (한/영) is a first-class concern.
 

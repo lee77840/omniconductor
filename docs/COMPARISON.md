@@ -60,7 +60,7 @@ If you only want format conversion, you can write a 50-line script that reads `*
 ## Honest strengths
 
 - **Production pedigree.** Every rule earned through a real shipping incident at LFamily Labs. Not theoretical.
-- **Honesty over feature inflation.** ADR-004 says we will NOT fake sub-agents on Cursor. Other multi-tool projects fudge this.
+- **Honesty over feature inflation.** ADR-004 says we will NOT fake sub-agents on Cursor. Other multi-tool projects gloss over this.
 - **Bilingual moat.** Korean solo-dev community is meaningful and underserved.
 - **Apache 2.0, no telemetry, no paid tier — fully open and commercial-friendly.** Only the **CONDUCTOR** name is reserved (trademark), so nobody can pass off a modified copy as the original. Same permissive footing as MIT competitors, with brand protection (ADR-029).
 - **Small, opinionated kernel.** 5 universal rules vs GSD's 60 skills. If our rules are wrong for you, you'll know quickly and can move on. No 6-month sunk cost.

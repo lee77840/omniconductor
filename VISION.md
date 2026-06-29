@@ -81,7 +81,7 @@ CONDUCTOR is intentionally NOT:
 
 1. **Bilingual (한/영) is a moat.** All major competitors (GSD, SpecKit, BMAD, Cursor Rules) are English-first. Korean solo devs are a meaningful early-adopter pool with high willingness to share what works.
 2. **Production-pedigree.** Born from a real shipping project at LFamily Labs — every rule earned through an incident, not theorized in a blog post.
-3. **Honest about limits.** We will not pretend Cursor can do sub-agents. Other multi-tool projects fudge this; CONDUCTOR's documentation calls it out explicitly. That builds trust.
+3. **Honest about limits.** We will not pretend Cursor can do sub-agents. Other multi-tool projects gloss over this; CONDUCTOR's documentation calls it out explicitly. That builds trust.
 4. **Opinionated, light.** GSD has 60+ skills and is a maximalist superset. CONDUCTOR has 5 universal rules + 8 sub-agent definitions and is intentionally a small, opinionated kernel.
 
 ## Why this might fail
