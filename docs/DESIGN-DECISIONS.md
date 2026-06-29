@@ -8,7 +8,7 @@ ADR-style decision records. Each entry: Status / Context / Decision / Consequenc
 
 **Status**: Accepted (2026-05-03, v0.2 foundation reset).
 
-**Context**: v0.1 hard-coded a Claude-only output. Adding multi-tool support by retrofitting adapter logic alongside Claude-shaped templates would have made every change a 2-place edit. The user explicitly asked for direction-setting "방향성잡고 문서작업 빡시게해놓고" before any code — implying clean architectural separation, not glued-on extension.
+**Context**: v0.1 hard-coded a Claude-only output. Adding multi-tool support by retrofitting adapter logic alongside Claude-shaped templates would have made every change a 2-place edit. The user explicitly asked to set the architectural direction and establish thorough documentation before writing any code — implying clean architectural separation, not glued-on extension.
 
 **Decision**: Three layers with single responsibility each.
 - **Layer 1 (`core/`)** — universal, tool-agnostic source-of-truth. Plain markdown, zero tool references.
