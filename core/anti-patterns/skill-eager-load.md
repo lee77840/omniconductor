@@ -65,7 +65,7 @@ In a 50-Read session those modifiers alone account for 10-30K tokens of cache-wr
 
 2. **Path-scoped auto-injection** (per `meta-discipline.md` §5.6): when a tool offers path-triggered skills, ensure the path glob is *narrow*. The reference project pays for `<web-app>/app/**` triggering 3 skills because that glob is broad. Narrowing to `<web-app>/app/api/**/route.ts` (Next.js route handlers only) reduces trigger frequency by ~80%.
 
-3. **MCP gateway / lazy-load proxy**: when many MCP servers are registered, route them through a lazy-loading proxy so only the tool *names* enter the prefix, with full schemas fetched on first use. Reference: `meta-discipline.md` §5.5.
+3. **Deferred tool loading** (per `meta-discipline.md` §5.5): when many tools / MCP servers are registered, load only tool *names* into the prefix and fetch full schemas on first use. On the Claude API this is the **Tool Search Tool** — set `defer_loading: true` per tool or on an `mcp_toolset`; Anthropic reports "over 85%" reduction in tool-definition context while preserving the prompt cache (a typical five-server MCP setup otherwise costs ~55K tokens in definitions before any work). At least one tool must stay non-deferred. Where no such API exists, route MCP servers through a lazy-loading gateway proxy to the same effect.
 
 **Conductor's deferred-tool pattern**: this session uses `ToolSearch` to fetch tool schemas only when needed. That is the canonical example — tool names are visible in system reminders, but invoking a tool requires fetching its schema first. The same principle generalizes to skills.
 

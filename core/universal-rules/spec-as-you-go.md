@@ -63,7 +63,19 @@ When work is committed and pushed, the orchestrator MUST update the following do
 
 When a task in CURRENT_WORK.md or TASKS.md is moved to status `completed`, it should be DELETED in the next session boundary, not left as historical clutter. The session log itself is the historical record. CURRENT_WORK.md is for what is current, not what was done last week. (Full rule: `operations.md` section 2.)
 
-### 2.2 What the orchestrator does NOT update
+### 2.2 Referenced-fact currency — update EVERY place a changed fact lives
+
+When a change alters a fact that other docs also state — a count ("7 anti-patterns"), an enumerated list (a catalog index, a table of files / recipes / tiers), a version or price, a cross-reference, or a renamed path — the same-turn sync includes **every** doc that repeats that fact, not only the file you edited. A value that is true in one file and stale in three others is a documentation bug; the reader trusts whichever file they open first, so a half-updated fact is worse than an obviously-old one.
+
+The mechanic (before declaring the turn complete):
+
+1. **Grep for the old value** — the old count, the removed name, the renamed path. Every hit is a candidate to update, or to *consciously* leave (e.g. a dated historical milestone entry, which stays as a record).
+2. **If the change has no home, give it one.** A new decision / mechanism / guarantee that no existing doc states must be recorded: extend the most relevant doc, or CREATE a new one and register it in `docs/INDEX.md`. A change that is real but unrecorded is not done.
+3. **Architectural decisions additionally get an ADR** (`meta-discipline.md` R5 → `docs/DESIGN-DECISIONS.md`).
+
+Documented failure (this project): a catalog grew from 7 to 8 entries; the catalog's own index was updated but `CLAUDE.md`, `docs/INDEX.md`, and the changelog kept saying "7". Each was individually plausible and collectively wrong.
+
+### 2.3 What the orchestrator does NOT update
 
 - Session transcripts / chat exports — those are tool-specific and out of scope.
 - External tracker tickets (Jira / Linear / GitHub Issues) — those are explicit user actions, not auto-sync.

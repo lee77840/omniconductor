@@ -180,25 +180,59 @@ Full guide: the CONDUCTOR repo's `docs/PROMPT-CACHING-GUIDE.md` (not installed i
 
 ### 5.5 Tool description compression
 
-When > 30 tools are loaded, the description footprint becomes a measurable cost. Use deferred / lazy-loaded tool patterns where supported.
+Tool schemas (names, descriptions, JSON Schemas) are billed as input tokens on **every** request, plus a small per-model tool-use system prompt. A typical multi-MCP setup (e.g. a code host + a chat platform + an error tracker + a couple of observability servers) can consume ~55K tokens in definitions before any work begins.
+
+When many tools are loaded, use **deferred / lazy tool loading** so only tool *names* enter the prefix and full schemas are fetched on first use:
+
+- **Claude API**: the Tool Search Tool (`defer_loading: true` per tool, or on an `mcp_toolset`) — Anthropic reports "over 85%" reduction in tool-definition context while preserving the prompt cache. At least one tool must stay non-deferred.
+- **This session** already demonstrates the pattern via `ToolSearch`: tool names appear in system reminders, but invoking one requires fetching its schema first.
+
+See Anti-Pattern 07 (skill / MCP eager-load).
 
 ### 5.6 Touched-file rule scoping
 
 Use `paths:` (Claude) / `globs:` (Cursor) / `applyTo:` (Copilot) to scope rule files to the source areas they govern. A rule that fires only when a relevant file is touched is cheaper than a rule loaded into every turn.
 
-### 5.7 Auto-compact threshold
+### 5.7 Context reduction WITHOUT instruction loss
 
-When the conversation context approaches the model's window cap, summarize older turns into a compact note and free the budget. Some tools auto-compact at ~80%; others rely on the orchestrator to trigger it.
+When the window fills, there are two ways to free budget — and they are NOT equal on fidelity. The orchestrator MUST prefer the lossless one.
+
+- **Lossless (preferred) — drop stale tool results, not user turns.** Old tool outputs (file reads, command output, search hits) are the bulk of a bloated window and carry near-zero forward value once acted on. Clearing them frees budget without touching a single user instruction. On the Claude adapter this is the API context-editing feature (`clear_tool_uses`): it clears tool results / thinking blocks only and **never** user instructions or text messages. See `docs/CONTEXT-EDITING-GUIDE.md`.
+- **Lossy (last resort) — summarizing older turns.** Summarization / compaction (`/compact`, auto-compact near the window cap) compresses **everything, including the user's own turns**, so it can silently drop or distort the original instruction. Use only after lossless clearing is exhausted.
+
+**Compaction safeguards (mandatory whenever lossy compaction runs):**
+
+1. Keep durable instructions in the always-loaded rule / context file (CLAUDE.md / project rules), not in conversation history — they survive compaction because they are re-loaded every turn.
+2. When you must compact, pass explicit preservation instructions (e.g. `/compact keep the original task statement, acceptance criteria, and open TODOs verbatim`).
+3. Between unrelated tasks, prefer a full reset (`/clear`) over letting the window bloat and then lossily compacting.
+4. After any compaction, re-verify the compacted note still carries the original instruction before continuing. If in doubt, ask the user to restate — never proceed on a possibly-distorted summary.
+
+Rationale: raw token count is a finite **attention budget**, and the goal is the *smallest set of high-signal tokens* — but never at the cost of the user's original intent. Stale tool results are the first thing to cut; user instructions are the last.
 
 ### 5.8 .ignorefile maintenance
 
 Each tool has its own ignore file (`.claudeignore`, `.cursorignore`, `.aiderignore`, etc.). Keep these in sync — they prevent expensive accidental Reads of build outputs, large lockfiles, or vendored code.
+
+### 5.9 Output brevity (output tokens cost ~5× input)
+
+Output tokens are priced far higher than input — roughly 5× across the current lineup (e.g. Opus 4.8 is $5 in / $25 out per MTok). The orchestrator's own responses are a directly controllable cost:
+
+- **Answer, don't narrate.** Skip preamble ("Great question! Let me…"), postamble, and restating what the user already said. Lead with the result.
+- **Match verbosity to the task.** A one-line answer for a one-line question; reserve tables and step-by-steps for genuinely multi-part work.
+- **Don't echo file bodies back.** After an edit, state what changed by reference — do not re-print the file.
+- **Cap bounded artifacts.** Use `max_tokens` (Claude adapter) when the expected output has a known ceiling.
+
+**Fidelity guard:** brevity trims *the model's prose*, never *required substance*. Do not drop a warning, a caveat, a failing-test result, or a step the user must act on in the name of being terse. When forced to choose, completeness beats brevity. (This trade-off caveat is CONDUCTOR discipline, not an Anthropic-documented rule.)
+
+See Anti-Pattern 08 (verbose output / narration).
 
 ---
 
 ## 6. Model Routing (M3)
 
 The orchestrator classifies every task and selects model tier explicitly. The user does NOT specify the model per request — that responsibility belongs to the orchestrator.
+
+> **Lineup / pricing snapshot** (verified 2026-07, $ per MTok input / output): Haiku 4.5 **$1 / $5** · Sonnet 5 **$3 / $15** · Opus 4.8 **$5 / $25** · Fable 5 **$10 / $50**. Output is ~5× input at every tier (see §5.9). The tier labels below are generation-agnostic on purpose — prices and model names drift, so re-verify against Anthropic's pricing page before quoting.
 
 ### 6.1 Tier 1 — Conceptual / complex (Opus-tier)
 
@@ -231,7 +265,9 @@ Trigger if any of:
 
 ### 6.4 Override rule of thumb
 
-> When in doubt, **upgrade one tier**. Cost difference is modest; risk of Sonnet misinterpreting conceptual work is large.
+> When in doubt, **upgrade one tier**. Cost difference is modest; risk of a weaker model misinterpreting conceptual work is large.
+
+This is a **fidelity** rule, not only cost caution. Anthropic's own tool-use guidance notes that on a missing required parameter, Opus "is much more likely to recognize a parameter is missing and ask," whereas a cheaper model "might also infer a reasonable value" — i.e. guess. On conceptual or instruction-dense work, a guess is instruction distortion. Route by fidelity risk, not by token price alone.
 
 ### 6.5 Surface the choice
 

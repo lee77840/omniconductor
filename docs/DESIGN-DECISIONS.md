@@ -1074,3 +1074,46 @@ This couples the SQL hookify rules to the `database-discipline` recipe: select t
 **Alternatives considered**:
 - *Force-port all guards to all five tools now.* Rejected — 15 translations, most low-value (soft-warns), several UNVERIFIED, blocked by the config-merge issue.
 - *Build a bash JSON-merge helper first.* Deferred — real infrastructure work whose only current consumer is a low-value guard; revisit when a second always-on non-Claude hook is needed.
+
+---
+
+## ADR-035 — Instruction-fidelity-first context reduction (lossless before lossy)
+
+**Status**: Accepted (2026-07-05)
+
+**Context**: An audit of CONDUCTOR's token-economy assets (anti-pattern catalog, `meta-discipline.md` §5–6, `PROMPT-CACHING-GUIDE.md`, the token hooks) found that nearly every mechanism is pure raw token reduction, and the single mechanism that risks distorting the user's original instructions — §5.7 "auto-compact threshold" — shipped with **no safeguard** for preserving instructions through summarization. A primary-source verification pass (2026-07-05, Anthropic docs + engineering blog + the *Lost in the Middle* TACL 2024 paper) confirmed: (a) lossy summarization/compaction compresses the user's own turns and can silently drop the ask; (b) Anthropic's **API context editing** (`clear_tool_uses_20250919`, beta header `context-management-2025-06-27`) clears tool results / thinking blocks only and **never** user instructions or text messages, with a measured ~84% token reduction on a 100-turn eval; (c) recall degrades in the middle of long context ("context rot" / finite "attention budget"), so cutting stale tokens is genuinely valuable — but only if the user's intent is not among what is cut.
+
+**Decision**: Adopt an explicit **lossless-before-lossy** ordering for context reduction, and treat instruction fidelity as the hard constraint that ranks the reducers:
+
+1. Rewrite `meta-discipline.md` §5.7 from a bare "auto-compact" note into a two-tier rule: **lossless first** (drop stale tool results, never user turns), **lossy last** (summarization/compaction), with four mandatory compaction safeguards — durable instructions live in CLAUDE.md/rules (survive compaction), pass explicit `/compact` preservation instructions, prefer `/clear` between unrelated tasks, and re-verify the compacted note still carries the original instruction before continuing.
+2. Add `docs/CONTEXT-EDITING-GUIDE.md` (Claude-only, parallel to `PROMPT-CACHING-GUIDE.md`) documenting the context-editing mechanism, its fidelity guarantee, the memory-tool pairing, and the `/compact` vs `/clear` levers, all with primary-source citations.
+
+The universal rule states the tool-agnostic *principle* (cut stale tool output first, user instructions last); the concrete lossless *mechanism* is Claude-API-only and is documented in the adapter-scoped guide, consistent with R3 (Claude-only features stay out of universal rule bodies) and the honest per-tool degradation already used for prompt caching.
+
+**Consequences**: The one [RAW/RISK] mechanism in the token-economy layer now has a fidelity safeguard. Non-Claude adapters inherit the principle via rule text but not the lossless API mechanism (no equivalent exists today) — recorded honestly in the guide's parity table. This is the P0 slice of a larger token-economy refresh; P1/P2 candidates (output-brevity directive, Tool Search Tool `defer_loading`, sub-agent total-vs-lead-context framing correction, model-lineup/pricing refresh, attention-budget rationale on the monolithic-rule anti-pattern) are deferred to follow-up ADRs.
+
+**Alternatives considered**:
+- *Put context-editing guidance in a universal recipe.* Rejected — the mechanism is Claude-API-only, so a tool-agnostic recipe would overpromise; the `docs/` adapter-scoped guide (matching `PROMPT-CACHING-GUIDE.md`) is the honest home.
+- *Add a "never-compact / pin the original task" hook.* Deferred — no such API primitive exists; the CLAUDE.md-durability + re-verify discipline achieves the same outcome without inventing enforcement CONDUCTOR can't back.
+
+---
+
+## ADR-036 — Token-economy refresh P1/P2 (output brevity, deferred tools, sub-agent framing, model/pricing, attention-budget)
+
+**Status**: Accepted (2026-07-05)
+
+**Context**: ADR-035 shipped the P0 fidelity slice and deferred the remaining audit findings. The same primary-source verification pass (Anthropic docs + engineering blog, verified 2026-07) confirmed five more gaps, each now closed on the same branch: (1) the layer tracked output tokens as a *symptom* in KPI but gave **no directive** to be terse, despite output pricing ~5× input; (2) `meta-discipline.md` §5.5 referenced "deferred tool patterns" only abstractly, while Anthropic shipped a concrete **Tool Search Tool** (`defer_loading`, "over 85%" tool-context reduction, ~55K-token multi-MCP baseline); (3) the `no-sub-agent-dispatch` anti-pattern framed dispatch as a token *saver*, but Anthropic's own figures (agents ~4× chat tokens, multi-agent ~15×) show dispatch **raises total tokens** and only saves the *lead's* context; (4) §6 model tiers cited no current lineup/pricing and missed the fidelity evidence that cheaper models guess missing params where Opus asks; (5) the `single-monolithic-rule-file` anti-pattern explained cost but not the fidelity axis (attention budget / context rot / "minimal ≠ short").
+
+**Decision**: Land all five as content refinements, keeping every claim tied to a primary source and every fidelity caveat that is CONDUCTOR's own inference labelled as such:
+
+1. **New `meta-discipline.md` §5.9 (output brevity)** + **new Anti-Pattern 08 (`output-verbosity-narration`)** — answer-first, no re-printed file bodies, right-sized format, `max_tokens`; with an explicit fidelity guard (brevity never drops required substance).
+2. **§5.5 rewrite** — concrete Tool Search Tool `defer_loading` mechanism + numbers; mirrored into Anti-Pattern 07's fix.
+3. **`no-sub-agent-dispatch` §2.1** — honest caveat: dispatch is a context-isolation + fidelity win, not a total-token saver; when NOT to dispatch (shared context / tight dependencies).
+4. **§6 lineup/pricing snapshot** (Haiku 4.5 $1/$5 · Sonnet 5 $3/$15 · Opus 4.8 $5/$25 · Fable 5 $10/$50) + **§6.4 recast as a fidelity rule** (Opus asks on missing params, cheaper models guess = distortion).
+5. **`single-monolithic-rule-file` §2.1** — second axis: attention-budget/context-rot dilution + the cache-first-vs-attention-middle placement tension.
+
+**Consequences**: The token-economy layer now covers the output side (previously only tracked, never governed) and states the *fidelity* rationale behind rules that were previously justified on cost alone. Model names/prices are a dated snapshot with a re-verify note (tier labels stay generation-agnostic so the rule doesn't rot). No new enforcement/hooks — all changes are rule-text + catalog, so all six adapters inherit them via `transform.sh` with no Claude-only surface beyond the already-Claude-only Tool Search Tool citation.
+
+**Alternatives considered**:
+- *Fold P1/P2 into ADR-035.* Rejected — ADR-035 accurately scoped itself to the P0 fidelity slice; a separate ADR keeps the decision history honest about what shipped when.
+- *Add an output-token guard hook.* Deferred — output length is a soft-discipline concern; a Stop-hook that scolds on high output tokens is possible but low-value versus the rule text, and would be Claude-only. Revisit if KPI shows output-token regressions in practice.

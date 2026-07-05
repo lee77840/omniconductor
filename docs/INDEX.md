@@ -46,7 +46,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/recipes/debugging.md` | Root-cause-first debugging discipline. |
 | `core/recipes/database-discipline.md` | Migration-first schema changes + access control + dev/prod parity. |
 | `core/recipes/design-system.md` | Design-token adherence, component reuse, accessibility. |
-| `core/anti-patterns/README.md` | The 7 token-waste anti-pattern catalog index + how to use in code review. |
+| `core/anti-patterns/README.md` | The 8 token-waste anti-pattern catalog index + how to use in code review. |
 | `core/anti-patterns/large-file-read-no-range.md` | Reading whole files instead of Grep + range-read. |
 | `core/anti-patterns/single-monolithic-rule-file.md` | One giant rule file instead of lazy-loaded bundles. |
 | `core/anti-patterns/no-sub-agent-dispatch.md` | Doing everything in the main thread instead of dispatching. |
@@ -54,6 +54,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/anti-patterns/frequent-rule-file-edit.md` | Editing rule files mid-session (cache invalidation). |
 | `core/anti-patterns/skill-eager-load.md` | Loading skills / context that isn't needed yet. |
 | `core/anti-patterns/tool-call-spam.md` | Many small tool calls instead of batched / structured ones. |
+| `core/anti-patterns/output-verbosity-narration.md` | Over-explaining / re-printing files — output tokens cost ~5× input. |
 | `core/hooks/README.md` | Hook template overview (7 templates). |
 | `core/hooks/pretool-agent-routing.sh.template` | PreToolUse — validate Agent dispatch. |
 | `core/hooks/pretool-commit-current-work-check.sh.template` | PreToolUse — block commit when CURRENT_WORK is stale. |
@@ -106,6 +107,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/GO-TO-MARKET.md` | Internal launch strategy. |
 | `docs/CONDUCTOR-V0.2-DESIGN.md` | P0.5 comprehensive design (1579 lines, 12 Open Questions). |
 | `docs/PROMPT-CACHING-GUIDE.md` | **P1 ✅** Anthropic prompt caching structure + measurement. |
+| `docs/CONTEXT-EDITING-GUIDE.md` | Instruction-fidelity-first context reduction — lossless `clear_tool_uses` before lossy `/compact` (Claude-only, ADR-035). |
 | `docs/KPI.md` | **P1.5 ✅** Baseline metrics (cache hit 100%, output tokens/turn, etc.). |
 | `docs/MANUAL-INSTALL.md` | Path C — fallback manual `cp` / `cat` install for any tool (every tool now also has a `transform.sh`; manual steps are a fallback). |
 | `docs/PUBLISH-GUIDE.md` | VSCode Marketplace + Open VSX publish steps (Phase 2 / v0.3+, ADR-025). |

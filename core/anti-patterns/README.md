@@ -8,6 +8,7 @@ linked_rules:
   - workflow (W2 docs-first, W4 7-step)
 linked_docs:
   - docs/PROMPT-CACHING-GUIDE.md
+  - docs/CONTEXT-EDITING-GUIDE.md
   - docs/KPI.md
 ---
 
@@ -28,6 +29,7 @@ CONDUCTOR's universal rules describe the *correct* patterns. This catalog descri
 | 05 | [Frequent rule-file edits](frequent-rule-file-edit.md) | MEDIUM | -20% to -40% / week | > 3 rule-file commits per week |
 | 06 | [Tool-call spam](tool-call-spam.md) | MEDIUM | latency + output spike | tool calls / turn > 1.5 |
 | 07 | [Skill / MCP eager-load](skill-eager-load.md) | MEDIUM | prefix bloat, hidden multipliers | 30+ eager skills or broad path triggers |
+| 08 | [Verbose output / narration](output-verbosity-narration.md) | MEDIUM | output-cost, not cache-hit | output tokens/turn > 1200 with few tool calls |
 
 Severity legend (estimated impact on cache hit rate, derived from Anthropic prompt-caching cost model + P1.5 baseline):
 - **HIGH** ≈ -50% or more
@@ -51,7 +53,7 @@ When efficiency feels off — costs creeping up, latency climbing, sessions gett
    |---|---|---|
    | Cache hit rate | ≥ 95% | < 90% — start at Anti-Pattern 01 |
    | Tool calls / turn | ≤ 0.8 | > 1.2 — start at Anti-Pattern 06 |
-   | Output tokens / turn | ≤ 800 | > 1200 — Anti-Pattern 04 + 06 likely |
+   | Output tokens / turn | ≤ 800 | > 1200 — Anti-Pattern 04 + 06 + 08 likely |
    | Cache-write / session | ≤ 30M | > 50M — Anti-Pattern 02 + 03 + 07 likely |
    | Dispatches / session | 30-150 | 0 on a multi-feature session — Anti-Pattern 04 |
 
@@ -62,7 +64,7 @@ When efficiency feels off — costs creeping up, latency climbing, sessions gett
    | Cache hit rate dropped this week, no other change | 01, 05 |
    | Session JSONL ballooning past 100MB | 02, 04, 07 |
    | Latency creeping per turn over the session | 02, 04 |
-   | High output cost on apparently simple tasks | 04, 06 |
+   | High output cost on apparently simple tasks | 04, 06, 08 |
    | First-turn cost (before user types anything) is large | 03, 07 |
    | Cache hit rate fine inside session but resets each new session | 05 |
 
@@ -76,6 +78,7 @@ When efficiency feels off — costs creeping up, latency climbing, sessions gett
 - **CONDUCTOR P1.5 baseline** (`docs/KPI.md`, 2026-05-07) — 8 sessions on a single active project, 100% cache hit rate ceiling, avg 0.61 tool calls / turn, avg 27.4M cache-write / session.
 - **`core/universal-rules/meta-discipline.md` §5** — token economy rules (Read discipline, hidden injection, dispatch budget, cache-friendly prompt order, tool description compression, touched-file rule scoping).
 - **`docs/PROMPT-CACHING-GUIDE.md`** — full Claude-adapter caching guide.
+- **`docs/CONTEXT-EDITING-GUIDE.md`** — instruction-fidelity-first context reduction (lossless `clear_tool_uses` before lossy `/compact`).
 
 The reference project measured in `KPI.md` is one specific monorepo (the originating workspace). Numbers in catalog entries are *estimates anchored to that baseline*. Other projects will see different absolute numbers but the same *direction* — the anti-patterns degrade efficiency on every codebase.
 
@@ -115,6 +118,7 @@ CONDUCTOR universal rules가 *옳은* 패턴을 기술한다면, 이 카탈로�
 | 05 | [잦은 룰 파일 수정](frequent-rule-file-edit.md) | MEDIUM | 주당 -20% ~ -40% | 주 3회 이상 룰 파일 commit |
 | 06 | [tool-call 스팸](tool-call-spam.md) | MEDIUM | latency + output 폭증 | tool calls / turn > 1.5 |
 | 07 | [Skill / MCP eager-load](skill-eager-load.md) | MEDIUM | prefix bloat, 숨은 multiplier | eager skill 30개 초과 또는 광범위 path trigger |
+| 08 | [장황한 출력 / 나레이션](output-verbosity-narration.md) | MEDIUM | cache-hit 아닌 output 비용 | tool call 적은데 output tokens/turn > 1200 |
 
 ## 진단 워크플로 (요약)
 

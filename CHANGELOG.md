@@ -3,6 +3,18 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added — Token-economy: instruction-fidelity-first
+- **Lossless-before-lossy context reduction** — `meta-discipline.md` §5.7 rewritten to prefer clearing stale tool results (never touches user instructions) over lossy summarization, with four mandatory compaction safeguards (durable instructions in CLAUDE.md, explicit `/compact` preservation, `/clear` between tasks, re-verify after compaction). New `docs/CONTEXT-EDITING-GUIDE.md` (Claude-only) documents the API context-editing mechanism + memory tool, primary-source cited. — **ADR-035**.
+- **Output brevity** — new `meta-discipline.md` §5.9 + **Anti-Pattern 08 (`output-verbosity-narration`)**: answer-first, no re-printed file bodies, right-sized format (output is ~5× input), with an explicit fidelity guard. Anti-pattern count **7 → 8**. — **ADR-036**.
+
+### Changed
+- **`meta-discipline.md` §5.5** — concrete Tool Search Tool `defer_loading` guidance (>85% tool-context reduction); mirrored into Anti-Pattern 07.
+- **`meta-discipline.md` §6** — current model lineup/pricing snapshot; §6.4 recast as a fidelity rule (cheaper models guess missing params where Opus asks). — **ADR-036**.
+- **Anti-Pattern 04 (`no-sub-agent-dispatch`)** — honest caveat: dispatch saves the *lead's* context and improves fidelity via isolation, but *raises* total tokens (~4×/15×). — **ADR-036**.
+- **Anti-Pattern 03 (`single-monolithic-rule-file`)** — adds the fidelity axis (attention-budget / context-rot dilution, "minimal ≠ short", cache-vs-attention placement). — **ADR-036**.
+
 ## [0.3.0] — 2026-07-05
 
 ### Added — Self-improvement / Reflector (opt-in, propose-only)

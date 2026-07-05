@@ -47,6 +47,15 @@ Without dispatch:
 
 **Reference data** (Conductor P1.5 baseline): the two largest sessions (219MB + 187MB) both contained heavy in-thread work; smaller sessions with active dispatch use stayed under 70MB. Avg dispatches/session = 104.6. The recommended P2 target is -25% dispatch *frequency* (batch related work) but the *anti-pattern* of zero dispatch is far more costly than over-dispatch.
 
+### 2.1 Honest caveat — dispatch saves the *lead's* context, not the *total* token bill
+
+Dispatch is a **context-isolation** win, not a raw total-token saver. Anthropic's own multi-agent reporting is explicit: single agents use ~4× the tokens of a chat interaction, and multi-agent systems ~15× — because every dispatched agent runs its own context window and reasoning. What dispatch buys is:
+
+- a **lean leader context** (only the 0.5–2K summary returns, so the cacheable main thread stays small), and
+- **higher fidelity** (the verbose intermediate state that would dilute the leader's attention budget stays quarantined in the sub-agent).
+
+So dispatch when the *value of isolation* (a clean leader + focused attention) exceeds the *added total token cost* — i.e. verbose, self-contained subtasks. Do NOT dispatch work that needs the leader's full shared context or has tight back-and-forth dependencies: there the coordination overhead and duplicated context make a single thread both cheaper and more faithful. (Anthropic: tasks requiring "all agents to share the same context" or with "many dependencies between agents" are a poor fit; "most coding tasks involve fewer truly parallelizable tasks than research.")
+
 ## 3. Detection
 
 **Quantitative**:

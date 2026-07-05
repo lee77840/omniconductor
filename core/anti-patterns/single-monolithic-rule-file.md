@@ -41,7 +41,14 @@ The file IS cacheable, so cache hit rate stays high. The damage is on a differen
 
 Conductor's P1.5 baseline shows avg cache-write per session = 27.4M tokens. The P2 target is -30% (to ~19M) — most of that reduction comes from splitting the monolithic file.
 
-## 3. Detection
+### 2.1 The second axis — it also degrades fidelity, not just cost
+
+Cache-write is the measurable cost. The subtler damage is to **instruction fidelity**. Every token in the window draws down a finite *attention budget*; Anthropic's context-engineering guidance is explicit that "as the number of tokens in the context window increases, the model's ability to accurately recall information from that context decreases" (context rot). A 1,800-line rule file carrying 1,400 lines irrelevant to the current task doesn't just cost more — it **dilutes the model's attention across noise**, making it measurably likelier to miss or misapply the rules that *do* matter this turn.
+
+Two corollaries:
+
+- **"Minimal" ≠ "short".** The target is "the smallest set of *high-signal* tokens" — a complete rule stated once beats an exhaustive rule stated three times. Trim redundancy and irrelevance, not necessary substance.
+- **Placement note (fidelity vs cache tension).** Prompt caching wants stable content (rules, CLAUDE.md) *first* in the prefix for cache-prefix matching (`PROMPT-CACHING-GUIDE.md`). Long-context recall, meanwhile, is strongest at the very start and very end and weakest in the middle ("lost in the middle"). These don't conflict if the prefix stays lean: the active per-turn instruction is the user's latest message, which already sits at the end. But a bloated rule prefix pushes the genuinely-relevant scoped rules into the low-attention middle — another reason to path-scope (§4) rather than pile everything into one always-loaded file.
 
 ```bash
 # Find oversized rule files
