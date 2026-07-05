@@ -26,10 +26,8 @@ set -u
 # Banned tokens — reference-adopter-specific names that must not appear in framework body.
 # Vendor names in legitimate framework context (e.g., "Anthropic" in PROMPT-CACHING-GUIDE)
 # are kept by excluding the prompt-caching guide from the scan paths above.
+# Generic stack/path tokens (public products — safe to keep in the shipped checker).
 BANNED=(
-  "Mile Mind"
-  "milemind"
-  "getmilemind"
   "apps/web"
   "apps/mobile"
   "Stripe"
@@ -39,10 +37,17 @@ BANNED=(
   "Vercel"
   "Sentry"
   "Postmark"
-  "sodam"
-  "sangyoublee"
-  "milemind.lfamily"
 )
+
+# The reference-product name + personal identifiers live in a PRIVATE-only file
+# (.purity-banned-private) that is NOT synced to the public mirror nor shipped to npm.
+# Load them at runtime when present (private working repo) so the scan still catches them.
+_priv="$(dirname "$0")/../.purity-banned-private"
+if [ -f "$_priv" ]; then
+  while IFS= read -r _t || [ -n "$_t" ]; do
+    case "$_t" in ''|'#'*) : ;; *) BANNED+=("$_t") ;; esac
+  done < "$_priv"
+fi
 
 # Scan paths — framework body only.
 SCAN_PATHS=(

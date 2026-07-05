@@ -43,7 +43,7 @@
 #     - GEMINI.md exists, non-empty
 #     - all 5 universal-rule sections present (distinctive markers)
 #     - no unsubstituted ${...} template placeholders (outside code fences)
-#     - no reference-product leakage (Mile Mind / 마일마인)
+#     - no reference-product leakage (tokens from .purity-banned-private; private repo only)
 #     - if .gemini/styleguide.md exists, it must be non-empty
 #
 #   codex:
@@ -194,9 +194,16 @@ unsubstituted_placeholder() {
   ' "$1"
 }
 
-# Detect reference-product leakage. Prints the matching line or empty if clean.
+# Detect reference-product leakage. Tokens come from the PRIVATE-only .purity-banned-private
+# (not synced to the public mirror / npm); if absent (public repo), this is a no-op.
+# Prints the matching line or empty if clean.
 leakage_scan() {
-  grep -nE 'Mile Mind|마일마인' "$1" 2>/dev/null | head -1 || true
+  local priv pat
+  priv="$(dirname "$0")/../.purity-banned-private"
+  [ -f "$priv" ] || return 0
+  pat="$(grep -vE '^#|^[[:space:]]*$' "$priv" | paste -sd'|' -)"
+  [ -n "$pat" ] || return 0
+  grep -nE "$pat" "$1" 2>/dev/null | head -1 || true
 }
 
 # Check that a file contains all 5 universal-rule sections by distinctive markers.
