@@ -5,15 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-05
+
 ### Added — Token-economy: instruction-fidelity-first
 - **Lossless-before-lossy context reduction** — `meta-discipline.md` §5.7 rewritten to prefer clearing stale tool results (never touches user instructions) over lossy summarization, with four mandatory compaction safeguards (durable instructions in CLAUDE.md, explicit `/compact` preservation, `/clear` between tasks, re-verify after compaction). New `docs/CONTEXT-EDITING-GUIDE.md` (Claude-only) documents the API context-editing mechanism + memory tool, primary-source cited. — **ADR-035**.
 - **Output brevity** — new `meta-discipline.md` §5.9 + **Anti-Pattern 08 (`output-verbosity-narration`)**: answer-first, no re-printed file bodies, right-sized format (output is ~5× input), with an explicit fidelity guard. Anti-pattern count **7 → 8**. — **ADR-036**.
+- **Referenced-fact currency rule** — `spec-as-you-go.md` §2.2: when a change alters a fact other docs state (a count / list / table / version / cross-reference), grep for the old value and update **every** place in the same turn, or record a new fact that has no home.
+- **npm now ships the guides** — `docs/PROMPT-CACHING-GUIDE.md` + `docs/CONTEXT-EDITING-GUIDE.md` added to the package `files` allowlist (the token-economy rules reference them).
 
 ### Changed
 - **`meta-discipline.md` §5.5** — concrete Tool Search Tool `defer_loading` guidance (>85% tool-context reduction); mirrored into Anti-Pattern 07.
 - **`meta-discipline.md` §6** — current model lineup/pricing snapshot; §6.4 recast as a fidelity rule (cheaper models guess missing params where Opus asks). — **ADR-036**.
 - **Anti-Pattern 04 (`no-sub-agent-dispatch`)** — honest caveat: dispatch saves the *lead's* context and improves fidelity via isolation, but *raises* total tokens (~4×/15×). — **ADR-036**.
 - **Anti-Pattern 03 (`single-monolithic-rule-file`)** — adds the fidelity axis (attention-budget / context-rot dilution, "minimal ≠ short", cache-vs-attention placement). — **ADR-036**.
+- **README brought to current 0.4.0 state** — tool-coverage matrix corrected to *tool-capability vs CONDUCTOR-emission* (all six tools ship hooks / sub-agents / model routing; only emission is Claude-only today — ADR-031); status line, recipe counts, and the self-improvement + token-economy features surfaced.
+- **Public-facing URLs** — README clone commands and `package.json` `repository` / `homepage` / `bugs` now point to the public repo (`omniconductor`) instead of the private working repo, so npm and public-README users get working links.
 
 ## [0.3.0] — 2026-07-05
 
