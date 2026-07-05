@@ -6,7 +6,11 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v0.2.x — 2026-06-28)**: All 6 adapters now ship a working `transform.sh` — **Claude Code (full: rules + hooks + sub-agents)**, **Cursor (rules + lazy load)**, **GitHub Copilot (rules across 5 IDEs via single install)**, **Gemini CLI (`GEMINI.md` + `.gemini/styleguide.md`)**, **Codex (`AGENTS.md`)**, **Windsurf (`.windsurfrules` + `.devin/rules/*.md`)**. Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install in [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) remains as a fallback. Marketplace listing (VSCode Marketplace + Open VSX) is **Phase 2 / v0.3+** — see ADR-023.
+> **Status (v0.3.0 — 2026-07-05)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+>
+> **New in 0.3.0**: an opt-in **self-improvement / Reflector loop** — reads session trajectories + git and *proposes* lessons-learned (propose-only), emitted on all six tools (`--recipes=self-improvement`; ADR-030/032/033) — plus a first-party-verified **compatibility-matrix correction**: all six tools now ship hooks / sub-agents / per-task model routing, retiring the old "Claude-only" view (ADR-031). **Latest (unreleased)**: instruction-fidelity-first token economy — lossless context editing before lossy compaction + output-brevity discipline (ADR-035/036, [`docs/CONTEXT-EDITING-GUIDE.md`](./docs/CONTEXT-EDITING-GUIDE.md)). Full history: [`CHANGELOG.md`](./CHANGELOG.md).
+>
+> Marketplace listing (VSCode Marketplace + Open VSX) remains **Phase 2** (post-0.3) — see ADR-023.
 
 ---
 
@@ -37,7 +41,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 - **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 문서 템플릿, 4-type 메모리 패턴
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules`)
-- **Layer 3 — Tool-native (정직한 한계)**: Sub-agent dispatch, hooks API, lazy-load 룰 같은 Claude 전용 기능은 다른 도구에서 재현하지 않고 정직하게 문서화
+- **Layer 3 — Tool-native (정직한 한계)**: 2026년 기준 6개 도구 모두 hooks·sub-agent·per-call model routing 을 **지원**한다 (ADR-031). 다만 CONDUCTOR 어댑터가 이를 실제로 **emit 하는 건 현재 Claude 뿐** (나머지는 Phase 2). "도구가 못 함"이 아니라 "CONDUCTOR emission gap" 임을 정직하게 문서화 — ADR-004 / ADR-031. (Windsurf 는 session/stop hook 이벤트가 없는 유일한 실제 예외.)
 
 ### 강제하는 워크플로
 
@@ -53,7 +57,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 ```bash
 # 1. CONDUCTOR 클론
-git clone https://github.com/lee77840/conductor_lfamily ~/conductor
+git clone https://github.com/lee77840/omniconductor ~/conductor
 
 # 2. 적용할 프로젝트로 이동
 cd ~/your-project
@@ -84,7 +88,7 @@ Three layers:
 
 - **Layer 1 (`core/`) — Universal**: tool-agnostic workflow definitions, rule text, doc templates, 4-type memory pattern.
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: per-tool transform script that reads `core/` and writes tool-native files.
-- **Layer 3 — Tool-native (honest limits)**: Claude-Code-only features (sub-agent dispatch, hooks API, per-call model routing) are NOT polyfilled on other tools. ADR-004 documents this honesty principle.
+- **Layer 3 — Tool-native (honest limits)**: as of 2026 **all six tools ship hooks, sub-agents, and per-call model routing** (ADR-031) — but CONDUCTOR's adapters currently *emit* them for **Claude only** (the rest is Phase 2). The honest limit is CONDUCTOR's emission gap, not a tool limitation, and nothing is fake-polyfilled. See ADR-004 / ADR-031. (Windsurf / Devin Desktop is the one real exception — no session/stop hook events.)
 
 ### Why this exists
 
@@ -105,7 +109,7 @@ Three layers:
 > Simplest (no clone): `npx omniconductor init --target=claude .` — the clone+bash steps below are equivalent.
 
 ```bash
-git clone https://github.com/lee77840/conductor_lfamily ~/conductor
+git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
 bash ~/conductor/adapters/claude/transform.sh . \
   --recipes=monorepo,coding-conventions \
@@ -121,20 +125,27 @@ Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](
 
 ## Tool coverage matrix
 
-| Tool | Adapter | Rules | Hooks | Sub-agents | Model routing | Recommended install |
-|---|---|---|---|---|---|---|
-| **Claude Code** | ✅ Full (`adapters/claude/`) | ✅ lazy load | ✅ Stop / PreToolUse | ✅ 6 named agents | ✅ per-call `model:` | `bash adapters/claude/transform.sh <target>` |
-| **Cursor** | ✅ Full (`adapters/cursor/`) | ✅ lazy load (`.mdc` globs) | ❌ | ❌ rule reminder only | ❌ | `bash adapters/cursor/transform.sh <target>` |
-| **GitHub Copilot** | ✅ Full (`adapters/copilot/`) | ✅ `applyTo:` scoping | ❌ | ❌ | ❌ | `bash adapters/copilot/transform.sh <target>` — 1 install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
-| **Gemini CLI** | ✅ Full (`adapters/gemini/`) | ✅ single bundle (`GEMINI.md`) | ❌ | ❌ | ❌ | `bash adapters/gemini/transform.sh <target>` (+ `.gemini/styleguide.md` opt-in) |
-| **Codex (OpenAI)** | ✅ Full (`adapters/codex/`) | ✅ single bundle (`AGENTS.md`) | ❌ | ❌ | ❌ | `bash adapters/codex/transform.sh <target>` |
-| **Windsurf** | ✅ Full (`adapters/windsurf/`) | ✅ baseline (`.windsurfrules`) + `.devin/rules/*` | ❌ | ❌ | ❌ | `bash adapters/windsurf/transform.sh <target>` |
+Separate two things (per [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md), re-verified against first-party sources 2026-07-04, ADR-031):
 
-Full per-feature matrix: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
+- **Tool capability** — as of 2026, **all six tools ship hooks, sub-agents, custom named agents, per-task model routing, and commands.** The old "these are Claude-only" view is out of date. (Windsurf / Devin Desktop is the one partial: it has hooks but no session/stop events.)
+- **CONDUCTOR emission** — what an adapter actually *compiles to today*. Claude emits the full set; every tool also emits the opt-in Reflector loop (ADR-032/033). Emitting the rest of the hook / agent set on the five non-Claude adapters is **Phase 2**.
 
-> **CLI wrapper**: `node bin/omniconductor.js init --target=<tool> <dir>` (and, once the package is published to npm, `npx omniconductor init --target=<tool> <dir>`) dispatches to these same adapter scripts — with `list`, `--dry-run`, `--recipes=`, and `--uninstall`.
+The columns below show **CONDUCTOR emission today** (⚠️ = the tool supports it, adapter emission is Phase 2 — a CONDUCTOR gap, not a tool limitation):
 
-> **What you keep going from Claude → other tools**: all rule text, all doc templates, the 4-type memory pattern, the workflow phase definitions. **What you lose**: auto-blocking hooks, per-call model routing, sub-agent dispatch. The discipline is portable; the enforcement is not.
+| Tool | Adapter (rules) | Hooks | Sub-agents | Model routing | Recommended install |
+|---|---|---|---|---|---|
+| **Claude Code** | ✅ Full, lazy load | ✅ emitted (Stop / PreToolUse) | ✅ emitted (6 named agents; 7 with `self-improvement`) | ✅ emitted (per-call `model:`) | `bash adapters/claude/transform.sh <target>` |
+| **Cursor** | ✅ Full, lazy load (`.mdc` globs) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design (ADR-004) | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/cursor/transform.sh <target>` |
+| **GitHub Copilot** | ✅ Full (`applyTo:` scoping) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/copilot/transform.sh <target>` — 1 install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
+| **Gemini CLI** | ✅ Full (`GEMINI.md`) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/gemini/transform.sh <target>` (+ `.gemini/styleguide.md` opt-in) |
+| **Codex (OpenAI)** | ✅ Full (`AGENTS.md`) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/codex/transform.sh <target>` |
+| **Windsurf / Devin Desktop** | ✅ Full (`.windsurfrules` + `.devin/rules/*`) | ⚠️ partial (no session/stop events) · emit Phase 2 | ⚠️ tool ✅ (Devin Local) · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/windsurf/transform.sh <target>` |
+
+Full per-feature matrix + first-party footnotes: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
+
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` (published to npm) — or `node bin/omniconductor.js init --target=<tool> <dir>` from a local clone — dispatches to these same adapter scripts, with `list`, `--dry-run`, `--recipes=`, and `--uninstall`.
+
+> **What you keep going Claude → other tools**: all rule text, doc templates, the 4-type memory pattern, the workflow phases, and the opt-in Reflector loop (emitted on all six). **What is still Claude-only in CONDUCTOR's *emission* today**: auto-blocking hooks, per-call model routing, sub-agent dispatch — a Phase-2 emission gap, **not** a tool limitation (the tools support them; Windsurf is the one real exception, for Stop-style hooks). The discipline is portable; the enforcement is becoming portable as adapter emission catches up.
 
 ---
 
@@ -165,7 +176,7 @@ Single command per tool. Adapter detects the target's existing state, runs an in
 #### Mac / Linux
 
 ```bash
-git clone https://github.com/lee77840/conductor_lfamily ~/conductor
+git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
 
 # Pick your tool:
@@ -179,7 +190,7 @@ bash ~/conductor/adapters/copilot/transform.sh  . --recipes=monorepo,coding-conv
 ```bash
 # 1. Install Git for Windows: https://git-scm.com/download/win
 # 2. Open Git Bash terminal
-git clone https://github.com/lee77840/conductor_lfamily /c/conductor
+git clone https://github.com/lee77840/omniconductor /c/conductor
 cd /c/Users/me/Projects/my-app
 
 bash /c/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
@@ -192,7 +203,7 @@ bash /c/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conve
 ```bash
 # Inside WSL2 Ubuntu — same commands as Mac/Linux
 wsl
-git clone https://github.com/lee77840/conductor_lfamily ~/conductor
+git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
 bash ~/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
 ```
@@ -278,7 +289,7 @@ Want weekly session self-review? YES → self-improvement
 | Web + mobile (single language) | `web-mobile-parity, coding-conventions` |
 | Multi-locale SaaS | `i18n, coding-conventions` |
 | Monorepo SaaS | `monorepo, coding-conventions` |
-| Full-stack (monorepo + multi-locale + web/mobile) | All 10 |
+| Full-stack (monorepo + multi-locale + web/mobile) | `monorepo, i18n, web-mobile-parity, coding-conventions` |
 
 ---
 
@@ -300,7 +311,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | `--force` | Bypass uninstall safety gates (active rebase/merge, missing manifest). |
 | `-h` `--help` | Print usage. |
 
-**Recipe names**: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`.
+**Recipe names** (11): `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`.
 
 #### File overwrite behavior
 
@@ -399,7 +410,7 @@ diff CLAUDE.md.conductor-backup-* CLAUDE.md
 
 #### "recipe not found" warning
 
-Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`.
+Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`.
 
 #### "Tool doesn't recognize the new rules"
 
@@ -413,7 +424,7 @@ chmod +x .claude/hooks/*.sh  # grant if missing
 # Restart Claude Code
 ```
 
-Hooks are a Claude-Code-only feature.
+All six tools now ship hooks (Windsurf / Devin Desktop is partial — no session/stop events; ADR-031). CONDUCTOR *emits* hook configs for **Claude only** today (non-Claude hook emission is Phase 2), so the files under `.claude/hooks/` are Claude-specific — but hooks as a capability are not.
 
 #### "Disable one hook"
 
@@ -460,7 +471,7 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 | **ADR-020** | `--uninstall` + manifest tracking | Why install is reversible |
 | **ADR-021** | Cursor adapter (`adapters/cursor/transform.sh`) | Adapter design for `.cursor/rules/*.mdc` |
 | **ADR-022** | Copilot adapter (single-format, 5-IDE coverage) | Why one Copilot install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
-| **ADR-023** | Marketplace strategy + cross-platform | Phase 1 (now: bash) → Phase 2 (v0.3+: VSCode extension) |
+| **ADR-023** | Marketplace strategy + cross-platform | Phase 1 (now: bash + npm) → Phase 2 (post-0.3: VSCode extension) |
 | **ADR-030** | Self-improvement is opt-in, propose-only | Nothing learns silently — the Reflector proposes, you approve |
 | **ADR-035/036** | Instruction-fidelity-first token economy | Reduce tokens without distorting your instructions (context editing, output brevity, `docs/CONTEXT-EDITING-GUIDE.md`) |
 
@@ -474,7 +485,7 @@ Full list and bodies: [`docs/DESIGN-DECISIONS.md`](./docs/DESIGN-DECISIONS.md).
 
 **Q: Why no marketplace install today?**
 
-A: ADR-023 — the bash adapter is the validated source of truth. A marketplace extension is Phase 2 / v0.3+; the wrapper depends on the adapter being stable in adopter projects first.
+A: ADR-023 — the bash adapter is the validated source of truth. A marketplace extension is Phase 2 (post-0.3); the wrapper depends on the adapter being stable in adopter projects first.
 
 **Q: Cursor adopters — do I install from VSCode Marketplace or Open VSX?**
 
