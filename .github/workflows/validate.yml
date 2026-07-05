@@ -6,6 +6,7 @@ name: validate
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -44,12 +45,26 @@ jobs:
           bash "adapters/${{ matrix.tool }}/transform.sh" \
             "/tmp/ci-${{ matrix.tool }}" \
             --no-prompt \
-            --recipes=tdd,debugging
+            --recipes=tdd,debugging,self-improvement
       - name: Validate adapter output
         run: |
           bash tools/validate-adapter-output.sh \
             "/tmp/ci-${{ matrix.tool }}" \
             "${{ matrix.tool }}"
+      - name: Self-improvement runtime is sane (hook script + hook config)
+        run: |
+          t="/tmp/ci-${{ matrix.tool }}"
+          if [ -f "$t/.conductor/reflect/trajectory-log.sh" ]; then
+            [ -x "$t/.conductor/reflect/trajectory-log.sh" ] || { echo "ERROR: trajectory-log.sh not executable" >&2; exit 1; }
+          fi
+          for f in "$t/.cursor/hooks.json" "$t/.codex/hooks.json" "$t/.windsurf/hooks.json" \
+                   "$t/.github/hooks/conductor-reflect.json" "$t/.gemini/settings.json"; do
+            if [ -f "$f" ]; then
+              node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$f" \
+                || { echo "ERROR: $f is not valid JSON" >&2; exit 1; }
+              echo "OK: $f parses as JSON"
+            fi
+          done
 
   # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a

@@ -70,7 +70,7 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
 EOF
       exit 0
       ;;
@@ -490,8 +490,10 @@ do_uninstall() {
     log "  deleted $MANIFEST_PATH"
   fi
 
-  # Try to clean up empty .claude/{rules,agents,hooks} dirs left behind.
-  for d in .claude/rules .claude/agents .claude/hooks .claude; do
+  # Try to clean up empty dirs left behind (children before parents). Includes the
+  # self-improvement gate dir .conductor/reflect/ — leaving it would keep the
+  # always-on trajectory hook active after uninstall.
+  for d in .claude/rules .claude/agents .claude/hooks .claude/commands .conductor/reflect .conductor .claude; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -591,7 +593,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
   # 3. Select recipes
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -687,6 +689,9 @@ EOF
   declare_agent helper   "Single-file or 1-2-file work where the pattern is established."                    sonnet
   declare_agent designer "UI / UX implementation. Visual components, design tokens, accessibility."          sonnet
   declare_agent scribe   "Documentation sync after implementation. No code edits."                           sonnet
+  case ",$RECIPES," in *",self-improvement,"*)
+    declare_agent reflector "Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply." opus ;;
+  esac
 else
   log "Step 2/6: roles — skipped (user opted out)"
 fi
@@ -720,7 +725,7 @@ mkdir_if_real "$TARGET_ABS/.claude/hooks"
 # read guard) emit only if their templates are present in the CONDUCTOR core/ tree, allowing the
 # adapter to remain forward-compatible with P1.7 work in progress.
 INSTALLED_HOOKS=()
-for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check; do
+for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log; do
   src="$CORE_ROOT/hooks/$hook.sh.template"
   dest="$TARGET_ABS/.claude/hooks/$hook.sh"
   if [ ! -f "$src" ]; then
@@ -798,14 +803,15 @@ else
         "hooks": [
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-session-log-check.sh" },
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-r6-review-check.sh" },
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-cache-hit-baseline-check.sh" }
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-cache-hit-baseline-check.sh" },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-trajectory-log.sh" }
         ]
       }
     ]
   }
 }
 SETTINGS_EOF
-  log "  wrote $SETTINGS_PATH ($(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 7 core hooks: 4 PreToolUse + 3 Stop)"
+  log "  wrote $SETTINGS_PATH ($(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 8 core hooks: 4 PreToolUse + 4 Stop)"
   record_emit ".claude/settings.json" "<synthesized>" ""
 fi
 
@@ -851,6 +857,68 @@ if [ -d "$HOOKIFY_TEMPLATE_DIR" ]; then
   done
   log "  hookify rules: $HOOKIFY_INSTALLED installed, $HOOKIFY_SKIPPED skipped (pre-existing)"
 fi
+
+# ---- Step 4.6: self-improvement runtime artifacts (only when recipe selected) ----
+case ",$RECIPES," in
+  *",self-improvement,"*)
+    log "Step 4.6: emitting self-improvement runtime (prune script + /reflect command)"
+    # prune script → .conductor/reflect/prune-lessons.sh
+    if [ -f "$CORE_ROOT/reflector/prune-lessons.sh" ]; then
+      dest="$TARGET_ABS/.conductor/reflect/prune-lessons.sh"
+      if [ "$DRY_RUN" = "true" ]; then
+        log "  would emit .conductor/reflect/prune-lessons.sh"
+      else
+        /bin/mkdir -p "$TARGET_ABS/.conductor/reflect"
+        backup_and_remember "$dest"
+        /bin/cp "$CORE_ROOT/reflector/prune-lessons.sh" "$dest"
+        /bin/chmod +x "$dest"
+        record_emit ".conductor/reflect/prune-lessons.sh" "core/reflector/prune-lessons.sh" "$MANIFEST_LAST_BACKUP"
+      fi
+    fi
+    # /reflect command → .claude/commands/reflect.md
+    if [ -f "$CORE_ROOT/reflector/reflect.command.md" ]; then
+      dest="$TARGET_ABS/.claude/commands/reflect.md"
+      if [ "$DRY_RUN" = "true" ]; then
+        log "  would emit .claude/commands/reflect.md"
+      else
+        /bin/mkdir -p "$TARGET_ABS/.claude/commands"
+        backup_and_remember "$dest"
+        /bin/cp "$CORE_ROOT/reflector/reflect.command.md" "$dest"
+        record_emit ".claude/commands/reflect.md" "core/reflector/reflect.command.md" "$MANIFEST_LAST_BACKUP"
+      fi
+    fi
+    # scheduling assets → .conductor/reflect/ (weekly runner + brief + registration guide)
+    if [ "$DRY_RUN" = "true" ]; then
+      log "  would emit .conductor/reflect/{run-weekly.sh,reflect-brief.md,SCHEDULING.md}"
+    else
+      /bin/mkdir -p "$TARGET_ABS/.conductor/reflect"
+      gi="$TARGET_ABS/.gitignore"
+      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      for f in run-weekly.sh reflect-brief.md SCHEDULING.md; do
+        [ -f "$CORE_ROOT/reflector/$f" ] || continue
+        dest="$TARGET_ABS/.conductor/reflect/$f"
+        backup_and_remember "$dest"
+        /bin/cp "$CORE_ROOT/reflector/$f" "$dest"
+        case "$f" in *.sh) /bin/chmod +x "$dest" ;; esac
+        record_emit ".conductor/reflect/$f" "core/reflector/$f" "$MANIFEST_LAST_BACKUP"
+      done
+    fi
+    ;;
+  *)
+    # Not opted in: clear a stale gate + orphaned opt-in artifacts left by a prior
+    # opted-in install, so a recipe-less re-install is fully dormant (the always-on
+    # trajectory hook gates on .conductor/reflect/, and /reflect must not dangle).
+    if [ "$DRY_RUN" != "true" ] && [ -d "$TARGET_ABS/.conductor/reflect" ]; then
+      /bin/rm -f "$TARGET_ABS/.conductor/reflect/prune-lessons.sh" "$TARGET_ABS/.conductor/reflect/run-weekly.sh" "$TARGET_ABS/.conductor/reflect/reflect-brief.md" "$TARGET_ABS/.conductor/reflect/SCHEDULING.md"
+      /bin/rm -f "$TARGET_ABS/.claude/commands/reflect.md" "$TARGET_ABS/.claude/agents/reflector.md" 2>/dev/null || true
+      if /bin/rmdir "$TARGET_ABS/.conductor/reflect" 2>/dev/null; then
+        log "Step 4.6: self-improvement not selected — cleared stale .conductor/reflect gate + /reflect artifacts"
+      else
+        log "Step 4.6: WARNING — .conductor/reflect not empty; trajectory hook stays ACTIVE (remove that dir manually to disable)"
+      fi
+    fi
+    ;;
+esac
 
 # ----- step 5: docs templates --------------------------------------------
 
@@ -1083,7 +1151,10 @@ echo "========================================================"
 echo " Done."
 echo "  Target: $TARGET_ABS"
 echo "  Universal rules: 5"
-echo "  Roles: 6"
+case ",$RECIPES," in
+  *",self-improvement,"*) echo "  Roles: 7 (incl. reflector)" ;;
+  *)                      echo "  Roles: 6" ;;
+esac
 echo "  Recipes installed: ${RECIPES:-(none)}"
 echo "  Hooks: ${#INSTALLED_HOOKS[@]} (${INSTALLED_HOOKS[*]:-none})"
 echo "  Settings: .claude/settings.json (permissions allowlist + hooks registry)"

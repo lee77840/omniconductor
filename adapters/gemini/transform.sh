@@ -25,12 +25,14 @@
 #   core/recipes/*.md (selected)   →  <target>/GEMINI.md          (## Recipe — <name> sections; Gemini is single-file)
 #   core/recipes/coding-conventions →  <target>/.gemini/styleguide.md  (Gemini style-guide convention; opt-in)
 #   core/docs-templates/*.md       →  <target>/docs/*.md          (CURRENT_WORK, REMAINING_TASKS, etc.)
-#   core/hooks/*.sh.template       →  SKIPPED (Gemini has no hook execution surface)
+#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
 #   core/roles/*.md                →  SKIPPED (Gemini has no sub-agent dispatch)
 #
 # Gemini reality (per adapters/gemini/SUPPORTED-FEATURES.md):
 #   - Single always-loaded rule file (GEMINI.md). No per-pattern rule scoping.
-#   - No sub-agents, no hooks, no per-call model routing, no built-in memory dir.
+#   - No sub-agents, no per-call model routing, no built-in memory dir. CONDUCTOR
+#     emits the Reflector hook when --recipes=self-improvement (ADR-032); other
+#     guards remain Claude-only (ADR-034).
 #   The bundle below carries the rule TEXT honestly; Claude-only enforcement mechanisms
 #   are noted as self-policed for Gemini, never faked.
 
@@ -69,7 +71,7 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
 
 Gemini single-file model:
   - All 5 universal rules + selected recipes are bundled into one always-loaded GEMINI.md.
@@ -78,7 +80,7 @@ Gemini single-file model:
     native style-guide convention).
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
-  - Hooks (Gemini has no PreToolUse / Stop equivalent — use git pre-commit instead)
+  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
   - Sub-agent personas (Gemini has no sub-agent dispatch — single chat session per task)
   - Per-call model routing (single model per Gemini session)
   - Built-in memory directory (DIY at .memory/ — see the note inside GEMINI.md)
@@ -397,8 +399,8 @@ do_uninstall() {
     log "  deleted $MANIFEST_PATH"
   fi
 
-  # Try to clean up an empty .gemini dir left behind.
-  for d in .gemini; do
+  # Try to clean up empty dirs left behind (children before parents).
+  for d in .gemini/commands .gemini/agents .conductor/reflect .conductor .gemini; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -484,7 +486,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
 
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -728,6 +730,55 @@ else
   log "  (coding-conventions not selected — pass --recipes=coding-conventions to emit styleguide)"
 fi
 
+# ----- self-improvement (opt-in: self-improvement recipe) ------------------
+
+case ",$RECIPES," in
+  *",self-improvement,"*)
+    log "Step: self-improvement (Reflector) → .gemini hooks/command/agent"
+    if [ "$DRY_RUN" != "true" ]; then
+      /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.gemini/commands" "$TARGET_ABS/.gemini/agents"
+      gi="$TARGET_ABS/.gitignore"
+      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      for s in trajectory-log prune-lessons run-weekly; do
+        d="$TARGET_ABS/.conductor/reflect/$s.sh"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
+        record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
+      done
+      # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
+      for m in reflect-brief SCHEDULING; do
+        d="$TARGET_ABS/.conductor/reflect/$m.md"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
+        record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
+      done
+      # settings.json hooks — only if absent (merging JSON is unsafe in bash)
+      hc="$TARGET_ABS/.gemini/settings.json"
+      if [ ! -f "$hc" ]; then
+        backup_and_remember "$hc"
+        /bin/cat > "$hc" <<'HOOK'
+{
+  "hooks": {
+    "SessionEnd": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "\"$GEMINI_PROJECT_DIR\"/.conductor/reflect/trajectory-log.sh", "timeout": 30000 } ] }
+    ]
+  }
+}
+HOOK
+        record_emit ".gemini/settings.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+      else
+        log "  .gemini/settings.json exists — add a SessionEnd hook calling .conductor/reflect/trajectory-log.sh manually"
+      fi
+      cmd="$TARGET_ABS/.gemini/commands/reflect.toml"
+      backup_and_remember "$cmd"
+      { printf 'description = "Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only)."\nprompt = """\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; printf '\n"""\n'; } > "$cmd"
+      record_emit ".gemini/commands/reflect.toml" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
+      ag="$TARGET_ABS/.gemini/agents/reflector.md"
+      backup_and_remember "$ag"
+      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      record_emit ".gemini/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    ;;
+esac
+
 # ----- step 3: docs templates --------------------------------------------
 
 log "Step 3/3: docs templates → docs/"
@@ -778,7 +829,7 @@ echo "  Style guide: $([ "$WANT_STYLEGUIDE" = "true" ] && echo ".gemini/stylegui
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: Gemini has no PreToolUse/Stop. Use a git pre-commit hook for spec-as-you-go enforcement."
+echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
 echo "  - Sub-agent personas: Gemini has no sub-agent dispatch — single chat session per task."
 echo "  - Per-call model routing: single model per Gemini session."
 echo "  - Built-in memory: DIY at .memory/ (see the note inside GEMINI.md)."

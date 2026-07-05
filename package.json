@@ -1,16 +1,16 @@
 {
   "name": "omniconductor",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Multi-coding-agent workflow framework. Write your project's rules, workflow, and discipline ONCE — install into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, or Windsurf. Encodes the discipline developers most often skip — spec-before-code, review gates, session continuity — so your AI agents catch what's easy to miss.",
   "license": "Apache-2.0",
   "author": "LFamily Labs LLC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lee77840/omniconductor.git"
+    "url": "git+https://github.com/lee77840/conductor_lfamily.git"
   },
-  "homepage": "https://github.com/lee77840/omniconductor#readme",
+  "homepage": "https://github.com/lee77840/conductor_lfamily#readme",
   "bugs": {
-    "url": "https://github.com/lee77840/omniconductor/issues"
+    "url": "https://github.com/lee77840/conductor_lfamily/issues"
   },
   "engines": {
     "node": ">=18"
@@ -29,11 +29,11 @@
     "LICENSE",
     "NOTICE",
     "TRADEMARKS.md",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "cli": "node bin/omniconductor.js",
-    "v0.1-install": "./archive/v0.1/install.sh"
+    "cli": "node bin/omniconductor.js"
   },
   "keywords": [
     "claude-code",

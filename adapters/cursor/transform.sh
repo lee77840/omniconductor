@@ -23,7 +23,7 @@
 #   core/recipes/*.md (selected)   →  <target>/.cursor/rules/*.mdc   (path-scoped via globs:)
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   <synthesized>                  →  <target>/.cursorrules          (only if --legacy-cursorrules)
-#   core/hooks/*.sh.template       →  SKIPPED (Cursor has no hook execution surface)
+#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
 #   core/roles/*.md                →  SKIPPED (Cursor has no sub-agent dispatch)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 
@@ -67,10 +67,10 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
-  - Hooks (Cursor has no PreToolUse / Stop equivalent — use git pre-commit instead)
+  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
   - Sub-agent personas (Cursor has no sub-agent dispatch — single chat session per task)
   - Hookify rule templates (Claude-only plugin)
 EOF
@@ -404,7 +404,8 @@ do_uninstall() {
   fi
 
   # Try to clean up empty .cursor/rules and .cursor dirs left behind.
-  for d in .cursor/rules .cursor; do
+  # (children before parents so nested empties collapse in one pass)
+  for d in .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor .conductor/reflect .conductor; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -489,7 +490,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
 
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -613,6 +614,56 @@ if [ "$LEGACY_CURSORRULES" = "true" ]; then
   fi
 fi
 
+# ---- Step 2.6: self-improvement runtime (only with --recipes=self-improvement) ----
+case ",$RECIPES," in
+  *",self-improvement,"*)
+    log "Step 2.6/4: self-improvement (Reflector) → hooks/skills/agents"
+    if [ "$DRY_RUN" != "true" ]; then
+      /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.cursor/skills/reflect" "$TARGET_ABS/.cursor/agents"
+      gi="$TARGET_ABS/.gitignore"
+      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      # portable scripts
+      for s in trajectory-log prune-lessons run-weekly; do
+        d="$TARGET_ABS/.conductor/reflect/$s.sh"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
+        record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
+      done
+      # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
+      for m in reflect-brief SCHEDULING; do
+        d="$TARGET_ABS/.conductor/reflect/$m.md"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
+        record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
+      done
+      # hook config — write only if absent (never clobber a user's hooks.json)
+      hc="$TARGET_ABS/.cursor/hooks.json"
+      if [ ! -f "$hc" ]; then
+        backup_and_remember "$hc"
+        /bin/cat > "$hc" <<'HOOK'
+{
+  "version": 1,
+  "hooks": {
+    "stop": [ { "command": "./.conductor/reflect/trajectory-log.sh" } ]
+  }
+}
+HOOK
+        record_emit ".cursor/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+      else
+        log "  .cursor/hooks.json exists — add a stop entry calling ./.conductor/reflect/trajectory-log.sh manually"
+      fi
+      # /reflect skill (self-contained brief)
+      sk="$TARGET_ABS/.cursor/skills/reflect/SKILL.md"
+      backup_and_remember "$sk"
+      { printf -- '---\nname: reflect\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only).\ndisable-model-invocation: true\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$sk"
+      record_emit ".cursor/skills/reflect/SKILL.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
+      # reflector agent (native persona) — strip core frontmatter, add Cursor frontmatter
+      ag="$TARGET_ABS/.cursor/agents/reflector.md"
+      backup_and_remember "$ag"
+      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: inherit\nreadonly: true\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      record_emit ".cursor/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    ;;
+esac
+
 # ----- step 3: docs templates --------------------------------------------
 
 log "Step 3/4: docs templates → docs/"
@@ -666,7 +717,7 @@ if [ "$LEGACY_CURSORRULES" = "true" ]; then
 fi
 echo ""
 echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: Cursor has no PreToolUse/Stop. Use git pre-commit hook for spec-as-you-go enforcement."
+echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
 echo "  - Sub-agent personas: Cursor has no sub-agent dispatch — single chat session per task."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""

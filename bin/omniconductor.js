@@ -53,8 +53,7 @@ Examples:
   omniconductor init --target=cursor ./my-app --dry-run
   omniconductor init --target=codex . --uninstall
 
-Note: the published npm package is a roadmap item; today, run from a cloned
-repo via \`node bin/omniconductor.js ...\` or \`npm link\`.`;
+Run:  npx omniconductor init --target=<tool> <dir>`;
 }
 
 function fail(msg) {

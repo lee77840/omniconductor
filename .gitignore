@@ -9,3 +9,9 @@ node_modules/
 # Working files (sub-agent dispatch scratchpads)
 .tmp/
 .npmrc
+
+# CONDUCTOR runtime (local trajectories/lessons)
+.conductor/
+
+# npm pack artifacts
+*.tgz

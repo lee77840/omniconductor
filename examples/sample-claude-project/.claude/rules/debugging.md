@@ -145,4 +145,4 @@ After a confirmed fix, update the relevant spec or known-issues section (spec-as
 - `core/universal-rules/meta-discipline.md` — M1 verify before claim: fix is not done until verified
 - `core/universal-rules/spec-as-you-go.md` — bug fixes update specs and known-issues sections
 - `core/recipes/tdd.md` — Phase 4 creates the failing test; TDD cycle drives the fix
-- Methodology adapted from Superpowers `systematic-debugging` skill (paraphrased; not reproduced verbatim)
+- Root-cause-first / four-phase debugging is public practice; independently written. Structure informed in part by the Superpowers project (idea-level; no text reproduced).

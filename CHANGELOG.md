@@ -3,15 +3,19 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
-## [0.2.2] — 2026-06-28
+## [0.3.0] — 2026-07-05
+
+### Added — Self-improvement / Reflector (opt-in, propose-only)
+- **`self-improvement` recipe + `reflector` role** — an opt-in loop that reads recent session trajectories + git history and **proposes** atomic "lessons learned" deltas to `docs/REFLECTION-PROPOSALS.md`. Propose-only: nothing is applied without human approval (honors the VISION "nothing learns silently" non-goal). Recipe count **10 → 11**. — **ADR-030**.
+- **Cross-tool emission (all six adapters)** — the Reflector loop ships in each tool's native format: a session-end trajectory-log hook (reads `transcript_path` from the hook stdin, upsert-by-session), a `/reflect` command, a reflector agent (or a `.devin/rules/` manual rule on Windsurf), and a deterministic non-LLM prune script. Recipe-gated, manifest-tracked, uninstall-clean. — **ADR-032**.
+- **Weekly scheduling** — a portable `run-weekly.sh` (auto-detects the tool's headless CLI: `claude -p` / `codex exec` / `gemini -p` / `cursor-agent -p` / `copilot -p` / `devin -p`) + `SCHEDULING.md` (per-tool cron/launchd + native-scheduler registration, with the cloud-scheduler-can't-read-local-trajectories caveat). — **ADR-033**.
 
 ### Changed
-- `package.json` `author` generalized to **LFamily Labs LLC** (removed the maintainer's personal name from the published package — the framework is vendor- and person-agnostic). No code change.
+- **Compatibility matrix corrected to 2026 first-party reality** — the prior "hooks / sub-agents / model-routing are Claude-only" matrix was materially out of date; all six tools now ship event hooks, sub-agent dispatch, custom named agents, per-task model routing, and commands. `COMPATIBILITY-MATRIX.md` + the VISION capability table re-rated (verified against first-party sources) with an explicit **capability ≠ CONDUCTOR-emission** disclaimer. Windsurf rebranded to **Devin Desktop**; the adapter's rules target moved to `.devin/rules/` (legacy `.windsurf/rules/` still read). — **ADR-031**.
+- The Claude trajectory-log hook reads `transcript_path` from the Stop hook's **stdin** (exact provenance) instead of scanning `~/.claude/projects` for the newest transcript.
 
-## [0.2.1] — 2026-06-28
-
-### Changed
-- Public source repository established at `github.com/lee77840/omniconductor` (Apache 2.0). `package.json` repository/homepage/bugs + all doc URLs point here. (The internal build/strategy docs live in a separate private working repo and are intentionally not part of the public release.)
+### Notes
+- The remaining workflow guards (`agent-routing`, commit / large-file guards) stay **Claude-only** pending a hook-config-merge redesign — a first-party feasibility study found them Claude-specific or blocked by a single-config-file JSON-merge issue. — **ADR-034**.
 
 ## [0.2.0] — 2026-06-28
 

@@ -18,11 +18,13 @@ Each tool has its own rules-and-context format:
 | Tool | Rules file | Rule scoping | Sub-agents | Hooks |
 |---|---|---|---|---|
 | Claude Code | `CLAUDE.md` + `.claude/rules/*.md` + `.claude/agents/*.md` | glob-based via paths front-matter | ✅ Agent tool | ✅ PreToolUse / Stop / etc. |
-| Cursor | `.cursorrules` + `.cursor/rules/*.mdc` | `globs:` front-matter on `.mdc` | ❌ | ❌ |
-| GitHub Copilot | `.github/instructions/*.instructions.md` | `applyTo:` front-matter | ❌ | ❌ |
-| Gemini CLI | `GEMINI.md` + `.gemini/styleguide.md` | single-file (no per-pattern) | ❌ | ❌ |
-| Codex | `.codex/codex.md` | single-file | ❌ | ❌ |
-| Windsurf | `.windsurfrules` + `.windsurf/rules/*.md` | directory-based | ❌ | ❌ |
+| Cursor | `.cursorrules` + `.cursor/rules/*.mdc` | `globs:` front-matter on `.mdc` | ✅ (2.4+) | ✅ (v1.7) |
+| GitHub Copilot | `.github/instructions/*.instructions.md` + AGENTS.md | `applyTo:` front-matter | ✅ | ✅ (CLI + agent) |
+| Gemini CLI | `GEMINI.md` + AGENTS.md (opt-in) | nested-file hierarchy | ✅ | ✅ (v0.26) |
+| Codex | `AGENTS.md` | nested-file hierarchy | ✅ | ✅ |
+| Windsurf / Devin Desktop | `.devin/rules/*.md` (legacy `.windsurf/rules/`) | directory-based | ✅ (Devin Local) | ⚠️ no session/stop events |
+
+> As of 2026, sub-agents and hooks are **no longer Claude-only** — every tool ships them (first-party verified 2026-07-04; see `docs/COMPATIBILITY-MATRIX.md`). CONDUCTOR's problem is unchanged, because what still diverges is the **format**: each tool has a different rules file + scoping syntax, and a rule written for one does not auto-load in another. That portability gap — not a raw capability gap — is what CONDUCTOR closes. (2026년 기준 sub-agent·hook 은 더 이상 Claude 전용이 아니며 모든 도구가 지원합니다. 그럼에도 여전히 **포맷**이 제각각이라 CONDUCTOR 가 푸는 문제는 그대로입니다.)
 
 **Switch tools → lose your discipline.** The rules you wrote for Claude don't auto-load in Cursor. The Plan → Architecture → Tasks workflow you trained yourself to follow disappears the moment you open a different agent. Six months of accumulated taste — gone.
 
@@ -41,15 +43,15 @@ core/                    ← write rules here, ONCE
   ├── docs-templates/
   └── memory-pattern/
 
-  ↓  bash adapters/<tool>/transform.sh <target>   (3 adapters today; an npx wrapper is planned)
+  ↓  bash adapters/<tool>/transform.sh <target>   (6 adapters today; an npx wrapper is planned)
 
 target-project/
   ├── .claude/             (if --target=claude)
   ├── .cursor/rules/       (if --target=cursor)
   ├── .github/instructions/ (if --target=copilot)
   ├── GEMINI.md             (if --target=gemini)
-  ├── .codex/codex.md       (if --target=codex)
-  └── .windsurfrules        (if --target=windsurf)
+  ├── AGENTS.md             (if --target=codex)
+  └── .windsurf/rules/      (if --target=windsurf)
 ```
 
 The same Plan → Architecture → Tasks workflow now governs every agent in the project, regardless of which tool the developer happens to be using that day.
@@ -66,13 +68,13 @@ These users feel the tool-switching pain most acutely because they personally do
 
 ## Non-goals
 
-> **한글:** CONDUCTOR 는 의도적으로 다음이 **아닙니다**: 프로젝트 관리 도구가 아니며 (티켓·스프린트·칸반 없음, CURRENT_WORK.md 는 보드가 아니라 텍스트 파일 하나), 엔터프라이즈 팀 관리 제품이 아니며 (SSO·관리자 UI·감사 로그 없음, 1인/소규모 범위), 스스로 학습하는 에이전트가 아니며 (메모리는 사용자가 쓴 것만 쌓이고, 조용히 학습하지 않음), 모델 라우터 제품이 아니며 (라우팅은 룰 텍스트일 뿐 실제 추론 프록시를 돌리지 않음), 텔레메트리 벤더가 아니며 (phone-home·사용 통계 없음, 디스크 위 파일뿐), 모든 도구 기능의 상위 집합이 아닙니다 (sub-agent 는 Claude 에만 존재하며, Cursor 에서 셸 프로세스로 가짜 흉내 내지 않고 Layer 3 가 그 한계를 솔직히 인정합니다).
+> **한글:** CONDUCTOR 는 의도적으로 다음이 **아닙니다**: 프로젝트 관리 도구가 아니며 (티켓·스프린트·칸반 없음, CURRENT_WORK.md 는 보드가 아니라 텍스트 파일 하나), 엔터프라이즈 팀 관리 제품이 아니며 (SSO·관리자 UI·감사 로그 없음, 1인/소규모 범위), 스스로 학습하는 에이전트가 아니며 (메모리는 사용자가 쓴 것만 쌓이고, 조용히 학습하지 않음. 옵트인 Reflector 가 세션 궤적에서 메모리/룰 변경을 *제안* 할 수 있으나, 사람 승인 없이는 아무것도 적용되지 않습니다 — 제안은 조용한 학습이 아닙니다), 모델 라우터 제품이 아니며 (라우팅은 룰 텍스트일 뿐 실제 추론 프록시를 돌리지 않음), 텔레메트리 벤더가 아니며 (phone-home·사용 통계 없음, 디스크 위 파일뿐), 모든 도구 기능의 상위 집합이 아닙니다 (sub-agent 는 Claude 에만 존재하며, Cursor 에서 셸 프로세스로 가짜 흉내 내지 않고 Layer 3 가 그 한계를 솔직히 인정합니다).
 
 CONDUCTOR is intentionally NOT:
 
 - **A project management tool.** No tickets, no sprints, no Kanban. CURRENT_WORK.md is a single text file, not a board.
 - **An enterprise team-management product.** No SSO, no admin UI, no audit log. Solo / small-team scope only.
-- **A self-improving / agentic auto-learner.** Memory accumulates only what the user (or the orchestrator on the user's behalf) writes. Nothing learns silently.
+- **A self-improving / agentic auto-learner.** Memory accumulates only what the user (or the orchestrator on the user's behalf) writes. Nothing learns silently. An opt-in Reflector may *propose* memory/rule deltas from session trajectories, but nothing is applied without human approval — proposing is not silent learning.
 - **A model-router product.** Model routing is a *rule* text that travels via CONDUCTOR; the actual routing happens inside Claude Code (and only Claude Code). We do not run an inference proxy.
 - **A telemetry vendor.** No phone-home, no usage stats, no opt-in tracking. Files on disk only.
 - **A super-set of every tool's features.** Sub-agent dispatch only exists in Claude. We refuse to fake it on Cursor by spawning shell processes — that is fragile and confusing. Layer 3 acknowledges these gaps openly.

@@ -29,7 +29,7 @@
 #   core/workflow/PHASES.md        →  <target>/AGENTS.md  (compressed phase table)
 #   core/recipes/*.md (selected)   →  <target>/AGENTS.md  (each as "## Recipe — <name>")
 #   core/docs-templates/*.md       →  <target>/docs/*.md  (CURRENT_WORK, REMAINING_TASKS, etc.)
-#   core/hooks/*.sh.template       →  SKIPPED (Codex has no hook execution surface)
+#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
 #   core/roles/*.md                →  SKIPPED (Codex has no sub-agent dispatch)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
@@ -75,10 +75,10 @@ Output (single-file Codex model):
   <target>/AGENTS.md    Bundled intro + 5 universal rules + compressed workflow + recipes
   <target>/docs/*.md    Universal doc templates (CURRENT_WORK, REMAINING_TASKS, ...)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
 
 What this adapter does NOT install (per ADR-004 honesty):
-  - Hooks (Codex has no PreToolUse / Stop equivalent — use git pre-commit instead)
+  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
   - Sub-agent personas (Codex has no sub-agent dispatch — single session per task)
   - Per-pattern rule scoping (Codex loads AGENTS.md whole — all rules always-on)
   - Hookify rule templates (Claude-only plugin)
@@ -361,8 +361,8 @@ do_uninstall() {
     log "  deleted $MANIFEST_PATH"
   fi
 
-  # Try to clean up an empty docs/specs and docs dir left behind.
-  for d in docs/specs docs; do
+  # Try to clean up empty dirs left behind (deepest first).
+  for d in .agents/skills/reflect .agents/skills .agents .codex/agents .codex .conductor/reflect .conductor docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -448,7 +448,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
 
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -628,6 +628,54 @@ else
   log "  wrote $AGENTS_DEST"
 fi
 
+# ----- opt-in: self-improvement (Reflector) --------------------------------
+
+case ",$RECIPES," in
+  *",self-improvement,"*)
+    log "Step: self-improvement (Reflector) → .codex hook/skill/agent"
+    if [ "$DRY_RUN" != "true" ]; then
+      /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.codex" "$TARGET_ABS/.codex/agents" "$TARGET_ABS/.agents/skills/reflect"
+      gi="$TARGET_ABS/.gitignore"
+      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      for s in trajectory-log prune-lessons run-weekly; do
+        d="$TARGET_ABS/.conductor/reflect/$s.sh"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
+        record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
+      done
+      # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
+      for m in reflect-brief SCHEDULING; do
+        d="$TARGET_ABS/.conductor/reflect/$m.md"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
+        record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
+      done
+      hc="$TARGET_ABS/.codex/hooks.json"
+      if [ ! -f "$hc" ]; then
+        backup_and_remember "$hc"
+        /bin/cat > "$hc" <<'HOOK'
+{
+  "hooks": {
+    "Stop": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash ./.conductor/reflect/trajectory-log.sh", "timeout": 30 } ] }
+    ]
+  }
+}
+HOOK
+        record_emit ".codex/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+      else
+        log "  .codex/hooks.json exists — add a Stop hook calling ./.conductor/reflect/trajectory-log.sh manually"
+      fi
+      sk="$TARGET_ABS/.agents/skills/reflect/SKILL.md"
+      backup_and_remember "$sk"
+      { printf -- '---\nname: reflect\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only). Use when wrapping up work.\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$sk"
+      record_emit ".agents/skills/reflect/SKILL.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
+      ag="$TARGET_ABS/.codex/agents/reflector.toml"
+      backup_and_remember "$ag"
+      { printf 'name = "reflector"\ndescription = "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies."\ndeveloper_instructions = """\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; printf '\n"""\n'; } > "$ag"
+      record_emit ".codex/agents/reflector.toml" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    ;;
+esac
+
 # ----- step 2: docs templates --------------------------------------------
 
 log "Step 2/2: docs templates → docs/"
@@ -685,7 +733,7 @@ fi
 echo "  Recipes appended:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: Codex has no PreToolUse/Stop. Use a git pre-commit hook for spec-as-you-go enforcement."
+echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
 echo "  - Sub-agent personas: Codex has no sub-agent dispatch — single session per task."
 echo "  - Per-pattern scoping: Codex loads AGENTS.md whole — all rules are always-on."
 echo "  - Hookify rule templates: Claude-only plugin."

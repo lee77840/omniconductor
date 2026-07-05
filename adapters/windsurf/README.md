@@ -3,12 +3,12 @@
 Windsurf (the AI-IDE) is a T3 target because:
 
 - It supports an always-loaded baseline at `.windsurfrules`.
-- It supports a directory of additional rules at `.windsurf/rules/*.md`.
+- It supports a directory of additional rules at `.devin/rules/*.md` (preferred; legacy `.windsurf/rules/` is still read).
 - Its workflow is similar to Cursor's but with less per-pattern scoping.
 
 It is **T3** because:
 
-- ❌ No per-pattern rule scoping (rules in `.windsurf/rules/` all load together; no glob filtering).
+- ❌ No per-pattern rule scoping (rules in `.devin/rules/` all load together; no glob filtering).
 - ❌ No sub-agent dispatch.
 - ❌ No hooks.
 - ❌ No per-call model routing.
@@ -37,7 +37,7 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 ```
 <target>/
 ├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules)
-├── .windsurf/
+├── .devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
 │   └── rules/
 │       ├── operations.md
 │       ├── coding-conventions.md
@@ -56,7 +56,7 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 ## Native features supported
 
 - ✅ Always-loaded baseline (`.windsurfrules`).
-- ✅ Directory-based rule loading (`.windsurf/rules/`).
+- ✅ Directory-based rule loading (`.devin/rules/`; legacy `.windsurf/rules/` still read).
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
 
@@ -64,7 +64,7 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 
 | Feature | Workaround |
 |---|---|
-| Per-pattern rule scoping | All rules in `.windsurf/rules/` load together. No glob filtering. |
+| Per-pattern rule scoping | All rules in `.devin/rules/` load together. No glob filtering. |
 | Sub-agent dispatch | Human plays orchestrator. |
 | Hooks | Pair with project pre-commit git hooks. |
 | Per-call model routing | Single model per session. |
@@ -74,15 +74,15 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 
 1. Open the project in Windsurf.
 2. Verify `.windsurfrules` loads on session start.
-3. Verify `.windsurf/rules/*.md` load alongside.
+3. Verify `.devin/rules/*.md` load alongside.
 4. Customize `.windsurfrules` — replace `{{PROJECT_NAME}}`.
 5. Rename `docs/specs/_example.md` → `docs/specs/<your-area>.md`.
 6. Add `.memory/` to `.gitignore`.
 
 ## Quirks / known issues (P3.5 will fill)
 
-- TBD: confirm Windsurf reads ALL files under `.windsurf/rules/` (vs requiring a manifest).
-- TBD: priority order when `.windsurfrules` and `.windsurf/rules/*.md` contain conflicting rules.
+- TBD: confirm Windsurf reads ALL files under `.devin/rules/` (vs requiring a manifest); legacy `.windsurf/rules/` is still read.
+- TBD: priority order when `.windsurfrules` and `.devin/rules/*.md` contain conflicting rules.
 
 ## Status (P0 foundation)
 

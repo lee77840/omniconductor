@@ -10,10 +10,10 @@ Detailed matrix of which CONDUCTOR features Gemini CLI supports.
 | **Style guide convention** | ✅ Native | `.gemini/styleguide.md` | Coding-style-specific guide; complements GEMINI.md. |
 | **Large-context capability** | ✅ Strength | Up to ~1M-2M tokens depending on Gemini Pro version | Bundled rule loading is no problem. |
 | **Per-pattern rule scoping** | ❌ | — | All rules always-loaded. No per-file routing. |
-| **Sub-agent dispatch** | ❌ | — | Single chat per task. |
-| **Hooks** | ❌ | — | No commit-blocking. |
-| **Per-call model routing** | ❌ | — | Single model per session. |
-| **Custom slash commands** | ❌ | — | |
+| **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.gemini/agents/*.md` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
+| **Hooks (SessionEnd etc.)** | ✅ Native (2026) | `hooks` block in `.gemini/settings.json` | ADR-031. CONDUCTOR currently emits only the Reflector hook (ADR-032); broader hook-set emission is Phase 2. |
+| **Per-task model routing** | ✅ Native (2026) | Per-agent model config | ADR-031. |
+| **Custom slash commands** | ✅ Native (2026) | `.gemini/commands/*.toml` | ADR-031. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Gemini reads on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `GEMINI.md` reminds user | Self-policed. |
@@ -36,17 +36,30 @@ Specifically the coding-conventions rule's body, formatted as a Gemini styleguid
 
 ## What Gemini DOES NOT support
 
-- Per-pattern rule scoping (everything is always-loaded).
-- Sub-agent dispatch (per ADR-004 — not faked).
-- Hooks.
-- Per-call model routing.
-- Custom slash commands.
-- Built-in memory directory.
+> **2026 reconciliation (first-party verified):** most limitations previously listed here are stale. Gemini CLI now natively supports hooks (via `.gemini/settings.json`, e.g. `SessionEnd`), sub-agent dispatch with custom named agents (`.gemini/agents/*.md`), per-task model routing, and custom commands (`.gemini/commands/*.toml`) — see `docs/COMPATIBILITY-MATRIX.md` / ADR-031.
+
+Still true:
+
+- Per-pattern rule scoping (everything is always-loaded — no per-file routing).
+- No built-in memory directory — DIY at `.memory/`.
+- No native scheduler.
+- CONDUCTOR does not yet emit a Claude-parity hook set for Gemini. It currently emits only the self-improvement Reflector hook (ADR-032, opt-in — see below); broader hook-set emission (commit-blocking, spec enforcement) is Phase 2.
 
 ## Strengths to lean into
 
 - Large context — loading the entire bundled `GEMINI.md` is cheap on Gemini Pro models.
 - Use Gemini for "read everything, then answer" workflows where bundled rules are an asset, not a cost.
+
+## Self-improvement (Reflector) — opt-in
+
+With `--recipes=self-improvement`, the Gemini adapter emits the Reflector loop (ADR-032):
+
+- **Hook**: `.gemini/settings.json` — registers `.conductor/reflect/trajectory-log.sh` on the `SessionEnd` event. Written only if no settings/hook config exists; if one is already present, the adapter emits a manual-merge log entry instead of overwriting.
+- **Command**: `.gemini/commands/reflect.toml` — the `/reflect` command that distills the trajectory log into lesson candidates.
+- **Agent**: `.gemini/agents/reflector.md` — named reflector agent for the distillation pass.
+- **Scripts**: `.conductor/reflect/trajectory-log.sh` (session trajectory capture) and `.conductor/reflect/prune-lessons.sh` (lesson-file size pruning).
+
+The loop is propose-only — lessons are proposed for human review, never auto-applied to rules. The hook no-ops unless `.conductor/reflect/` exists, so installs without the recipe are unaffected (opt-in gate).
 
 ## Verification
 

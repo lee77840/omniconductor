@@ -1,6 +1,6 @@
 # Conductor — VSCode extension
 
-Thin wrapper around the [Conductor](https://github.com/lee77840/omniconductor) bash adapters. Install Claude Code, Cursor, or GitHub Copilot rules into the current workspace from the Command Palette.
+Thin wrapper around the [Conductor](https://github.com/lee77840/conductor_lfamily) bash adapters. Install Claude Code, Cursor, or GitHub Copilot rules into the current workspace from the Command Palette.
 
 ## Status
 
@@ -11,7 +11,7 @@ v0.3.0 — first marketplace release. Phase 2 of the Conductor roadmap (ADR-025)
 1. **Clone the Conductor repo** (the extension calls into it; it does not bundle the rules):
 
    ```bash
-   git clone https://github.com/lee77840/omniconductor ~/.conductor
+   git clone https://github.com/lee77840/conductor_lfamily ~/.conductor
    ```
 
    Custom path? Set `conductor.repoPath` in settings.
@@ -40,7 +40,7 @@ Command Palette (`Ctrl/Cmd+Shift+P`):
 
 ## Why a thin wrapper?
 
-Per [ADR-023](https://github.com/lee77840/omniconductor/blob/main/docs/DESIGN-DECISIONS.md): the bash adapter is the validated source of truth across multiple production syncs. Re-implementing in TypeScript would double the test surface. This extension launches `transform.sh` and streams the output — no logic divergence.
+Per [ADR-023](https://github.com/lee77840/conductor_lfamily/blob/main/docs/DESIGN-DECISIONS.md): the bash adapter is the validated source of truth across multiple production syncs. Re-implementing in TypeScript would double the test surface. This extension launches `transform.sh` and streams the output — no logic divergence.
 
 ## License
 

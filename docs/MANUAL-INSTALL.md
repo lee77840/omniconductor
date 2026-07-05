@@ -109,7 +109,7 @@ Same commands, but adjust paths:
 
 ```bash
 # Clone repo to a Windows path
-git clone https://github.com/lee77840/omniconductor /c/conductor
+git clone https://github.com/lee77840/conductor_lfamily /c/conductor
 cd /c/Users/me/Projects/my-app
 
 # Then run the same loop

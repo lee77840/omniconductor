@@ -45,7 +45,7 @@ Korean solo developers are a meaningful early-adopter pool with high signal-to-n
 - **Not a project manager.** No sprints, no story points, no retros. Just: Plan → Architecture → Tasks → Implementation → Review → Spec → Done.
 - **Not a CI tool.** Hooks (where supported) run locally. CI integration is your project's job.
 - **Not opinionated about your stack.** Templates use placeholders. Stack-specific rules live in your project's adapted output (e.g., `CLAUDE.md` for Claude users, `.cursorrules` for Cursor users).
-- **Not a self-improving AI.** Memory accumulates only what you (or the orchestrator on your behalf) write. No silent learning.
+- **Not a self-improving AI.** Memory accumulates only what you (or the orchestrator on your behalf) write. No silent learning. An opt-in Reflector may *propose* memory/rule deltas from session trajectories, but nothing is applied without human approval — proposing is not silent learning.
 - **Not a replacement for your tool.** It sits on top of your tool. If your tool changes its rules format, the affected adapter changes; the universal layer doesn't.
 - **Not enterprise software.** No SSO. No admin UI. No telemetry. No paid tier.
 

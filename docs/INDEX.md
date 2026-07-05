@@ -33,7 +33,9 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/roles/helper.md` | Single-file work, established patterns. Sonnet-tier. |
 | `core/roles/designer.md` | UI / UX, design tokens, accessibility. Sonnet-tier. |
 | `core/roles/scribe.md` | Documentation sync after impl. Sonnet-tier. |
-| `core/recipes/README.md` | The 10 opt-in recipes catalog + selection guidance. |
+| `core/roles/reflector.md` | Reads session trajectories; proposes lesson deltas (propose-only, opt-in). Opus-tier. |
+| `core/recipes/README.md` | The 11 opt-in recipes catalog + selection guidance. |
+| `core/recipes/self-improvement.md` | Opt-in Reflector loop — propose-only session self-review (ADR-030/032/033). |
 | `core/recipes/web-mobile-parity.md` | P1 + P2 (feature + bug parity). |
 | `core/recipes/i18n.md` | Multi-locale translation key sync. |
 | `core/recipes/monorepo.md` | Workspaces + shared package pattern. |
@@ -96,7 +98,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-029. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-034. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |
 | `docs/CONTRIBUTING.md` | Adapter contributor guide. |
@@ -113,6 +115,8 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/plans/` | Phase / track implementation plans. |
 | `docs/data/` | KPI baseline raw CSV data. |
 | `docs/INDEX.md` | This file. |
+
+> **Internal-only docs:** `GO-TO-MARKET.md`, `CONDUCTOR-V0.2-DESIGN.md`, `KPI.md`, `docs/data/`, `docs/plans/`, and `docs/audits/` are working docs kept in the **private repo only** — they are intentionally excluded from the public `omniconductor` mirror.
 
 ## `docs/audits/` — Competitive analyses
 

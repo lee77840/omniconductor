@@ -6,7 +6,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v0.2.x — 2026-06-28)**: All 6 adapters now ship a working `transform.sh` — **Claude Code (full: rules + hooks + sub-agents)**, **Cursor (rules + lazy load)**, **GitHub Copilot (rules across 5 IDEs via single install)**, **Gemini CLI (`GEMINI.md` + `.gemini/styleguide.md`)**, **Codex (`AGENTS.md`)**, **Windsurf (`.windsurfrules` + `.windsurf/rules/*.md`)**. Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install in [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) remains as a fallback. Marketplace listing (VSCode Marketplace + Open VSX) is **Phase 2 / v0.3+** — see ADR-023.
+> **Status (v0.2.x — 2026-06-28)**: All 6 adapters now ship a working `transform.sh` — **Claude Code (full: rules + hooks + sub-agents)**, **Cursor (rules + lazy load)**, **GitHub Copilot (rules across 5 IDEs via single install)**, **Gemini CLI (`GEMINI.md` + `.gemini/styleguide.md`)**, **Codex (`AGENTS.md`)**, **Windsurf (`.windsurfrules` + `.devin/rules/*.md`)**. Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install in [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) remains as a fallback. Marketplace listing (VSCode Marketplace + Open VSX) is **Phase 2 / v0.3+** — see ADR-023.
 
 ---
 
@@ -17,7 +17,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 - [Tool coverage matrix](#tool-coverage-matrix)
 - [Install paths (3 options)](#install-paths)
 - [Cross-platform: Mac and Windows](#cross-platform-mac-and-windows)
-- [Recipes catalog (10)](#recipes-catalog)
+- [Recipes catalog (11)](#recipes-catalog)
 - [`transform.sh` options reference](#transformsh-options-reference)
 - [Update / Maintenance / Uninstall](#update--maintenance--uninstall)
 - [Token measurement & KPI baseline](#token-measurement--kpi-baseline)
@@ -53,7 +53,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 ```bash
 # 1. CONDUCTOR 클론
-git clone https://github.com/lee77840/omniconductor ~/conductor
+git clone https://github.com/lee77840/conductor_lfamily ~/conductor
 
 # 2. 적용할 프로젝트로 이동
 cd ~/your-project
@@ -105,7 +105,7 @@ Three layers:
 > Simplest (no clone): `npx omniconductor init --target=claude .` — the clone+bash steps below are equivalent.
 
 ```bash
-git clone https://github.com/lee77840/omniconductor ~/conductor
+git clone https://github.com/lee77840/conductor_lfamily ~/conductor
 cd ~/your-project
 bash ~/conductor/adapters/claude/transform.sh . \
   --recipes=monorepo,coding-conventions \
@@ -128,7 +128,7 @@ Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](
 | **GitHub Copilot** | ✅ Full (`adapters/copilot/`) | ✅ `applyTo:` scoping | ❌ | ❌ | ❌ | `bash adapters/copilot/transform.sh <target>` — 1 install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
 | **Gemini CLI** | ✅ Full (`adapters/gemini/`) | ✅ single bundle (`GEMINI.md`) | ❌ | ❌ | ❌ | `bash adapters/gemini/transform.sh <target>` (+ `.gemini/styleguide.md` opt-in) |
 | **Codex (OpenAI)** | ✅ Full (`adapters/codex/`) | ✅ single bundle (`AGENTS.md`) | ❌ | ❌ | ❌ | `bash adapters/codex/transform.sh <target>` |
-| **Windsurf** | ✅ Full (`adapters/windsurf/`) | ✅ baseline (`.windsurfrules`) + `.windsurf/rules/*` | ❌ | ❌ | ❌ | `bash adapters/windsurf/transform.sh <target>` |
+| **Windsurf** | ✅ Full (`adapters/windsurf/`) | ✅ baseline (`.windsurfrules`) + `.devin/rules/*` | ❌ | ❌ | ❌ | `bash adapters/windsurf/transform.sh <target>` |
 
 Full per-feature matrix: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
 
@@ -165,7 +165,7 @@ Single command per tool. Adapter detects the target's existing state, runs an in
 #### Mac / Linux
 
 ```bash
-git clone https://github.com/lee77840/omniconductor ~/conductor
+git clone https://github.com/lee77840/conductor_lfamily ~/conductor
 cd ~/your-project
 
 # Pick your tool:
@@ -179,7 +179,7 @@ bash ~/conductor/adapters/copilot/transform.sh  . --recipes=monorepo,coding-conv
 ```bash
 # 1. Install Git for Windows: https://git-scm.com/download/win
 # 2. Open Git Bash terminal
-git clone https://github.com/lee77840/omniconductor /c/conductor
+git clone https://github.com/lee77840/conductor_lfamily /c/conductor
 cd /c/Users/me/Projects/my-app
 
 bash /c/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
@@ -192,7 +192,7 @@ bash /c/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conve
 ```bash
 # Inside WSL2 Ubuntu — same commands as Mac/Linux
 wsl
-git clone https://github.com/lee77840/omniconductor ~/conductor
+git clone https://github.com/lee77840/conductor_lfamily ~/conductor
 cd ~/your-project
 bash ~/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
 ```
@@ -237,7 +237,7 @@ For tools without an adapter (Gemini / Codex / Windsurf), or for adopters in con
 
 ## Recipes catalog
 
-10 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
+11 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
 
 | Recipe | Install when | Adds |
 |---|---|---|
@@ -251,6 +251,7 @@ For tools without an adapter (Gemini / Codex / Windsurf), or for adopters in con
 | `debugging` | Any project (root-cause-first discipline) | Reproduce → isolate → root-cause → fix → regression-test; no symptom patching |
 | `database-discipline` | Relational store + migrations + dev/prod split | Migration-first schema changes, access-control on new tables, dev/prod parity |
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
+| `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads recent session trajectories + git and **proposes** lessons-learned to `docs/REFLECTION-PROPOSALS.md` (propose-only; you apply). Emits a session-end trajectory hook, a `/reflect` command, a reflector agent, a deterministic prune, and a weekly runner + scheduling guide — on all six tools. See ADR-030/032/033. |
 
 #### Decision tree
 
@@ -265,6 +266,7 @@ Test framework + TDD?     YES → tdd
 Want root-cause debugging? YES → debugging
 Relational DB + migrations? YES → database-discipline
 Design-token system?      YES → design-system
+Want weekly session self-review? YES → self-improvement
 ```
 
 #### Recommended combos

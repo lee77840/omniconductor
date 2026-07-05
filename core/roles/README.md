@@ -1,8 +1,8 @@
-# `core/roles/` — The 6 universal roles
+# `core/roles/` — 6 universal roles + 1 opt-in (reflector)
 
-Per ADR-013, CONDUCTOR ships 6 universal role definitions. Adapters that support sub-agent dispatch (Claude Code as of v0.2) compile these into native role files. Adapters without native sub-agent support (Cursor / Copilot / Gemini / Codex / Windsurf) operate in **Single-Agent Mode**: the orchestrator absorbs all roles, and the role files are read as discipline references rather than dispatched.
+Per ADR-013, CONDUCTOR ships 6 universal role definitions; per ADR-030 it also ships one opt-in role, `reflector`, emitted only with the `self-improvement` recipe. Adapters that support sub-agent dispatch (Claude Code as of v0.2) compile these into native role files. Adapters without native sub-agent support (Cursor / Copilot / Gemini / Codex / Windsurf) operate in **Single-Agent Mode**: the orchestrator absorbs all roles, and the role files are read as discipline references rather than dispatched.
 
-## The 6 roles
+## The roles (6 universal + `reflector`, opt-in)
 
 | Role | Purpose | Default model tier |
 |---|---|---|
@@ -12,6 +12,7 @@ Per ADR-013, CONDUCTOR ships 6 universal role definitions. Adapters that support
 | `helper` | Single-file or 1-2-file work where the pattern is established. | Sonnet |
 | `designer` | UI / UX work. Visual components, design tokens. | Sonnet |
 | `scribe` | Documentation sync after implementation. No code. | Sonnet |
+| `reflector` *(opt-in)* | Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply. Shipped only with the `self-improvement` recipe (ADR-030). | Opus |
 
 Project-specific roles (e.g., a translator role for multi-locale work, a mailer role for transactional email) live in `core/recipes/` and are opt-in.
 

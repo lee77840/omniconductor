@@ -27,11 +27,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/lee77840/omniconductor.git"
+    "url": "https://github.com/lee77840/conductor_lfamily.git"
   },
-  "homepage": "https://github.com/lee77840/omniconductor#readme",
+  "homepage": "https://github.com/lee77840/conductor_lfamily#readme",
   "bugs": {
-    "url": "https://github.com/lee77840/omniconductor/issues"
+    "url": "https://github.com/lee77840/conductor_lfamily/issues"
   },
   "main": "./out/extension.js",
   "activationEvents": [
@@ -69,7 +69,7 @@
         "conductor.repoPath": {
           "type": "string",
           "default": "~/.conductor",
-          "description": "Path to the Conductor framework repository (cloned from github.com/lee77840/omniconductor). Tilde (~) is expanded to the user's home directory."
+          "description": "Path to the Conductor framework repository (cloned from github.com/lee77840/conductor_lfamily). Tilde (~) is expanded to the user's home directory."
         },
         "conductor.recipes": {
           "type": "string",

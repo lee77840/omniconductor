@@ -982,3 +982,95 @@ This couples the SQL hookify rules to the `database-discipline` recipe: select t
 - *Stay MIT.* Workable, but MIT does not require marking changes as prominently and is silent on patents; Apache 2.0 is a strict improvement for the same permissiveness.
 - *PolyForm Noncommercial.* Rejected — bans commercial use, the opposite of intent (this was the reverted misstep).
 - *FSL / PolyForm Perimeter (source-available, ban competing resale).* Rejected for now — would legally block even renamed competing resale, but at an adoption cost; the owner prioritized openness + brand protection over a hard anti-compete clause. Revisit if rebrand-resale becomes a real problem.
+
+## ADR-030 — Self-improvement is opt-in, propose-only, delta-based
+
+**Status**: Accepted (2026-07-03)
+
+**Context**: CONDUCTOR's VISION lists "not a silent auto-learner" as a non-goal, yet a real gap exists: no mechanism reads session trajectories to distil lessons. A prior counting-only observation approach produced noise, not signal (see `docs/specs/2026-07-03-conductor-self-improvement-reflector-design.md`). Recent research (ACE, GEPA, ExpeL) converges on an LLM "Reflector" that reads trajectories and emits small deltas, merged deterministically to avoid context collapse.
+
+**Decision**: Ship self-improvement as an opt-in recipe (`self-improvement`) driving a new `reflector` role, at autonomy ceiling **L1+ (propose-only)**. The reflector reads trajectories (transcript pointer + git + retro), appends `ADD/UPDATE/STALE` lesson deltas to `docs/REFLECTION-PROPOSALS.md`, and stops. Lessons are a specialization of the `feedback` memory type; a deterministic non-LLM script prunes/decays/dedups them. Nothing is applied without human approval. Automation is per-adapter (a stop-hook trajectory log + a scheduled trigger on Claude), with a manual `/reflect` floor everywhere.
+
+**Consequences**:
+
+- The VISION non-goal is preserved and clarified: proposing is not silent learning; a one-clause addition makes the boundary explicit in `VISION.md` and `docs/PHILOSOPHY.md`.
+- Reintroduces no SQLite/counter store — trajectories are read directly.
+- L2 (auto-apply), retrieval scoring, Pareto rule variants, and procedural/"playbook" memory are explicitly future work, not built here.
+- Introduces two new Claude-adapter emission mechanisms (a target-side script and a `.claude/commands/` file) that did not previously exist.
+
+**Alternatives considered**:
+
+- *Keep counting/metering only.* Rejected — the diagnosis that motivated this ADR is precisely that counters produce noise, not lessons.
+- *Auto-apply accepted-by-heuristic lessons (L2).* Rejected for now — violates the propose-only boundary that keeps the capability inside the VISION non-goal; deferred to a later spec.
+- *A standalone memory store for lessons.* Rejected — reuses the existing `feedback` type to avoid a second store and duplicate curation rules.
+
+## ADR-031 — 2026 compatibility-matrix re-verification (multi-tool parity correction)
+
+**Status**: Accepted (2026-07-04)
+
+**Context**: `docs/COMPATIBILITY-MATRIX.md` (and the VISION capability table) dated 2026-05-03 marked hooks, sub-agent dispatch, custom named agents, per-task model routing, slash commands, and built-in memory as **Claude-only** (✅ Claude, mostly ❌ the other five — slash commands were already ⚠️ for Cursor). A first-party re-verification on 2026-07-04 (official docs / changelogs / tool GitHub repos, two verification passes) found this is materially out of date: all six tools now ship event hooks (Cursor v1.7; Gemini v0.26.0; Copilot CLI+cloud+VS Code; Codex default-on; Windsurf 12 events but no session/stop), sub-agents, custom named agents, per-task model selection, and slash commands; Copilot/Codex/Windsurf also have built-in managed memory. Windsurf was rebranded to **Devin Desktop** (June 2026) and its rules path moved to `.devin/rules/`.
+
+**Decision**: Correct the matrix and VISION table to the verified tool-*capability* level, with an explicit **capability ≠ CONDUCTOR-emission** disclaimer: a ✅ means the tool documents the feature, not that a CONDUCTOR adapter compiles to it. Only first-party-confirmed cells are flipped; unverifiable claims (Codex hook/Automations dates, Cursor local transcript path, Cursor current-version Memories, Gemini AGENTS.md-by-default) are hedged with ⚠️ and footnotes rather than shipped as ✅. Actually emitting hooks / a scheduled Reflector job / native agents for the five non-Claude adapters is scoped as **Phase 2** (`docs/specs/2026-07-03-multitool-parity-reverification-SPEC-B-handoff.md`), not done in this documentation pass.
+
+**Consequences**:
+
+- The framework's public honesty improves: the matrix no longer understates competitors, and it clearly separates "tool can" from "CONDUCTOR does."
+- A concrete adapter backlog is now visible: emit hooks + scheduling + (optionally) native agents per tool; update the Windsurf adapter target to `.devin/rules/`. Genuine residual gaps are documented (Windsurf has no session/stop hook events; Gemini/Windsurf-desktop have no native scheduler; Gemini/Codex scope by nested-file hierarchy not glob; Copilot coding-agent has no transcript API).
+- ADR-004 (sub-agents stay Claude-only in CONDUCTOR) is unchanged as a *design* choice, but is now flagged as a revisit candidate given native sub-agents exist everywhere.
+
+**Alternatives considered**:
+
+- *Flip every ❌ to ✅ from the broad research.* Rejected — some claims (ship dates, Cursor local transcript, Cursor current Memories) lack a first-party source; shipping them as fact would repeat the original error in the opposite direction.
+- *Leave the matrix; only note "hooks now exist."* Rejected — the user's audit was explicitly "check every Claude-only cell," and most were stale, not just hooks.
+- *Build the non-Claude adapter emission now.* Rejected for this pass — large per-tool implementation; scoped as Phase 2 so the verified documentation correction ships first.
+
+## ADR-032 — Cross-tool Reflector emission (Spec B Phase 2, first slice)
+
+**Status**: Accepted (2026-07-04)
+
+**Context**: ADR-031 corrected the matrix to show hooks/agents/commands are native on all six tools but flagged that CONDUCTOR did not emit them (capability ≠ emission). The highest-value slice is the self-improvement Reflector loop (ADR-030), which was Claude-only.
+
+**Decision**: Emit the Reflector loop for the five non-Claude adapters, recipe-gated on `self-improvement`: a portable stdin-based trajectory logger (`core/reflector/trajectory-log.sh`, upsert-by-session) wired to each tool's nearest session-end hook (Cursor `.cursor/hooks.json` `stop`; Copilot `.github/hooks/*.json` `agentStop`; Gemini `.gemini/settings.json` SessionEnd; Codex `.codex/hooks.json` Stop; Windsurf `.windsurf/hooks.json` post_cascade_response_with_transcript), a `/reflect` command in each native format (Cursor skill, Copilot prompt file, Gemini TOML command, Codex skill, Windsurf workflow), a reflector agent where the tool has native agents (Cursor/Copilot/Gemini/Codex) or a `trigger: manual` rule (Windsurf), and the portable `prune-lessons.sh`. Hook-config files are written only when absent (never clobber a user's config; log a manual-merge note instead). The Windsurf adapter's rules target moves to `.devin/rules/` (preferred) per the 2026 Devin Desktop rebrand; legacy `.windsurf/rules/` is still read.
+
+**Consequences**:
+- The Reflector is genuinely multi-tool. The trajectory logger reads the transcript path from hook stdin (cleaner than the Claude dir-scan) and upserts by session, so turn-scoped (Codex `Stop`) and response-scoped (Windsurf `post_cascade_response`) hooks do not spam the index.
+- Still open (Phase 2 remainder): full hook-set parity (agent-routing / commit / large-file guards on non-Claude), native scheduler wiring for weekly Reflector runs, and migrating the Claude trajectory hook to the same stdin approach.
+
+**Alternatives considered**:
+- *Merge into an existing hook config file.* Rejected — safe JSON merge in bash is fragile; write-only-if-absent + a manual-merge note is safer.
+- *One agent/command format for all.* Rejected — each tool's format differs; per-tool wrappers around shared brief/persona text keep it DRY without faking a format.
+
+## ADR-033 — Weekly Reflector scheduling (runner + docs, not auto-registration)
+
+**Status**: Accepted (2026-07-05)
+
+**Context**: After ADR-032 the Reflector loop is emitted for all six tools, but the actual weekly *reflection* only ran when a human typed `/reflect`. First-party research (2026-07-05) established that (a) headless invocation exists for every tool (`claude -p`, `codex exec`, `gemini -p`, `cursor-agent -p`, `copilot -p`, `devin -p`), but (b) native LOCAL schedulers exist only for Claude (Desktop Scheduled Tasks) and Codex (app Automations); Cursor/Copilot-cloud/Windsurf schedulers run on a cloud clone and cannot see the local, git-ignored `.conductor/trajectories/`. Registering an OS-level schedule (cron/launchd) is a machine/user action a repo installer cannot perform.
+
+**Decision**: Emit a portable **`run-weekly.sh`** (auto-detects the first supported CLI on PATH, runs the reflect brief headless from the project root, no-ops when there are no trajectories; `CONDUCTOR_REFLECT_CLI` override, `CONDUCTOR_REFLECT_DRYRUN` preview) plus **`SCHEDULING.md`** (honest per-tool registration: OS cron/launchd as the universal local path, Claude Desktop tasks + Codex app automations as native-local, the cloud-scheduler trajectory-blind caveat, and GitHub Actions cron snippets with the committed-trajectory caveat). CONDUCTOR does NOT auto-register a schedule — it ships the runner + the guide and the user wires it once. The runner inlines the brief text rather than relying on `/reflect` slash-command resolution (unverified headless on Cursor/Windsurf).
+
+**Consequences**:
+- Self-improvement is now a complete loop the user can make autonomous with one documented cron line, while staying propose-only.
+- Honest about limits: cloud schedulers are documented as trajectory-blind; the runner degrades to a no-op when no CLI is on PATH or no trajectories exist.
+- Phase 2 remainder now: the REST of the hook set on non-Claude adapters, and migrating the Claude trajectory hook to the stdin approach.
+
+**Alternatives considered**:
+- *Auto-register cron/launchd from the installer.* Rejected — modifying a user's crontab/LaunchAgents from a repo transform is invasive and non-portable.
+- *Per-tool runner scripts.* Rejected — one auto-detecting runner is DRY; the only per-tool difference is one headless command line, handled by a `case`.
+- *Rely on native cloud schedulers.* Rejected — they cannot read local `.conductor/`; documented as such instead.
+
+## ADR-034 — Workflow guards stay Claude-only pending a hook-config-merge redesign
+
+**Status**: Accepted (2026-07-05)
+
+**Context**: After the Reflector loop was made multi-tool (ADR-030/032/033), the last Phase-2 candidate was porting the remaining Claude hooks — `pretool-agent-routing` and the three guards (`commit-current-work`, `commit-test-coverage`, `large-file-read`) — to the five non-Claude adapters. A first-party feasibility study (2026-07-05) was run before building.
+
+**Findings**:
+- **`pretool-agent-routing`** validates Claude's Agent-tool sub-agent dispatch. CONDUCTOR keeps sub-agent *compilation* Claude-only (ADR-004), so this hook is genuinely Claude-specific — nothing to port.
+- **`large-file-read` guard**: its core advice ("re-read with `offset`/`limit`") maps 1:1 only to **Gemini** (`read_file.offset/limit`, agent-visible deny) and near-cleanly to **Copilot** (`view` tool; arg names undocumented/UNVERIFIED). **Cursor** exposes no range param, its deny message reaches the *user* not the agent, and the file is already client-loaded (no I/O win). **Windsurf** (`pre_read_code`) can size-gate but has no range param. **Codex** reads via shell commands (no file-read tool; `PreToolUse` covers only Bash/apply_patch and "not all shell calls"), so the guard degrades to fragile command-regex sniffing.
+- **Structural blocker (all guards)**: a guard is *always-on* (token economy) while the trajectory hook is *recipe-gated*, and single-config-file tools (Cursor `.cursor/hooks.json`, Gemini `.gemini/settings.json`, Windsurf `.windsurf/hooks.json`) require **both entries in one file**. Safe JSON merge in bash was deliberately avoided (ADR-032 wrote hook configs only-if-absent). Adding an always-on guard alongside the recipe-gated trajectory hook needs a hook-emission redesign (always-write a combined config with both entries, each runtime-gated) — larger than the guard's value.
+
+**Decision**: Do **not** port the guards or agent-routing now. Keep them Claude-only; document the per-tool feasibility above so a future contributor can pick it up. The high-value Phase-2 work (the Reflector loop: emission + scheduling + unified stdin logging across all six tools) is complete. If the guards are pursued later, first land a hook-config-merge/emission redesign, then port the `large-file-read` guard to Gemini (clean) and Copilot (verify `view` args), size-gate variants for Cursor/Windsurf, and document Codex as unsupported.
+
+**Alternatives considered**:
+- *Force-port all guards to all five tools now.* Rejected — 15 translations, most low-value (soft-warns), several UNVERIFIED, blocked by the config-merge issue.
+- *Build a bash JSON-merge helper first.* Deferred — real infrastructure work whose only current consumer is a low-value guard; revisit when a second always-on non-Claude hook is needed.

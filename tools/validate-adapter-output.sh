@@ -334,9 +334,15 @@ run_windsurf() {
     validate_windsurf_file "$top"
   fi
 
-  local rules_dir="$TARGET/.windsurf/rules"
-  if [ ! -d "$rules_dir" ]; then
-    emit_fail ".windsurf/rules/" "directory missing"
+  # Rules moved to .devin/rules/ (2026 Devin Desktop rebrand); legacy .windsurf/rules/
+  # is still read, so accept either — prefer .devin/rules/.
+  local rules_dir rules_label
+  if [ -d "$TARGET/.devin/rules" ]; then
+    rules_dir="$TARGET/.devin/rules"; rules_label=".devin/rules"
+  elif [ -d "$TARGET/.windsurf/rules" ]; then
+    rules_dir="$TARGET/.windsurf/rules"; rules_label=".windsurf/rules"
+  else
+    emit_fail ".devin/rules/ (or legacy .windsurf/rules/)" "directory missing"
     return
   fi
 
@@ -346,7 +352,7 @@ run_windsurf() {
   for r in $required; do
     local rf="$rules_dir/$r.md"
     if [ ! -f "$rf" ]; then
-      emit_fail ".windsurf/rules/$r.md" "required universal rule file missing"
+      emit_fail "$rules_label/$r.md" "required universal rule file missing"
     else
       validate_windsurf_file "$rf"
     fi

@@ -3,7 +3,7 @@
 # CONDUCTOR — Windsurf adapter transform.sh
 #
 # Reads core/ assets and writes them into a target project as native Windsurf
-# files: .windsurfrules (always-loaded baseline), .windsurf/rules/*.md, docs/*.
+# files: .windsurfrules (always-loaded baseline), .devin/rules/*.md, docs/*.
 #
 # Usage:
 #   bash adapters/windsurf/transform.sh <target-project> [--recipes=<comma-list>] [--dry-run]
@@ -19,17 +19,18 @@
 #   bash adapters/windsurf/transform.sh . --uninstall --force      # bypass safety checks
 #
 # Layer 2 transformation (per ADR-004 honesty + ADR-021):
-#   core/universal-rules/*.md      →  <target>/.windsurf/rules/*.md  (front-matter stripped)
+#   core/universal-rules/*.md      →  <target>/.devin/rules/*.md     (front-matter stripped; preferred over legacy .windsurf/rules/)
 #   <synthesized>                  →  <target>/.windsurfrules        (always-loaded baseline)
-#   core/recipes/*.md (selected)   →  <target>/.windsurf/rules/*.md  (front-matter stripped)
+#   core/recipes/*.md (selected)   →  <target>/.devin/rules/*.md     (front-matter stripped)
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
-#   core/hooks/*.sh.template       →  SKIPPED (Windsurf has no hook execution surface)
+#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
 #   core/roles/*.md                →  SKIPPED (Windsurf has no sub-agent dispatch)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
-# Windsurf has NO per-pattern glob scoping (all files in .windsurf/rules/ load
-# together) and NO hooks / sub-agents. Universal-rule TEXT installs and groups;
-# Claude-only enforcement is dropped and noted in .windsurfrules.
+# Windsurf has NO per-pattern glob scoping (all files in .devin/rules/ load
+# together) and NO sub-agents. CONDUCTOR emits the Reflector hook when
+# --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)
+# and are noted in .windsurfrules.
 
 set -eu
 
@@ -66,12 +67,12 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
-  - Hooks (Windsurf has no PreToolUse / Stop equivalent — use git pre-commit instead)
+  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
   - Sub-agent personas (Windsurf has no sub-agent dispatch — single chat session per task)
-  - Per-pattern glob scoping (all .windsurf/rules/*.md load together)
+  - Per-pattern glob scoping (all .devin/rules/*.md load together)
   - Hookify rule templates (Claude-only plugin)
 EOF
       exit 0
@@ -123,13 +124,13 @@ mkdir_if_real() {
 }
 
 # Strip the CONDUCTOR universal frontmatter (first --- ... --- block) from src body.
-# Print body to stdout. Used by .windsurf/rules/*.md emit + .windsurfrules bundling.
+# Print body to stdout. Used by .devin/rules/*.md emit + .windsurfrules bundling.
 strip_frontmatter() {
   local src="$1"
   /usr/bin/awk 'BEGIN{f=0} /^---$/{c++; if(c==2){f=1; next}} f==1' "$src"
 }
 
-# Emit a `.windsurf/rules/<name>.md` file from a `core/*.md` source.
+# Emit a `.devin/rules/<name>.md` file from a `core/*.md` source.
 # Windsurf does NOT use front-matter for filtering, so we strip it entirely and
 # preserve the body verbatim.
 # emit_rule <src> <dest>
@@ -366,8 +367,8 @@ do_uninstall() {
     log "  deleted $MANIFEST_PATH"
   fi
 
-  # Try to clean up empty .windsurf/rules and .windsurf dirs left behind.
-  for d in .windsurf/rules .windsurf; do
+  # Try to clean up empty Conductor-emitted dirs left behind.
+  for d in .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -409,7 +410,7 @@ uninstall_legacy_scan() {
   done < <(/usr/bin/find "$TARGET_ABS" -type f -name '*.conductor-backup-*' 2>/dev/null)
   log "legacy scan: $found backup file(s)"
   log "WARNING: legacy mode does not delete Conductor-emitted source files (no manifest)."
-  log "         Delete .windsurfrules and .windsurf/rules/*.md manually if desired."
+  log "         Delete .windsurfrules and .devin/rules/*.md (or legacy .windsurf/rules/*.md) manually if desired."
 }
 
 if [ "$UNINSTALL" = "true" ]; then
@@ -437,10 +438,10 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
   printf "Detect existing rules? (y/N): "
   read -r _detect_answer
   if [ "$_detect_answer" = "y" ] || [ "$_detect_answer" = "Y" ]; then
-    _existing_rules=$(ls "$TARGET_ABS/.windsurf/rules/" 2>/dev/null | wc -l | /usr/bin/tr -d ' ')
+    _existing_rules=$(( $(ls "$TARGET_ABS/.devin/rules/" 2>/dev/null | wc -l | /usr/bin/tr -d ' ') + $(ls "$TARGET_ABS/.windsurf/rules/" 2>/dev/null | wc -l | /usr/bin/tr -d ' ') ))
     _has_baseline="no"
     [ -f "$TARGET_ABS/.windsurfrules" ] && _has_baseline="yes"
-    echo "  Found $_existing_rules rule files in .windsurf/rules/, .windsurfrules present: $_has_baseline"
+    echo "  Found $_existing_rules rule files in .devin/rules/ + .windsurf/rules/ (legacy), .windsurfrules present: $_has_baseline"
   fi
 
   printf "Apply universal-rules? (Y/n): "
@@ -452,7 +453,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
 
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -500,8 +501,8 @@ Windsurf 는 작업당 단일 채팅 세션으로 동작합니다 (서브에이�
 
 ## ABSOLUTE rules / 절대 규칙 (read before every change)
 
-These are the universal floor. The full text loads from `.windsurf/rules/`.
-이것들이 보편 규칙의 최소선입니다. 전체 본문은 `.windsurf/rules/` 에서 로드됩니다.
+These are the universal floor. The full text loads from `.devin/rules/`.
+이것들이 보편 규칙의 최소선입니다. 전체 본문은 `.devin/rules/` 에서 로드됩니다.
 
 | Rule | Summary |
 |---|---|
@@ -524,7 +525,7 @@ surface the assumption at the top of your response.
 Override to ASK (multiple-choice) when AMB-1..7 fires: deictic reference,
 unspecified scope, external-system invocation, protected-branch merge, design
 decisions, dependency add, or user-manual-action required. Full catalog:
-`.windsurf/rules/meta-discipline.md`.
+`.devin/rules/meta-discipline.md`.
 
 ## Session startup / 세션 시작
 
@@ -536,11 +537,12 @@ Lazy-load on demand: `docs/specs/<area>.md` when touching that area's code;
 
 ## Additional rules / 추가 규칙
 
-Additional rules load from `.windsurf/rules/` — all files in that directory load
-together (Windsurf has no per-pattern glob scoping). Selected recipes are emitted
-there too.
-추가 규칙은 `.windsurf/rules/` 에서 로드됩니다 — 해당 디렉터리의 모든 파일이 함께 로드됩니다
-(Windsurf 는 패턴별 glob 스코핑이 없음). 선택한 recipe 도 이곳에 생성됩니다.
+Additional rules load from `.devin/rules/` (preferred; legacy `.windsurf/rules/`
+is still read) — all files in that directory load together (Windsurf has no
+per-pattern glob scoping). Selected recipes are emitted there too.
+추가 규칙은 `.devin/rules/` 에서 로드됩니다 (선호 경로; 레거시 `.windsurf/rules/` 도 계속
+읽힘) — 해당 디렉터리의 모든 파일이 함께 로드됩니다 (Windsurf 는 패턴별 glob 스코핑이
+없음). 선택한 recipe 도 이곳에 생성됩니다.
 
 ## Not enforced on Windsurf / Windsurf 에서 미강제
 
@@ -557,15 +559,15 @@ EOF
   log "  wrote $WINDSURFRULES_DEST"
 fi
 
-# ----- step 2: universal rules -> .windsurf/rules/*.md -------------------
+# ----- step 2: universal rules -> .devin/rules/*.md ----------------------
 
 if [ "$WIZARD_APPLY_RULES" = "true" ]; then
-  log "Step 2/4: universal-rules → .windsurf/rules/"
-  mkdir_if_real "$TARGET_ABS/.windsurf/rules"
+  log "Step 2/4: universal-rules → .devin/rules/ (preferred; legacy .windsurf/rules/ still read)"
+  mkdir_if_real "$TARGET_ABS/.devin/rules"
 
   for rule in $UNIVERSAL_RULES; do
     src="$CORE_ROOT/universal-rules/$rule.md"
-    dest="$TARGET_ABS/.windsurf/rules/$rule.md"
+    dest="$TARGET_ABS/.devin/rules/$rule.md"
     if [ ! -f "$src" ]; then
       echo "Warning: $src not found; skipping" >&2
       continue
@@ -576,24 +578,24 @@ if [ "$WIZARD_APPLY_RULES" = "true" ]; then
     fi
     backup_and_remember "$dest"
     emit_rule "$src" "$dest"
-    record_emit ".windsurf/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    record_emit ".devin/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
   done
 else
   log "Step 2/4: universal-rules — skipped (user opted out)"
 fi
 
-# ----- step 3: recipes (opt-in) -> .windsurf/rules/*.md ------------------
+# ----- step 3: recipes (opt-in) -> .devin/rules/*.md ---------------------
 
-log "Step 3/4: recipes (opt-in) → .windsurf/rules/"
+log "Step 3/4: recipes (opt-in) → .devin/rules/ (preferred; legacy .windsurf/rules/ still read)"
 INSTALLED_RECIPES=""
 if [ -n "$RECIPES" ]; then
-  mkdir_if_real "$TARGET_ABS/.windsurf/rules"
+  mkdir_if_real "$TARGET_ABS/.devin/rules"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
     [ -z "$r" ] && continue
     src="$CORE_ROOT/recipes/$r.md"
-    dest="$TARGET_ABS/.windsurf/rules/$r.md"
+    dest="$TARGET_ABS/.devin/rules/$r.md"
     if [ ! -f "$src" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
@@ -605,12 +607,60 @@ if [ -n "$RECIPES" ]; then
     fi
     backup_and_remember "$dest"
     emit_rule "$src" "$dest"
-    record_emit ".windsurf/rules/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+    record_emit ".devin/rules/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
   done
 else
   log "  (no recipes selected — pass --recipes=name1,name2 to install)"
 fi
+
+# ----- step 3.5: self-improvement runtime (only with --recipes=self-improvement) ----
+
+case ",$RECIPES," in
+  *",self-improvement,"*)
+    log "Step: self-improvement (Reflector) → hook/workflow/rule"
+    if [ "$DRY_RUN" != "true" ]; then
+      /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.windsurf/workflows" "$TARGET_ABS/.devin/rules"
+      gi="$TARGET_ABS/.gitignore"
+      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      for s in trajectory-log prune-lessons run-weekly; do
+        d="$TARGET_ABS/.conductor/reflect/$s.sh"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
+        record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
+      done
+      # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
+      for m in reflect-brief SCHEDULING; do
+        d="$TARGET_ABS/.conductor/reflect/$m.md"
+        backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
+        record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
+      done
+      hc="$TARGET_ABS/.windsurf/hooks.json"
+      if [ ! -f "$hc" ]; then
+        backup_and_remember "$hc"
+        /bin/cat > "$hc" <<'HOOK'
+{
+  "hooks": {
+    "post_cascade_response_with_transcript": [
+      { "command": "./.conductor/reflect/trajectory-log.sh", "show_output": false }
+    ]
+  }
+}
+HOOK
+        record_emit ".windsurf/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+      else
+        log "  .windsurf/hooks.json exists — add a post_cascade_response_with_transcript hook calling ./.conductor/reflect/trajectory-log.sh manually"
+      fi
+      wf="$TARGET_ABS/.windsurf/workflows/reflect.md"
+      backup_and_remember "$wf"
+      { printf -- '---\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only)\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$wf"
+      record_emit ".windsurf/workflows/reflect.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
+      rl="$TARGET_ABS/.devin/rules/reflector.md"
+      backup_and_remember "$rl"
+      { printf -- '---\ntrigger: manual\ndescription: Reflector persona — propose lesson deltas, apply nothing.\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$rl"
+      record_emit ".devin/rules/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    ;;
+esac
 
 # ----- step 4: docs templates --------------------------------------------
 
@@ -658,20 +708,20 @@ echo " Done."
 echo "  Target: $TARGET_ABS"
 echo "  Adapter: windsurf"
 echo "  Always-loaded baseline: .windsurfrules"
-echo "  Universal rules: 5 (.windsurf/rules/*.md, front-matter stripped)"
+echo "  Universal rules: 5 (.devin/rules/*.md, front-matter stripped)"
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: Windsurf has no PreToolUse/Stop. Use git pre-commit hook for spec-as-you-go enforcement."
+echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
 echo "  - Sub-agent personas: Windsurf has no sub-agent dispatch — single chat session per task."
-echo "  - Per-pattern glob scoping: all .windsurf/rules/*.md load together."
+echo "  - Per-pattern glob scoping: all .devin/rules/*.md load together."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""
-echo " Activation: reopen the project in Windsurf so .windsurfrules + .windsurf/rules/ reload."
+echo " Activation: reopen the project in Windsurf so .windsurfrules + .devin/rules/ reload."
 echo "========================================================"
 echo ""
 echo "Next steps for the project:"
 echo "  1. Open $TARGET_ABS in Windsurf."
 echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
-echo "  3. Verify rule loading: confirm .windsurfrules + all .windsurf/rules/*.md show in the rule indicator."
+echo "  3. Verify rule loading: confirm .windsurfrules + all .devin/rules/*.md show in the rule indicator."
 echo "  4. Add .memory/ to .gitignore if you adopt the DIY memory pattern."

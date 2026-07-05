@@ -11,10 +11,10 @@ Detailed matrix of which CONDUCTOR features Cursor supports natively.
 | **Custom slash commands (project)** | ⚠️ Partial | `.cursor/commands/*.md` (where Cursor version supports) | Not as flexible as Claude slash commands; usable but limited. |
 | **MCP servers** | ✅ Native | Cursor settings | Not used by CONDUCTOR; project may add own. |
 | **In-IDE chat / completion** | ✅ Native | Cursor's primary feature set | Inline completion + chat — Cursor's strength. |
-| **Sub-agent dispatch** | ❌ | — | Single chat session per task. Human orchestrates manually. |
-| **Hooks (PreToolUse, Stop)** | ❌ | — | No commit-blocking. Use project-level pre-commit git hooks instead. |
-| **Per-call model routing** | ❌ | — | Model is per-session. Choose in UI. |
-| **Custom agent personas** | ⚠️ Workaround | Embed orchestrator/agent prompts in `.cursorrules` | Human pastes the right "agent persona" prompt at session start. |
+| **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.cursor/agents/*.md` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
+| **Hooks (stop)** | ✅ Native (2026) | `.cursor/hooks.json` | ADR-031. CONDUCTOR currently emits only the Reflector hook (ADR-032); broader hook-set emission is Phase 2. |
+| **Per-task model routing** | ✅ Native (2026) | Per-agent `model` config in agent definitions | ADR-031. |
+| **Custom agent personas** | ✅ Native (2026) | `.cursor/agents/*.md` named agents | Previously a `.cursorrules` paste-in workaround; now first-class. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Native | Plain markdown; Cursor reads on demand | Universal across all adapters. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `.cursorrules` + `.cursor/rules/spec-as-you-go.mdc` | Self-policed. Pair with pre-commit git hook for mechanical enforcement. |
@@ -63,11 +63,23 @@ Cursor's UI exposes the model picker. CONDUCTOR's rule text serves as the rubric
 
 ## What Cursor DOES NOT support (and CONDUCTOR doesn't fake)
 
-- Sub-agent dispatch (per ADR-004).
-- Stop / PreToolUse hooks.
-- Per-call model routing.
+> **2026 reconciliation (first-party verified):** the limitations previously listed here are stale. Cursor now natively supports hooks (`.cursor/hooks.json`), sub-agent dispatch with custom named agents (`.cursor/agents/*.md`), per-task model routing (per-agent `model` config), and project commands/skills — see `docs/COMPATIBILITY-MATRIX.md` / ADR-031.
 
-CONDUCTOR will not spawn Cursor CLI processes to fake sub-agents. The orchestrator role on Cursor is a human practice, not a tool feature.
+What remains true on the CONDUCTOR side:
+
+- CONDUCTOR does not yet emit a Claude-parity hook set for Cursor. It currently emits only the self-improvement Reflector hook (ADR-032, opt-in — see below). Broader hook-set emission (commit-blocking, spec enforcement) is Phase 2.
+- Until then, commit-blocking enforcement still relies on project-level pre-commit git hooks, and orchestration discipline remains partly a human practice.
+
+## Self-improvement (Reflector) — opt-in
+
+With `--recipes=self-improvement`, the Cursor adapter emits the Reflector loop (ADR-032):
+
+- **Hook**: `.cursor/hooks.json` — registers `.conductor/reflect/trajectory-log.sh` on the `stop` event. Written only if no hook config exists; if one is already present, the adapter emits a manual-merge log entry instead of overwriting.
+- **Command**: `.cursor/skills/reflect/SKILL.md` — the `/reflect` command that distills the trajectory log into lesson candidates.
+- **Agent**: `.cursor/agents/reflector.md` — named reflector agent for the distillation pass.
+- **Scripts**: `.conductor/reflect/trajectory-log.sh` (session trajectory capture) and `.conductor/reflect/prune-lessons.sh` (lesson-file size pruning).
+
+The loop is propose-only — lessons are proposed for human review, never auto-applied to rules. The hook no-ops unless `.conductor/reflect/` exists, so installs without the recipe are unaffected (opt-in gate).
 
 ## Verification (deferred to P2)
 

@@ -125,4 +125,4 @@ Before marking any task complete:
 - `core/universal-rules/spec-as-you-go.md` — tests as executable specs; same-turn update rule
 - `core/universal-rules/quality-gates.md` — Q1 pre-commit: test green is a hard gate
 - `core/recipes/debugging.md` — when a test fails during investigation, this recipe owns the fix cycle
-- Methodology adapted from the **Superpowers** project's `test-driven-development` skill — © 2025 Jesse Vincent, MIT License, <https://github.com/obra/superpowers>. Concepts paraphrased; no substantial verbatim text reproduced. See `THIRD_PARTY_NOTICES.md`.
+- Red-Green-Refactor is Kent Beck's method; this recipe is independently written. Its structure was informed in part by the **Superpowers** project (idea-level; no text reproduced) — see `THIRD_PARTY_NOTICES.md`.

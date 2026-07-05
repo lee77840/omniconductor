@@ -27,7 +27,7 @@ adapters/windsurf/_native/windsurfrules.tpl       # Header template (Windsurf-fl
 ```
 <target-dir>/
 ├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules + always-loaded rules)
-├── .windsurf/
+├── .devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
 │   └── rules/
 │       ├── meta-discipline.md
 │       ├── operations.md
@@ -49,7 +49,7 @@ adapters/windsurf/_native/windsurfrules.tpl       # Header template (Windsurf-fl
 2. **ABSOLUTE rules section** — R1-R8 minus Claude-only sub-agent enforcement. R-prefix renumbered.
 3. **Always-loaded universal rules** — content from rules with `always_loaded: true` in `core/`.
 4. **Pointer to docs** — `Read docs/CURRENT_WORK.md first every session.`
-5. **Pointer to `.windsurf/rules/`** — informational ("additional rules load from .windsurf/rules/").
+5. **Pointer to `.devin/rules/`** — informational ("additional rules load from .devin/rules/ (preferred; legacy .windsurf/rules/ still read)").
 
 ## Universal-rules → Windsurf translation
 
@@ -58,18 +58,18 @@ For each `core/universal-rules/<rule>.md`:
 1. Parse YAML front-matter.
 2. If `always_loaded: true`:
    - APPEND content (sans front-matter, with section heading) to `.windsurfrules` "Universal Rules" section.
-   - Do NOT also emit to `.windsurf/rules/` (would double-load).
+   - Do NOT also emit to `.devin/rules/` (would double-load).
 3. Else:
-   - Emit `.windsurf/rules/<rule>.md` with front-matter STRIPPED (Windsurf doesn't use it).
+   - Emit `.devin/rules/<rule>.md` (preferred dir; legacy `.windsurf/rules/` is still read) with front-matter STRIPPED (Windsurf doesn't use it).
    - Body preserved verbatim (with tool-specific callout replacement).
 
 ## Edge cases
 
 | Case | Adapter behavior |
 |---|---|
-| `.windsurf/` doesn't exist | Create it. |
+| `.devin/` doesn't exist | Create it. |
 | Existing `.windsurfrules` at target | Skip; report "SKIP (exists)". |
-| Existing `.windsurf/rules/operations.md` | Skip individually. |
+| Existing `.devin/rules/operations.md` | Skip individually. |
 
 ## Idempotency check
 
@@ -79,16 +79,16 @@ Re-run reports "SKIP (exists)" for everything.
 
 ```bash
 test -f "<target>/.windsurfrules"                      || echo "MISSING .windsurfrules"
-test -d "<target>/.windsurf/rules"                     || echo "MISSING .windsurf/rules dir"
-test -f "<target>/.windsurf/rules/spec-as-you-go.md"   || echo "MISSING spec-as-you-go"
+test -d "<target>/.devin/rules"                        || echo "MISSING .devin/rules dir"
+test -f "<target>/.devin/rules/spec-as-you-go.md"      || echo "MISSING spec-as-you-go"
 
-# Open project in Windsurf; verify rule indicator shows .windsurfrules + all .windsurf/rules/ files.
+# Open project in Windsurf; verify rule indicator shows .windsurfrules + all .devin/rules/ files.
 ```
 
 ## P3.5 Windsurf version compatibility check
 
 - Confirm `.windsurfrules` IS the canonical always-loaded location.
-- Confirm Windsurf reads ALL files under `.windsurf/rules/` (not just a manifest-listed subset).
+- Confirm Windsurf reads ALL files under `.devin/rules/` (not just a manifest-listed subset); legacy `.windsurf/rules/` is still read.
 - Confirm priority order when same rule exists in both locations.
 
 If Windsurf has changed conventions by P3.5, document in `notes.md`.

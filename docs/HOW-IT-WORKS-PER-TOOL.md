@@ -229,13 +229,13 @@ bash adapters/windsurf/transform.sh <target>
 # or: node bin/omniconductor.js init --target=windsurf <target>
 ```
 
-Produces `.windsurfrules` (always-loaded baseline) + `.windsurf/rules/*.md`. Output is emit-verified (`validate-adapter-output.sh windsurf` PASS); live runtime consumption by Windsurf is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 5 — Windsurf" remains as a fallback.
+Produces `.windsurfrules` (always-loaded baseline) + `.devin/rules/*.md` (preferred; legacy `.windsurf/rules/` still read). Output is emit-verified (`validate-adapter-output.sh windsurf` PASS); live runtime consumption by Windsurf is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 5 — Windsurf" remains as a fallback.
 
 ### Files produced
 
 ```
 .windsurfrules                              # Always-loaded baseline (5 universal rules)
-.windsurf/
+.devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
 └── rules/
     ├── workflow.md
     ├── spec-as-you-go.md
@@ -248,7 +248,7 @@ docs/                                       # (same as above)
 ### What works
 
 - Always-loaded baseline.
-- Directory-based rule loading (Windsurf reads all files under `.windsurf/rules/` — no per-pattern scoping).
+- Directory-based rule loading (Windsurf reads all files under `.devin/rules/` — legacy `.windsurf/rules/` still read; no per-pattern scoping).
 - All universal rule TEXT.
 - All doc templates.
 

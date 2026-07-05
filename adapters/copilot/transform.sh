@@ -29,7 +29,7 @@
 #                                 →  <target>/.github/copilot-instructions.md  (concatenated, body only)
 #   core/recipes/<r>.md (selected) →  <target>/.github/instructions/<r>.instructions.md (applyTo: from paths)
 #   core/docs-templates/*.md       →  <target>/docs/*.md
-#   core/hooks/*                   →  SKIP (Copilot has no hook mechanism)
+#   core/hooks/*                   →  SKIP (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
 #   core/roles/*                   →  SKIP (Copilot has no sub-agent dispatch)
 #
 # Layer 2 transformation (--per-rule alternative):
@@ -87,7 +87,7 @@ Options:
                         Conductor-emitted files when none.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
 
 Output (default):
   <target>/.github/copilot-instructions.md            (5 universal rules merged)
@@ -445,7 +445,7 @@ do_uninstall() {
     log "  deleted $MANIFEST_PATH"
   fi
 
-  for d in .github/instructions .github; do
+  for d in .github/instructions .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -523,7 +523,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
 
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
   printf "Select recipes (comma-separated, blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -636,6 +636,52 @@ else
   log "  (no recipes selected — pass --recipes=name1,name2 to install)"
 fi
 
+# ---- Step 2.6: self-improvement runtime (only with --recipes=self-improvement) ----
+case ",$RECIPES," in
+  *",self-improvement,"*)
+    log "Step 2.6/4: self-improvement (Reflector) → hooks/prompt/agent"
+    if [ "$DRY_RUN" != "true" ]; then
+      /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.github/hooks" "$TARGET_ABS/.github/prompts" "$TARGET_ABS/.github/agents"
+      gi="$TARGET_ABS/.gitignore"
+      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      for s in trajectory-log prune-lessons run-weekly; do
+        d="$TARGET_ABS/.conductor/reflect/$s.sh"
+        backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
+        record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
+      done
+      # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
+      for m in reflect-brief SCHEDULING; do
+        d="$TARGET_ABS/.conductor/reflect/$m.md"
+        backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
+        record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
+      done
+      hc="$TARGET_ABS/.github/hooks/conductor-reflect.json"
+      if [ ! -f "$hc" ]; then
+        backup_if_exists "$hc"
+        /bin/cat > "$hc" <<'HOOK'
+{
+  "version": 1,
+  "hooks": {
+    "agentStop": [ { "type": "command", "bash": "./.conductor/reflect/trajectory-log.sh", "timeoutSec": 10 } ]
+  }
+}
+HOOK
+        record_emit ".github/hooks/conductor-reflect.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+      else
+        log "  .github/hooks/conductor-reflect.json exists — add an agentStop hook calling ./.conductor/reflect/trajectory-log.sh manually"
+      fi
+      pr="$TARGET_ABS/.github/prompts/reflect.prompt.md"
+      backup_if_exists "$pr"
+      { printf -- "---\ndescription: 'Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only)'\nagent: 'agent'\n---\n\n"; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$pr"
+      record_emit ".github/prompts/reflect.prompt.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
+      ag="$TARGET_ABS/.github/agents/reflector.agent.md"
+      backup_if_exists "$ag"
+      { printf -- '---\nname: reflector\ndescription: "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies."\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      record_emit ".github/agents/reflector.agent.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    ;;
+esac
+
 # ----- step 3: docs templates --------------------------------------------
 
 log "Step 3/4: docs templates → docs/"
@@ -675,7 +721,7 @@ fi
 
 log "Step 4/4: skipped layers (Copilot has no equivalent)"
 log "  - core/roles/         → SKIP (no sub-agent dispatch)"
-log "  - core/hooks/         → SKIP (no PreToolUse/Stop hooks)"
+log "  - core/hooks/         → SKIP except Reflector hook (--recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)"
 log "  - hookify-templates/  → SKIP (Claude Code plugin only)"
 
 finalize_manifest

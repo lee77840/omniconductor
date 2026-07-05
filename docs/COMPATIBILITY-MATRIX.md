@@ -2,33 +2,57 @@
 
 This matrix describes which CONDUCTOR features are supported by each target tool. ✅ = native support, ⚠️ = partial / requires manual work, ❌ = not supported.
 
-> **Status note**: ratings below are the *theoretical/spec* level based on each tool's documented capabilities as of 2026-05-03. Verified-by-real-install column will be added per tool as the corresponding adapter ships in P1-P3.5.
+> **Status note (re-verified 2026-07-04)**: ratings are the *tool-capability* level, re-verified against **first-party sources** (official docs / changelogs / tool GitHub repos) on 2026-07-04. The prior matrix (dated 2026-05-03) marked hooks and several other features as Claude-only; that is now **out of date** — all six tools ship event hooks (see the Hooks row + footnotes).
+>
+> **Capability ≠ CONDUCTOR emission.** A ✅ here means the *tool* documents the feature, NOT that a CONDUCTOR adapter already compiles to it. **Update (2026-07-04, ADR-032):** the **self-improvement / Reflector loop is now emitted for all six adapters** (a session-end trajectory-log hook, a `/reflect` command, a reflector agent-or-rule, and the prune script — recipe-gated on `--recipes=self-improvement`), so for that one capability the emission gap is closed on every tool (Windsurf via `post_cascade_response_with_transcript`, which is per-response not per-session). **Update (2026-07-05, ADR-033):** weekly-run scheduling is now shipped too — every adapter emits `.conductor/reflect/run-weekly.sh` (auto-detects the tool's headless CLI) + `SCHEDULING.md` (per-tool cron/launchd + native-scheduler registration, with the cloud-scheduler-can't-see-local-trajectories caveat). **Still Phase 2:** emitting the *rest* of the hook set (agent-routing / commit / large-file guards) on the five non-Claude adapters (see `docs/specs/2026-07-03-multitool-parity-reverification-SPEC-B-handoff.md`). Cells corrected in this pass are limited to what a first-party source confirms; unverifiable claims are hedged in the footnotes rather than shipped as ✅.
+>
+> **Naming:** Windsurf was **rebranded to "Devin Desktop"** (June 2026, per its own changelog); the "Windsurf" column name is kept here for adopter familiarity. Its **rules** now live under `.devin/rules/` (legacy `.windsurf/rules/`); other config (workflows, memories) remains under `.windsurf/` and `~/.codeium/windsurf/` — see footnote 11.
 
 ## Feature support matrix
 
 | Feature | Claude Code | Cursor | Copilot | Gemini CLI | Codex | Windsurf |
 |---|---|---|---|---|---|---|
-| **Sub-agent dispatch** (Plan → delegate → verify) | ✅ Agent tool | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Hooks** (PreToolUse / Stop / etc.) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Model routing** (Opus / Sonnet / Haiku triage) | ✅ per-call `model:` arg | ❌ (single model per session) | ❌ | ❌ | ❌ | ❌ |
-| **Lazy-loaded rules** (load only when matching files touched) | ✅ paths front-matter | ✅ `globs:` on `.mdc` | ✅ `applyTo:` | ❌ single file | ❌ single file | ⚠️ directory-based |
-| **Always-loaded baseline** | ✅ `CLAUDE.md` | ✅ `.cursorrules` | ✅ `applyTo: '**'` | ✅ `GEMINI.md` | ✅ `.codex/codex.md` | ✅ `.windsurfrules` |
-| **Slash commands** | ✅ | ⚠️ partial (project commands) | ❌ | ❌ | ❌ | ❌ |
-| **Custom agents (named, named with system prompts)** | ✅ `.claude/agents/*.md` | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Skill / plugin ecosystem** | ✅ | ⚠️ (rules-only) | ⚠️ MCP partial | ⚠️ tools | ❌ | ❌ |
-| **Per-user persistent memory directory (built-in)** | ✅ `~/.claude/projects/.../memory/` | ❌ (DIY) | ❌ (DIY) | ❌ (DIY) | ❌ (DIY) | ❌ (DIY) |
+| **Sub-agent dispatch** (Plan → delegate → verify) | ✅ Agent tool | ✅¹ | ✅¹ | ✅¹ | ✅¹ | ✅¹ |
+| **Hooks** (PreToolUse / Stop / etc.) | ✅ | ✅² | ✅² | ✅² | ✅² | ⚠️² |
+| **Custom named agents** (own system prompt) | ✅ `.claude/agents/*.md` | ✅³ | ✅³ | ✅³ | ✅³ | ⚠️³ |
+| **Per-task model routing** (triage per call/agent) | ✅ per-call `model:` | ✅⁴ | ✅⁴ | ✅⁴ | ✅⁴ | ✅⁴ |
+| **Slash / custom commands** | ✅ | ✅⁵ | ✅⁵ | ✅⁵ | ✅⁵ | ✅⁵ |
+| **Built-in managed memory** | ✅ `~/.claude/projects/.../memory/` | ⚠️⁶ | ✅⁶ | ⚠️⁶ | ✅⁶ | ✅⁶ |
+| **Native scheduled agents/jobs** | ✅ Routines | ✅⁷ | ✅⁷ | ⚠️⁷ | ✅⁷ | ⚠️⁷ |
+| **Machine-readable transcripts** | ✅ JSONL | ✅⁸ | ⚠️⁸ | ✅⁸ | ✅⁸ | ✅⁸ |
+| **AGENTS.md context file** | ⚠️⁹ (CLAUDE.md) | ✅⁹ | ✅⁹ | ⚠️⁹ | ✅⁹ | ✅⁹ |
+| **Lazy-loaded rules** (glob on file-touch) | ✅ paths front-matter | ✅ `globs:` on `.mdc` | ✅ `applyTo:` | ⚠️¹⁰ | ⚠️¹⁰ | ⚠️ directory-based |
+| **Always-loaded baseline** | ✅ `CLAUDE.md` | ✅ `.cursorrules` / AGENTS.md | ✅ `applyTo: '**'` | ✅ `GEMINI.md` | ✅ `AGENTS.md` | ✅ `.windsurf`/`.devin` rules¹¹ |
+| **Skill / plugin ecosystem** | ✅ | ✅ Skills⁵ | ⚠️ MCP + prompt files | ⚠️ tools + extensions | ✅ Skills⁵ | ⚠️ workflows/skills |
+| **Spec-as-you-go enforcement (auto-block)** | ✅ Stop hook | ✅¹² | ✅¹² | ✅¹² | ✅¹² | ⚠️¹² |
+| **Two-stage code review enforcement** | ✅ Stop hook | ✅¹² | ✅¹² (+ native PR review) | ✅¹² | ✅¹² | ⚠️¹² |
 | **In-repo doc templates work as-is** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Spec-as-you-go enforcement (auto-block)** | ✅ Stop hook | ❌ rule reminder only | ❌ rule reminder only | ❌ rule reminder only | ❌ rule reminder only | ❌ rule reminder only |
-| **Two-stage code review enforcement** | ✅ Stop hook reminders | ❌ rule reminder only | ⚠️ Copilot PR review (different mechanism) | ❌ rule reminder only | ❌ rule reminder only | ❌ rule reminder only |
 | **Bilingual rule support (한/영)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**Footnotes (first-party sources, verified 2026-07-04).** ✅ = tool capability confirmed; it does NOT mean a CONDUCTOR adapter emits it yet (non-Claude emission is Phase 2 — see the status note).
+
+1. **Sub-agent dispatch** — Cursor 2.4+ (`cursor.com/docs/subagents`), Copilot VS Code (`code.visualstudio.com/docs/copilot/agents/subagents`), Gemini CLI (`enableAgents`, on by default), Codex (on by default, `max_depth` 1), Windsurf via **Devin Local**. All single-level nesting. CONDUCTOR keeps sub-agent *compilation* Claude-only by design (ADR-004); the ✅s mark native tool capability, a candidate to revisit — not current emission.
+2. **Hooks** — Cursor v1.7 (2025-09-29 beta), Gemini v0.26.0 (2026-01-28, default-on), Copilot CLI + cloud-agent + VS Code (Preview; Claude-Code hook *format*, with different tool names), Codex (default-on; intro date not pinnable first-party). Windsurf ⚠️: 12 hook events but **no session-start/end**, so Stop-style enforcement is unavailable.
+3. **Custom named agents** — Cursor `.cursor/agents/` (also reads `.claude/agents/`), Copilot `.github/agents/*.agent.md`, Gemini `.gemini/agents/*.md`, Codex `~/.codex/agents/*.toml` (`developer_instructions` + optional per-agent model). Windsurf ⚠️: documented for **Devin CLI** (`.devin/agents/{name}/AGENT.md`); Desktop confirmation implicit only.
+4. **Per-task model routing** — corrects the old "single model per session" claim. Cursor per-chat + per-subagent `model:`; Copilot per-request + per-agent `model:`; Gemini `--model`/`/model`/per-subagent; Codex per-invocation `-m` / `/model` / per-profile; Windsurf per-conversation dropdown + per-subagent defaults.
+5. **Slash / custom commands** — Cursor `.cursor/commands/*.md` (→ Skills in 2.4+), Copilot prompt files `.github/prompts/*.prompt.md`, Gemini `.gemini/commands/*.toml`, Codex Skills `.agents/skills` (`~/.codex/prompts/*.md` still work but deprecated), Windsurf workflows `.windsurf/workflows/*.md` (manual-only).
+6. **Built-in managed memory** — Copilot "Copilot Memory" (preview; on-by-default for Pro since 2026-03; 28-day expiry), Codex `~/.codex/memories/` (opt-in), Windsurf `~/.codeium/windsurf/memories/`. ⚠️ Cursor: Memories GA'd in 1.2 but the docs page now redirects to Rules — current 2.x/3.x status unverified. ⚠️ Gemini: managed memory exists (hierarchical `GEMINI.md` + experimental Auto Memory) but the old `save_memory`/`/memory add` mechanism is gone from current docs.
+7. **Native scheduled jobs** — Claude Routines, Cursor Automations (cloud-only, 2026-03), Copilot cloud-agent automations (2026-06-02) + CLI prompt scheduling, Codex Automations (cron; intro date not first-party). ⚠️ Gemini: no built-in scheduler — first-party path is the official GitHub Action on `schedule:`. ⚠️ Windsurf / Devin Desktop: no native desktop scheduler documented — external cron/launchd + Devin CLI is the only path.
+8. **Transcripts** — Claude JSONL `~/.claude/projects/`, Cursor hook `transcript_path` (local on-disk path is unofficial → omitted), Gemini `~/.gemini/tmp/<hash>/chats/`, Codex `~/.codex/sessions/`, Windsurf transcript hook `~/.windsurf/transcripts/`. ⚠️ Copilot: hook `transcriptPath` only; the coding agent has **no transcript API** (UI / VS Code-viewable only).
+9. **AGENTS.md** — Cursor/Copilot/Codex/Windsurf read it natively. ⚠️ Gemini: only via `context.fileName` config (default is `GEMINI.md`). Claude ⚠️: uses `CLAUDE.md` natively (Copilot/Codex also read `CLAUDE.md`).
+10. **Lazy rules** — Gemini/Codex offer nested `GEMINI.md`/`AGENTS.md` directory-hierarchy scoping, not glob-on-file-touch loading.
+11. **Windsurf paths** — rules are now `.devin/rules/` (legacy `.windsurf/rules/`); the single-file `.windsurfrules` no longer matches current docs → **the CONDUCTOR Windsurf adapter target path needs updating** (Phase 2 adapter follow-up).
+12. **Auto-block enforcement** — every non-Claude tool now has hooks that can block (exit-code-2 / deny), so spec-as-you-go and review enforcement are *capable* on Cursor/Copilot/Gemini/Codex. ⚠️ Windsurf: no Stop/session event → pre-tool blocking only. CONDUCTOR emits these hooks for Claude only today; non-Claude hook emission is Phase 2. Copilot review = native GitHub PR review (a different mechanism).
 
 ## Tier assignment
 
+Tiers are re-defined for the 2026 reality. The old T3 definition ("sub-agents/hooks not available") is obsolete — every tool now has hooks + sub-agents + custom agents + per-task model routing + commands. Tiers now reflect **how completely CONDUCTOR can map the full workflow** (glob rule-scoping, Stop-style enforcement events, a native scheduler for the Reflector), and adapter-emission readiness.
+
 | Tier | Tools | Definition |
 |---|---|---|
-| **T1 — Full** | Claude Code, Cursor | Lazy rule loading works natively; output matches the universal intent closely. Cursor lacks sub-agents but compensates with strong rule scoping. |
-| **T2 — Good** | Copilot, Gemini CLI | Rule installation works; Copilot has scoping but no chat-session memory; Gemini scoping is bundled. |
-| **T3 — Basic** | Codex, Windsurf | Rule text installs as a single bundle; lazy loading limited; sub-agents/hooks not available. |
+| **T1 — Full** | Claude Code, Cursor | Glob rule-scoping + hooks (incl. session/stop events) + sub-agents + per-task model + native scheduler (Cursor's is cloud-only) all present. Claude emits all of it today; Cursor is the richest non-Claude target for Phase 2 emission. |
+| **T2 — Good** | Copilot, Codex, Gemini CLI | Hooks + sub-agents + custom agents + per-task model + commands all present. Caveats: Copilot rule-scoping is glob (`applyTo:`) but the coding agent has no transcript API; Codex/Gemini scope by nested-file hierarchy, not glob; Gemini has no native scheduler (external Action). |
+| **T3 — Basic** | Windsurf / Devin Desktop | Has hooks (but **no session/stop events** → no Stop-style enforcement), sub-agents (Devin Local), commands, memory. No desktop scheduler; rules path moved to `.devin/rules/` (adapter update needed). |
 
 ## Verdict — "If you need X, use Y"
 
@@ -45,19 +69,21 @@ CONDUCTOR's job is to make sure **whichever tool you pick, you get the same Plan
 
 ## What you LOSE going from Claude → other tools
 
-- **Sub-agent dispatch** — orchestrator role becomes a manual practice, not enforced.
-- **Stop hook spec-as-you-go enforcement** — discipline becomes self-policed.
-- **Per-call model routing** — you're locked to one model per session.
-- **Custom agent slash commands** — replaced by manual prompts.
+This list used to be long. As of the 2026-07-04 re-verification it is **much shorter** — sub-agents, hooks, custom named agents, per-task model routing, and commands are now native across the ecosystem. Two real gaps remain:
 
-What you KEEP:
+- **CONDUCTOR adapter emission** — the framework's non-Claude adapters do not *yet* compile to those native hooks / agents / scheduled jobs. Until Phase 2 lands (see the Spec B handoff), the enforcement on Cursor/Copilot/Gemini/Codex/Windsurf is still rule-reminder text even though the *tool* could enforce it. This is a CONDUCTOR gap, not a tool gap.
+- **Windsurf / Devin Desktop** — genuinely lacks session-start/stop hook events, so Stop-style "auto-block on missing spec update" cannot be built there regardless of adapter work; and it has no desktop scheduler for a Reflector job.
+
+Smaller residuals: Gemini/Codex scope rules by nested-file hierarchy rather than glob-on-file-touch; Gemini has no built-in scheduler (use the official GitHub Action); Copilot's coding agent exposes no transcript API.
+
+What you KEEP everywhere (unchanged):
 
 - All rule text (operations, coding-conventions, token-economy, spec-as-you-go, model-routing).
 - All doc templates (CURRENT_WORK, REMAINING_TASKS, PLANS, TASKS, INDEX, specs/_example).
-- The 4-type memory pattern (you maintain the directory yourself).
+- The 4-type memory pattern (built-in managed memory now also exists on Copilot/Codex/Windsurf).
 - The Plan → Architecture → Tasks → Impl → Review → Spec phase definitions.
 
-The discipline is portable. The enforcement is not.
+The discipline is portable. The *enforcement* is now portable in principle too — CONDUCTOR just has to emit it (Phase 2).
 
 ## Verification status
 
@@ -67,6 +93,8 @@ The discipline is portable. The enforcement is not.
 | Cursor | ✅ (P0) | ✅ (SHIPPED v0.2, ADR-021) | ✅ `validate-adapter-output.sh cursor` PASS (2026-05-10) | ⏳ pending (Cursor smoke — see IDE-SMOKE-TESTING § 1) | ⚠️ Synthetic-target smoke + format-validator PASS (4 cases 2026-05-10); real-IDE empirical verification deferred to adopter feedback | ✅ (ADR-021, IDE-COMPATIBILITY-NOTES § Cursor) |
 | Copilot | ✅ (P0) | ✅ (SHIPPED v0.2, ADR-022) | ✅ `validate-adapter-output.sh copilot` PASS (2026-05-10) | ⏳ pending per IDE: VS Code (§ 2), Cursor+Copilot (§ 3), Windsurf (§ 4), JetBrains (§ 5), Neovim (§ 6) | ⚠️ Synthetic-target smoke + format-validator PASS (3 cases 2026-05-10 — fresh / adopter / per-rule); per-IDE real smoke deferred to adopter feedback | ✅ (ADR-022, IDE-COMPATIBILITY-NOTES § Copilot) |
 | Gemini CLI | ✅ (P0) | ✅ (SHIPPED v0.2 — `adapters/gemini/transform.sh` → `GEMINI.md` + `.gemini/styleguide.md`) | ✅ `validate-adapter-output.sh gemini` PASS | n/a (CLI runtime) | ⚠️ Emit-verified (format-validator + synthetic-target smoke PASS); live runtime consumption by Gemini CLI still pending — see `docs/ADAPTER-LIVE-VERIFICATION.md` | ✅ (IDE-COMPATIBILITY-NOTES § Gemini) |
+| Codex | ✅ (P0) | ✅ (SHIPPED v0.2 — `adapters/codex/transform.sh` → `AGENTS.md`) | ✅ `validate-adapter-output.sh codex` PASS | n/a (CLI runtime) | ✅ **Live-verified (2026-06-28)** — `codex exec` (codex-cli 0.130.0) loaded `AGENTS.md` and correctly listed all 5 universal rules + the "read docs/CURRENT_WORK.md first" rule. Also emit-verified (format-validator PASS). | ✅ (IDE-COMPATIBILITY-NOTES § Codex) |
+| Windsurf | ✅ (P0) | ✅ (SHIPPED v0.2 — own `adapters/windsurf/transform.sh` → `.windsurfrules` + `.windsurf/rules/*.md`; **target update to `.devin/rules/` pending — see footnote 11 / Phase 2**) | ✅ `validate-adapter-output.sh windsurf` PASS | ⏳ adopter follow-up / live-pending (IDE-SMOKE-TESTING § 4) | ⚠️ Emit-verified (format-validator + synthetic-target smoke PASS); live runtime consumption still pending — see `docs/ADAPTER-LIVE-VERIFICATION.md` | ✅ (IDE-COMPATIBILITY-NOTES § Windsurf) |
 
 ## Copilot adapter — IDE coverage
 
@@ -81,5 +109,3 @@ The Copilot adapter is the strategic ROI win in P3: a single transform.sh produc
 | Neovim | `copilot.vim` (or `copilot.lua`) | ⚠️ chat-only feature; completion side ignores | ⚠️ chat-only feature | ⏳ adopter follow-up | `IDE-SMOKE-TESTING.md` § 6 |
 
 The "documented" column reflects GitHub's official Copilot custom-instructions spec. Per-IDE empirical verification (open the IDE, confirm the rule shows in Copilot Chat references, edit a matching file, verify the per-file instruction loads) is now covered by the manual smoke checklists in `IDE-SMOKE-TESTING.md` (one section per IDE) — adopter-driven, results recorded back into the "Per-IDE smoke (manual)" column above. `transform.sh` is auto-validated by `tools/validate-adapter-output.sh` (format-level conformance) plus the original three temp-target install smoke runs against a synthetic Conductor source tree. Per-IDE quirks are inventoried in `docs/IDE-COMPATIBILITY-NOTES.md`.
-| Codex | ✅ (P0) | ✅ (SHIPPED v0.2 — `adapters/codex/transform.sh` → `AGENTS.md`) | ✅ `validate-adapter-output.sh codex` PASS | n/a (CLI runtime) | ✅ **Live-verified (2026-06-28)** — `codex exec` (codex-cli 0.130.0) loaded `AGENTS.md` and correctly listed all 5 universal rules + the "read docs/CURRENT_WORK.md first" rule. Also emit-verified (format-validator PASS). | ✅ (IDE-COMPATIBILITY-NOTES § Codex) |
-| Windsurf | ✅ (P0) | ✅ (SHIPPED v0.2 — Windsurf now has its OWN `adapters/windsurf/transform.sh` → `.windsurfrules` + `.windsurf/rules/*.md`, in addition to being reachable via the Copilot adapter) | ✅ `validate-adapter-output.sh windsurf` PASS | ⏳ adopter follow-up / live-pending (IDE-SMOKE-TESTING § 4) | ⚠️ Emit-verified (format-validator + synthetic-target smoke PASS); live runtime consumption by Windsurf still pending — see `docs/ADAPTER-LIVE-VERIFICATION.md` | ✅ (IDE-COMPATIBILITY-NOTES § Windsurf) |

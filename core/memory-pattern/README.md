@@ -61,6 +61,42 @@ Body. For feedback/project: lead with rule, then **Why:** and **How to apply:** 
 
 2. Add one-line pointer to `MEMORY.md`: `- [Title](file.md) — one-line hook`
 
+## Lessons (Reflector-produced feedback)
+
+Lessons distilled by the `reflector` role are a specialization of the `feedback`
+type. File name: `feedback_lesson-<slug>.md`. They carry the standard three keys
+plus reflector bookkeeping keys:
+
+```markdown
+---
+name: lesson-<slug>
+description: one-line for relevance matching
+type: feedback
+id: lesson-<slug>          # stable id for delta ops
+added: <YYYY-MM-DD>
+source: <session-id | commit | retro-line>   # provenance (required)
+hits: 1                    # times reinforced
+last_used: <YYYY-MM-DD>
+status: active             # active | stale | merged
+confidence: medium         # low | medium | high
+---
+
+<the lesson, one paragraph>
+
+**Why:** <why this matters>
+**How to apply:** <the concrete change to make next time>
+```
+
+Delta operations (applied by a human, or by the orchestrator on explicit GO):
+- `ADD` — new `feedback_lesson-*.md`.
+- `UPDATE` — bump `hits`, raise `confidence`, or refine wording of an existing lesson.
+- `STALE` — set `status: stale`; keep the file, drop its `MEMORY.md` index line.
+
+Proposals are staged (not applied) in `docs/REFLECTION-PROPOSALS.md`. The
+deterministic prune script (`.conductor/reflect/prune-lessons.sh`) keeps the
+active set bounded: it marks decayed and dead-path lessons `status: stale`
+(non-destructive) and removes only exact byte-duplicate files.
+
 ## Anti-staleness
 
 Before recommending FROM memory, verify it's still true:
