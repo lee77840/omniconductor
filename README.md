@@ -291,7 +291,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | Option | Description |
 |---|---|
 | `<target-project>` | Project directory to install into (required). `.` for current dir. |
-| `--recipes=A,B,C` | Comma-separated recipes from the 10 in `core/recipes/`. |
+| `--recipes=A,B,C` | Comma-separated recipes from the 11 in `core/recipes/`. |
 | `--dry-run` | Preview only — no files written. |
 | `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if cache hit < 95%. |
 | `--no-prompt` | Skip wizard, apply defaults (CI-safe). Combine with `--recipes` and `--measure-baseline` as needed. |
@@ -448,7 +448,7 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 
 #### Architecture Decision Records (`docs/DESIGN-DECISIONS.md`)
 
-28 ADRs cover the foundational decisions. Highlights:
+36 ADRs cover the foundational decisions. Highlights:
 
 | ADR | Topic | Why it matters |
 |---|---|---|
@@ -461,8 +461,12 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 | **ADR-021** | Cursor adapter (`adapters/cursor/transform.sh`) | Adapter design for `.cursor/rules/*.mdc` |
 | **ADR-022** | Copilot adapter (single-format, 5-IDE coverage) | Why one Copilot install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
 | **ADR-023** | Marketplace strategy + cross-platform | Phase 1 (now: bash) → Phase 2 (v0.3+: VSCode extension) |
+| **ADR-030** | Self-improvement is opt-in, propose-only | Nothing learns silently — the Reflector proposes, you approve |
+| **ADR-035/036** | Instruction-fidelity-first token economy | Reduce tokens without distorting your instructions (context editing, output brevity, `docs/CONTEXT-EDITING-GUIDE.md`) |
 
 Full list and bodies: [`docs/DESIGN-DECISIONS.md`](./docs/DESIGN-DECISIONS.md).
+
+**What changed between versions:** see [`CHANGELOG.md`](./CHANGELOG.md) — every release and its Added / Changed entries, newest first.
 
 ---
 
@@ -478,7 +482,7 @@ A: Open VSX. Cursor is a VSCode fork but cannot pull from Microsoft's marketplac
 
 **Q: My project uses Go / Python / Rust, not TypeScript.**
 
-A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles and the other 9 recipes are stack-agnostic.
+A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles and the other 10 recipes are stack-agnostic.
 
 **Q: Windows native PowerShell?**
 
