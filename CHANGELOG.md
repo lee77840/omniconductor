@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-07-06
+
+### Fixed (docs)
+- **README status line** corrected to **v0.4.0** and the instruction-fidelity token-economy work re-labelled from "unreleased" to shipped (it landed in 0.4.0) — the 0.4.0 npm package page had still shown v0.3.0.
+- **Public GitHub Releases backfilled** (v0.3.0, v0.4.0) so the repo's Latest release matches the npm version.
+
 ## [0.4.0] — 2026-07-05
 
 ### Added — Token-economy: instruction-fidelity-first
