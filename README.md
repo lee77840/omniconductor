@@ -74,7 +74,41 @@ bash ~/conductor/adapters/claude/transform.sh . \
 # 5. Claude Code 재시작 → /agents 로 6 에이전트 확인
 ```
 
-다른 도구는 [Install paths](#install-paths) 참조. Windows 는 [Cross-platform](#cross-platform-mac-and-windows) 참조.
+### 설치 방법 (3가지)
+
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — `<tool>` = `claude` / `cursor` / `copilot` / `gemini` / `codex` / `windsurf`. `list` · `--dry-run` · `--recipes=A,B` · `--uninstall` 지원.
+- **Path B — bash 어댑터**: CONDUCTOR 클론 후 `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`.
+- **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
+- **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
+
+### Recipe 카탈로그 (13개, opt-in)
+
+5개 universal rule 은 항상 설치되고, recipe 는 프로젝트에 맞게 골라 담습니다 (`--recipes=`).
+
+| Recipe | 설치 시점 |
+|---|---|
+| `coding-conventions` | TypeScript/TSX — 네이밍·Result 패턴·에러 처리 규약 |
+| `monorepo` | npm/pnpm workspaces (apps + packages) |
+| `i18n` | 2개 이상 로케일 — 새 텍스트는 모든 로케일 동시 |
+| `branch-strategy` | main/develop/release 3-브랜치 모델 |
+| `web-mobile-parity` | 웹+모바일 로직 공유 — 버그·기능 양쪽 반영 |
+| `auto-mock-data` | DB 스키마 변경 시 mock seed 자동생성 |
+| `tdd` | 테스트 프레임워크 + Red-Green-Refactor |
+| `debugging` | 재현→원인→수정→회귀테스트 (증상 패치 금지) |
+| `database-discipline` | 관계형 DB — 마이그레이션 우선·접근제어·dev/prod 패리티 |
+| `design-system` | 디자인 토큰 시스템 — 토큰 우선·컴포넌트 재사용·접근성 |
+| `self-improvement` | 세션 회고 Reflector (propose-only, 사람이 승인) |
+| `git-hygiene` | git 프로젝트 (특히 멀티세션/공유 repo) — worktree·push·브랜치 위생 |
+| `loop-engineering` | 에이전트 루프 (fix→verify 반복) — 종료조건·예산·**외부검증** |
+
+### 업데이트 / 제거
+
+- **업데이트**: CONDUCTOR 클론을 `git pull` 후 어댑터 재실행 (또는 `npx omniconductor` 최신 버전).
+- **제거**: `bash adapters/<tool>/transform.sh <dir> --uninstall` — manifest 기반으로 CONDUCTOR 가 넣은 파일만 복원/삭제 (직접 커스터마이즈한 건 보존).
+
+### 상세 레퍼런스 (영문)
+
+도구별 지원 매트릭스, `transform.sh` 전체 옵션, 토큰 측정, 트러블슈팅, FAQ 는 아래 영문 섹션을 참조하세요: [Tool coverage matrix](#tool-coverage-matrix) · [transform.sh options](#transformsh-options-reference) · [Troubleshooting](#troubleshooting) · [FAQ](#faq).
 
 ---
 
