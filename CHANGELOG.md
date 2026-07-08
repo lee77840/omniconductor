@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-07
+
+### Added
+- **`git-hygiene` recipe + `stop-git-hygiene-guard` Stop hook** — opt-in shared-repo discipline (G1–G7): no unrequested worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (verify by real code), no reckless force/rebase on shared repos, bundle PRs for CI, session-end hygiene check. Prevents the failure where merged work *looks* lost (orphan worktrees / local-only commit hoarding / stale merged branches) and burns reconciliation time. Recipe body installs on all six tools; the Stop-hook reminder is Claude-only (ADR-034), non-blocking, self-gated on the recipe. Recipe count **11 → 12**, hook templates **7 → 9** (the 0.3.0 `stop-trajectory-log` count was also un-synced). — **ADR-037**.
+
 ## [0.4.1] — 2026-07-06
 
 ### Fixed (docs)

@@ -70,7 +70,7 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene
 EOF
       exit 0
       ;;
@@ -593,7 +593,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
   # 3. Select recipes
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then
@@ -725,7 +725,7 @@ mkdir_if_real "$TARGET_ABS/.claude/hooks"
 # read guard) emit only if their templates are present in the CONDUCTOR core/ tree, allowing the
 # adapter to remain forward-compatible with P1.7 work in progress.
 INSTALLED_HOOKS=()
-for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log; do
+for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log stop-git-hygiene-guard; do
   src="$CORE_ROOT/hooks/$hook.sh.template"
   dest="$TARGET_ABS/.claude/hooks/$hook.sh"
   if [ ! -f "$src" ]; then
@@ -804,14 +804,15 @@ else
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-session-log-check.sh" },
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-r6-review-check.sh" },
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-cache-hit-baseline-check.sh" },
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-trajectory-log.sh" }
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-trajectory-log.sh" },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-git-hygiene-guard.sh" }
         ]
       }
     ]
   }
 }
 SETTINGS_EOF
-  log "  wrote $SETTINGS_PATH ($(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 8 core hooks: 4 PreToolUse + 4 Stop)"
+  log "  wrote $SETTINGS_PATH ($(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 9 core hooks: 4 PreToolUse + 5 Stop)"
   record_emit ".claude/settings.json" "<synthesized>" ""
 fi
 

@@ -2,7 +2,7 @@
 
 Per ADR-013, CONDUCTOR ships project-specific recipes as OPT-IN. They are not loaded by default. Adopters select the recipes that match their project and the adapter wires them into the appropriate native location.
 
-## The 11 recipes
+## The 12 recipes
 
 | File | When to install |
 |---|---|
@@ -17,6 +17,7 @@ Per ADR-013, CONDUCTOR ships project-specific recipes as OPT-IN. They are not lo
 | `database-discipline.md` | Project has a relational store with migrations + dev/prod split. Ships 2 recipe-scoped hookify rules (SQL access-control + SECURITY DEFINER search_path) — see ADR-028 |
 | `design-system.md` | Project maintains a design-token system (color/spacing/typography tokens). Ships 1 recipe-scoped hookify rule (raw-hex-instead-of-token) — see ADR-028 |
 | `self-improvement.md` | Project wants a periodic, human-approved Reflector that distils session lessons into memory/rules. Propose-only; nothing auto-applies. Drives the `reflector` role — see ADR-030 |
+| `git-hygiene.md` | Any git project — esp. repos worked by multiple sessions/agents or with protected branches. Shared-repo discipline (no orphan worktrees, push-don't-hoard, merge=delete-branch, backup≠applied). Ships a Claude-only Stop-hook reminder (`stop-git-hygiene-guard`); other tools use the rule text — see ADR-037 |
 
 ## Selection patterns
 
@@ -27,7 +28,8 @@ Per ADR-013, CONDUCTOR ships project-specific recipes as OPT-IN. They are not lo
 | Multi-locale SaaS | `i18n` + `coding-conventions` + `tdd` + `debugging` |
 | Relational-DB-backed SaaS (migrations + dev/prod) | `database-discipline` + `coding-conventions` + `tdd` + `debugging` |
 | Token-driven design system (theming / dark-mode) | `design-system` + `coding-conventions` + `tdd` + `debugging` |
-| Full-stack SaaS with web + mobile + i18n | All 11 |
+| Full-stack SaaS with web + mobile + i18n | All 12 |
+| Any git repo, esp. shared / multi-session | add `git-hygiene` to any of the above |
 | Greenfield experiment | None — universal-rules + roles only is enough |
 
 ## How adapters consume these files

@@ -75,7 +75,7 @@ Output (single-file Codex model):
   <target>/AGENTS.md    Bundled intro + 5 universal rules + compressed workflow + recipes
   <target>/docs/*.md    Universal doc templates (CURRENT_WORK, REMAINING_TASKS, ...)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene
 
 What this adapter does NOT install (per ADR-004 honesty):
   - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
@@ -448,7 +448,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
 
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then

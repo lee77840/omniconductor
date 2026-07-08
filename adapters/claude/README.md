@@ -45,7 +45,7 @@ bash adapters/claude/transform.sh <target> [--dry-run]
 │   │   ├── quality-gates.md
 │   │   ├── operations.md
 │   │   └── meta-discipline.md
-│   ├── hooks/                                 # 7 hook scripts
+│   ├── hooks/                                 # 9 hook scripts
 │   │   ├── pretool-agent-routing.sh
 │   │   ├── pretool-commit-current-work-check.sh
 │   │   ├── pretool-commit-test-coverage-check.sh

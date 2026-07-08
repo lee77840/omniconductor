@@ -45,7 +45,7 @@ jobs:
           bash "adapters/${{ matrix.tool }}/transform.sh" \
             "/tmp/ci-${{ matrix.tool }}" \
             --no-prompt \
-            --recipes=tdd,debugging,self-improvement
+            --recipes=tdd,debugging,self-improvement,git-hygiene
       - name: Validate adapter output
         run: |
           bash tools/validate-adapter-output.sh \
@@ -65,6 +65,14 @@ jobs:
               echo "OK: $f parses as JSON"
             fi
           done
+      - name: Git-hygiene hook emits (Claude only) + recipe body installs
+        if: matrix.tool == 'claude'
+        run: |
+          t="/tmp/ci-${{ matrix.tool }}"
+          [ -f "$t/.claude/rules/git-hygiene.md" ] || { echo "ERROR: git-hygiene recipe body missing" >&2; exit 1; }
+          [ -x "$t/.claude/hooks/stop-git-hygiene-guard.sh" ] || { echo "ERROR: stop-git-hygiene-guard.sh missing or not executable" >&2; exit 1; }
+          grep -q "stop-git-hygiene-guard" "$t/.claude/settings.json" || { echo "ERROR: hook not registered in settings.json" >&2; exit 1; }
+          echo "OK: git-hygiene recipe + hook emitted and registered"
 
   # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a

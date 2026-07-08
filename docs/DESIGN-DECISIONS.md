@@ -1117,3 +1117,23 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 **Alternatives considered**:
 - *Fold P1/P2 into ADR-035.* Rejected — ADR-035 accurately scoped itself to the P0 fidelity slice; a separate ADR keeps the decision history honest about what shipped when.
 - *Add an output-token guard hook.* Deferred — output length is a soft-discipline concern; a Stop-hook that scolds on high output tokens is possible but low-value versus the rule text, and would be Claude-only. Revisit if KPI shows output-token regressions in practice.
+
+---
+
+## ADR-037 — `git-hygiene` recipe + Claude-only Stop hook (shared-repo discipline)
+
+**Status**: Accepted (2026-07-07)
+
+**Context**: A reference adopter hit a git-workflow-hygiene collapse — an orchestrator interpreted "work without conflicting with the other session" as *create git worktrees* (never requested), never cleaned them up, and never deleted branches after their PRs merged: ~130 stale local branches + 34 local-only commits + orphan worktrees. Nothing was actually lost (all merged), but the hygiene collapse made completed work **look** unmerged/lost, triggered a false "backup ≠ applied" scramble, and cost large reconciliation time and trust. The adopter codified a battle-tested rule ("Git hygiene / shared-repo discipline", 7 obligations) + a non-blocking Stop hook, written project-agnostically. This is a universal failure mode for anyone using git with autonomous agents — a strong CONDUCTOR candidate.
+
+**Decision**: Ship it as a new **opt-in recipe `git-hygiene`** (not a universal rule) plus a **recipe-scoped Stop hook** `stop-git-hygiene-guard`:
+
+1. **Recipe over universal rule** — keeps the 5-bundle universal floor lean (token economy, ADR-014 / anti-pattern 03); git hygiene is opt-in per project (recommended for any shared/multi-session git repo). The recipe body installs on all six tools via the generic per-adapter recipe loop.
+2. **Hook is Claude-only** (consistent with ADR-034: workflow guards other than the Reflector stay Claude-only). It follows the `stop-trajectory-log` mechanism — always emitted, **runtime self-gated** on the recipe marker (`.claude/rules/git-hygiene.md`), non-blocking (always exits 0), 15-min cool-down, `CONDUCTOR_SKIP_GIT_HYGIENE=1` / `CONDUCTOR_GIT_HYGIENE_BRANCH_MAX` overrides. It detects extra worktrees, local-only commits (`git log --branches --not --remotes`), and abnormal local-branch counts, and injects a cleanup reminder. On the five non-Claude tools the recipe's rule text is the enforcement (honest degradation; Windsurf genuinely lacks Stop events).
+3. **Sanitized** (R2): reference-adopter rule IDs mapped to CONDUCTOR equivalents (real-code verify → quality-gates Q4; compaction durability → meta-discipline §5.7; confirm-before-reckless-op → meta-discipline AMB-3/4; review gate → quality-gates); the concrete target branch ("develop") generalized to "your integration/target branch" cross-referencing the `branch-strategy` recipe.
+
+**Consequences**: Recipe count 11 → 12, hook templates 7 → 9 (this pass also synced the 0.3.0 `stop-trajectory-log` count that several docs had left at 7). CI smoke installs `git-hygiene` and asserts the hook emits + is executable. No new role/runtime scripts (the guard is self-contained). The hook is the first recipe-scoped shell Stop hook beyond the Reflector; it reuses the self-gate pattern rather than inventing new infra.
+
+**Alternatives considered**:
+- *Universal rule instead of recipe.* Rejected — always-on git-hygiene taxes every adopter's prefix (incl. trivial solo repos) and bloats the universal floor; opt-in fits the "recipes = project-specific discipline" model.
+- *Cross-tool hook emission (all six).* Deferred — per ADR-034 that needs bespoke per-adapter blocks + hook-config JSON for five tools, and Windsurf lacks Stop events. The recipe rule text covers the non-Claude tools until (if) that larger cross-tool hook work lands.

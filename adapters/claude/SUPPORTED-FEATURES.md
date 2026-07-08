@@ -32,7 +32,7 @@ CONDUCTOR's universal `meta-discipline.md` rubric (token economy + model routing
 
 ## Hook execution model
 
-CONDUCTOR ships 7 hooks, all registered in the generated `.claude/settings.json` (written directly by `transform.sh` — there is no `settings.template.json`):
+CONDUCTOR ships 9 hooks, all registered in the generated `.claude/settings.json` (written directly by `transform.sh` — there is no `settings.template.json`):
 
 | Hook | Event | Purpose |
 |---|---|---|
@@ -58,9 +58,9 @@ The Claude adapter ships a working `transform.sh`. Verified by fresh-target inst
 
 | Feature claim | Verified-by-real-install | Verification command / observation |
 |---|---|---|
-| `transform.sh` emits 6 roles, 5 rules, 7 hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
+| `transform.sh` emits 6 roles, 5 rules, 9 hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
 | Sub-agent dispatch works | ✅ | `.claude/agents/{planner,builder,reviewer,helper,designer,scribe}.md` recognized by `/help` |
 | Lazy / always-loaded rules present | ✅ | `.claude/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md` |
-| Hooks registered in settings.json | ✅ | `.claude/settings.json` `hooks:` block lists 4 PreToolUse + 3 Stop |
+| Hooks registered in settings.json | ✅ | `.claude/settings.json` `hooks:` block lists 4 PreToolUse + 5 Stop |
 | Stop hook blocks on missing spec update | ✅ | commit code without spec → `stop-session-log-check.sh` fires |
 | Idempotent re-run | ✅ | second run reports "SKIP (exists)" for every emitted file |
