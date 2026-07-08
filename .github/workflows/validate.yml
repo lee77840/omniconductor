@@ -45,7 +45,7 @@ jobs:
           bash "adapters/${{ matrix.tool }}/transform.sh" \
             "/tmp/ci-${{ matrix.tool }}" \
             --no-prompt \
-            --recipes=tdd,debugging,self-improvement,git-hygiene
+            --recipes=tdd,debugging,self-improvement,git-hygiene,loop-engineering
       - name: Validate adapter output
         run: |
           bash tools/validate-adapter-output.sh \
@@ -73,6 +73,15 @@ jobs:
           [ -x "$t/.claude/hooks/stop-git-hygiene-guard.sh" ] || { echo "ERROR: stop-git-hygiene-guard.sh missing or not executable" >&2; exit 1; }
           grep -q "stop-git-hygiene-guard" "$t/.claude/settings.json" || { echo "ERROR: hook not registered in settings.json" >&2; exit 1; }
           echo "OK: git-hygiene recipe + hook emitted and registered"
+      - name: Loop-engineering hook emits (Claude only) + recipe body installs
+        if: matrix.tool == 'claude'
+        run: |
+          t="/tmp/ci-${{ matrix.tool }}"
+          [ -f "$t/.claude/rules/loop-engineering.md" ] || { echo "ERROR: loop-engineering recipe body missing" >&2; exit 1; }
+          [ -x "$t/.claude/hooks/pretool-loop-guard.sh" ] || { echo "ERROR: pretool-loop-guard.sh missing or not executable" >&2; exit 1; }
+          grep -q "pretool-loop-guard" "$t/.claude/settings.json" || { echo "ERROR: loop-guard not registered in settings.json" >&2; exit 1; }
+          bash -n "$t/.claude/hooks/pretool-loop-guard.sh" || { echo "ERROR: loop-guard has a syntax error" >&2; exit 1; }
+          echo "OK: loop-engineering recipe + hook emitted and registered"
 
   # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a

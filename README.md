@@ -6,11 +6,11 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v0.5.0 — 2026-07-07)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.5.0). Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v0.6.0 — 2026-07-07)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.6.0). Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 0.5.0**: an opt-in **`git-hygiene` recipe** — shared-repo discipline (no orphan worktrees, push-don't-hoard, merge=delete-branch, backup≠applied) that stops merged work from *looking* lost; Claude adds a non-blocking Stop-hook reminder, other tools use the rule text (ADR-037). **In 0.4.0**: instruction-fidelity-first **token economy** (lossless context editing before lossy compaction + output-brevity discipline; ADR-035/036, [`docs/CONTEXT-EDITING-GUIDE.md`](./docs/CONTEXT-EDITING-GUIDE.md)). **In 0.3.0**: opt-in **self-improvement / Reflector loop** (propose-only; ADR-030/032/033) + a first-party-verified **compatibility-matrix correction** (all six tools ship hooks / sub-agents / model routing; ADR-031). Full history: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 0.6.0**: an opt-in **`loop-engineering` recipe** — bounded, externally-verified agent loops (explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard), grounded in a 5-source research pass; Claude adds a non-blocking PreToolUse loop-guard, other tools use the rule text (ADR-038). **In 0.5.0**: **`git-hygiene`** shared-repo discipline (ADR-037). **In 0.4.0**: instruction-fidelity **token economy** (ADR-035/036). **In 0.3.0**: **self-improvement / Reflector loop** (ADR-030/032/033) + compatibility-matrix correction (ADR-031). Full history: [`CHANGELOG.md`](./CHANGELOG.md).
 >
-> Marketplace listing (VSCode Marketplace + Open VSX) remains **Phase 2** (post-0.5) — see ADR-023.
+> Marketplace listing (VSCode Marketplace + Open VSX) remains **Phase 2** (post-0.6) — see ADR-023.
 
 ---
 
@@ -21,7 +21,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 - [Tool coverage matrix](#tool-coverage-matrix)
 - [Install paths (3 options)](#install-paths)
 - [Cross-platform: Mac and Windows](#cross-platform-mac-and-windows)
-- [Recipes catalog (12)](#recipes-catalog)
+- [Recipes catalog (13)](#recipes-catalog)
 - [`transform.sh` options reference](#transformsh-options-reference)
 - [Update / Maintenance / Uninstall](#update--maintenance--uninstall)
 - [Token measurement & KPI baseline](#token-measurement--kpi-baseline)
@@ -248,7 +248,7 @@ For tools without an adapter (Gemini / Codex / Windsurf), or for adopters in con
 
 ## Recipes catalog
 
-12 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
+13 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
 
 | Recipe | Install when | Adds |
 |---|---|---|
@@ -264,6 +264,7 @@ For tools without an adapter (Gemini / Codex / Windsurf), or for adopters in con
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
 | `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads recent session trajectories + git and **proposes** lessons-learned to `docs/REFLECTION-PROPOSALS.md` (propose-only; you apply). Emits a session-end trajectory hook, a `/reflect` command, a reflector agent, a deterministic prune, and a weekly runner + scheduling guide — on all six tools. See ADR-030/032/033. |
 | `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7): no unrequested worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (verify by real code), no reckless force/rebase on shared repos, bundle PRs for CI, session-end hygiene check. Claude adds a non-blocking Stop-hook reminder; other tools use the rule text. See ADR-037. |
+| `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Grounded in the research that self-correction without an external check is unreliable. Claude adds a non-blocking PreToolUse loop-guard (repeat/runaway detection); other tools use the rule text. See ADR-038. |
 
 #### Decision tree
 
@@ -280,6 +281,7 @@ Relational DB + migrations? YES → database-discipline
 Design-token system?      YES → design-system
 Want weekly session self-review? YES → self-improvement
 Use git (esp. shared/multi-session)? YES → git-hygiene
+Agent loops / iterative fix-verify?  YES → loop-engineering
 ```
 
 #### Recommended combos
@@ -304,7 +306,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | Option | Description |
 |---|---|
 | `<target-project>` | Project directory to install into (required). `.` for current dir. |
-| `--recipes=A,B,C` | Comma-separated recipes from the 12 in `core/recipes/`. |
+| `--recipes=A,B,C` | Comma-separated recipes from the 13 in `core/recipes/`. |
 | `--dry-run` | Preview only — no files written. |
 | `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if cache hit < 95%. |
 | `--no-prompt` | Skip wizard, apply defaults (CI-safe). Combine with `--recipes` and `--measure-baseline` as needed. |
@@ -313,7 +315,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | `--force` | Bypass uninstall safety gates (active rebase/merge, missing manifest). |
 | `-h` `--help` | Print usage. |
 
-**Recipe names** (12): `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`, `git-hygiene`.
+**Recipe names** (13): `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`, `git-hygiene`, `loop-engineering`.
 
 #### File overwrite behavior
 
@@ -412,7 +414,7 @@ diff CLAUDE.md.conductor-backup-* CLAUDE.md
 
 #### "recipe not found" warning
 
-Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`, `git-hygiene`.
+Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`, `git-hygiene`, `loop-engineering`.
 
 #### "Tool doesn't recognize the new rules"
 
@@ -495,7 +497,7 @@ A: Open VSX. Cursor is a VSCode fork but cannot pull from Microsoft's marketplac
 
 **Q: My project uses Go / Python / Rust, not TypeScript.**
 
-A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles and the other 11 recipes are stack-agnostic.
+A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles and the other 12 recipes are stack-agnostic.
 
 **Q: Windows native PowerShell?**
 

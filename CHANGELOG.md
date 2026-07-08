@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-07
+
+### Added
+- **`loop-engineering` recipe + `pretool-loop-guard` PreToolUse hook** — opt-in discipline for bounded, externally-verified agent loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation/infinite-loop guard. Grounded in a 5-source verification pass (Huang/DeepMind "Cannot Self-Correct Yet", CRITIC, Reflexion, "When Agents Do Not Stop", Anthropic *Building Effective Agents* — verify hierarchy rules/tests > visual > LLM-judge). The Claude hook is a non-blocking `permissionDecision: ask` soft-warn that self-gates on the recipe, detects same-action-repeat / runaway tool-call budget, is fail-open, and honors `CONDUCTOR_SKIP_LOOP_GUARD` / `CONDUCTOR_LOOP_REPEAT_MAX` / `CONDUCTOR_LOOP_BUDGET` / `CONDUCTOR_LOOP_COOLDOWN_SECONDS`. Recipe count **12 → 13**, hook templates **9 → 10**. Hook is Claude-only (ADR-034); other tools use the rule text. — **ADR-038**.
+
 ## [0.5.0] — 2026-07-07
 
 ### Added

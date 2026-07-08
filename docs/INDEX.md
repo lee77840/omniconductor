@@ -34,7 +34,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/roles/designer.md` | UI / UX, design tokens, accessibility. Sonnet-tier. |
 | `core/roles/scribe.md` | Documentation sync after impl. Sonnet-tier. |
 | `core/roles/reflector.md` | Reads session trajectories; proposes lesson deltas (propose-only, opt-in). Opus-tier. |
-| `core/recipes/README.md` | The 12 opt-in recipes catalog + selection guidance. |
+| `core/recipes/README.md` | The 13 opt-in recipes catalog + selection guidance. |
 | `core/recipes/self-improvement.md` | Opt-in Reflector loop — propose-only session self-review (ADR-030/032/033). |
 | `core/recipes/web-mobile-parity.md` | P1 + P2 (feature + bug parity). |
 | `core/recipes/i18n.md` | Multi-locale translation key sync. |
@@ -47,6 +47,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/recipes/database-discipline.md` | Migration-first schema changes + access control + dev/prod parity. |
 | `core/recipes/design-system.md` | Design-token adherence, component reuse, accessibility. |
 | `core/recipes/git-hygiene.md` | Git hygiene / shared-repo discipline — no orphan worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (ADR-037). |
+| `core/recipes/loop-engineering.md` | Bounded, externally-verified agent loops — done-criterion, budget, progress, escalate-on-stall, verify-not-self-judge, oscillation guard (ADR-038). |
 | `core/anti-patterns/README.md` | The 8 token-waste anti-pattern catalog index + how to use in code review. |
 | `core/anti-patterns/large-file-read-no-range.md` | Reading whole files instead of Grep + range-read. |
 | `core/anti-patterns/single-monolithic-rule-file.md` | One giant rule file instead of lazy-loaded bundles. |
@@ -56,7 +57,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/anti-patterns/skill-eager-load.md` | Loading skills / context that isn't needed yet. |
 | `core/anti-patterns/tool-call-spam.md` | Many small tool calls instead of batched / structured ones. |
 | `core/anti-patterns/output-verbosity-narration.md` | Over-explaining / re-printing files — output tokens cost ~5× input. |
-| `core/hooks/README.md` | Hook template overview (9 templates). |
+| `core/hooks/README.md` | Hook template overview (10 templates). |
 | `core/hooks/pretool-agent-routing.sh.template` | PreToolUse — validate Agent dispatch. |
 | `core/hooks/pretool-commit-current-work-check.sh.template` | PreToolUse — block commit when CURRENT_WORK is stale. |
 | `core/hooks/pretool-commit-test-coverage-check.sh.template` | PreToolUse — block commit when test coverage out of sync. |
@@ -66,6 +67,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/hooks/stop-cache-hit-baseline-check.sh.template` | Stop — warn if cache hit rate drops below 95% SLA. |
 | `core/hooks/stop-trajectory-log.sh.template` | Stop — upsert a trajectory pointer for the Reflector (self-improvement recipe; opt-in gated). |
 | `core/hooks/stop-git-hygiene-guard.sh.template` | Stop — remind on git-hygiene collapse (orphan worktrees / local-only commits / stale branches; git-hygiene recipe). |
+| `core/hooks/pretool-loop-guard.sh.template` | PreToolUse — soft-warn on loop oscillation / runaway (same action repeated or session tool-call budget; loop-engineering recipe). |
 | `core/workflow/README.md` | Workflow phase overview (P0 deliverable). |
 | `core/workflow/PHASES.md` | Plan → Architecture → Tasks → Implementation → Review → Spec. |
 | `core/docs-templates/*.md` | CURRENT_WORK / TASKS / REMAINING_TASKS / PLANS / INDEX templates. |

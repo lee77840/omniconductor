@@ -31,7 +31,7 @@ core/docs-templates/specs/_example.md
 core/memory-pattern/README.md
 core/memory-pattern/EXAMPLES.md
 core/roles/*.md                                        # 6 role personas → .claude/agents/ (planner/builder/reviewer/helper/designer/scribe)
-core/hooks/*.sh.template                               # 9 hook templates
+core/hooks/*.sh.template                               # 10 hook templates
 adapters/claude/_native/CLAUDE.md.tpl                  # Claude-specific orchestrator manual template
 ```
 

@@ -31,7 +31,7 @@ CLAUDE.md                                  # Slim orchestrator manual (~200 line
 │   ├── operations.md                      # Troubleshooting, ops discipline
 │   ├── meta-discipline.md                 # Token economy + model routing
 │   └── (project-specific rules added later)
-├── hooks/                                 # 9 hook scripts (pretool + stop)
+├── hooks/                                 # 10 hook scripts (pretool + stop)
 │   ├── pretool-agent-routing.sh
 │   ├── pretool-commit-current-work-check.sh
 │   ├── pretool-commit-test-coverage-check.sh

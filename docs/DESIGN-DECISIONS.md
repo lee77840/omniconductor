@@ -1137,3 +1137,25 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 **Alternatives considered**:
 - *Universal rule instead of recipe.* Rejected — always-on git-hygiene taxes every adopter's prefix (incl. trivial solo repos) and bloats the universal floor; opt-in fits the "recipes = project-specific discipline" model.
 - *Cross-tool hook emission (all six).* Deferred — per ADR-034 that needs bespoke per-adapter blocks + hook-config JSON for five tools, and Windsurf lacks Stop events. The recipe rule text covers the non-Claude tools until (if) that larger cross-tool hook work lands.
+
+---
+
+## ADR-038 — `loop-engineering` recipe + Claude-only PreToolUse loop-guard (bounded, externally-verified agent loops)
+
+**Status**: Accepted (2026-07-07)
+
+**Context**: Autonomous agents work in loops ("do → check → fix → re-check until done"), and those loops fail in well-documented ways. A 5-source primary-research pass (peer-reviewed papers + Anthropic primary docs; findings in `docs/plans/2026-07-07-loop-engineering-research.md`) established: (a) **intrinsic self-correction is unreliable and can degrade quality** — models asked to fix their own work with no external signal flip correct answers to wrong (*LLMs Cannot Self-Correct Reasoning Yet*, Huang et al., DeepMind ICLR'24); real gains come from loops grounded in tests/tools (Reflexion, CRITIC); (b) **self-judgment of "done" is unreliable** — LLM-as-judge bias + systematic overconfidence (*Judging LLM-as-a-Judge*, NeurIPS'23), so "the model says it's done" is not evidence (the "early-victory" failure); (c) **unbounded loops run away** — infinite/oscillation loops were 95.6% cost-exhaustion/DoS in one study (*When Agents Do Not Stop*, 2026), and test-time compute saturates then hurts; (d) Anthropic's own guidance frames the loop as *gather→act→verify→repeat* bounded by `max_turns`/budget + human checkpoints, with a verify hierarchy of **rules/tests > visual > LLM-judge**. CONDUCTOR had implicit loops (quality-gates Q4, TDD, Reflector) but no first-class loop-engineering discipline. The user flagged this as a top-priority feature.
+
+**Decision**: Ship an **opt-in recipe `loop-engineering`** encoding six obligations (G1 explicit done-criterion · G2 iteration+token budget · G3 require-progress · G4 escalate-on-stall · **G5 verify externally, never by self-judgment** · G6 oscillation/infinite-loop guard), plus a **Claude-only PreToolUse hook** `pretool-loop-guard`:
+
+1. **Recipe over universal rule** — keeps the universal floor lean; opt-in per project. Body installs on all six tools via the generic recipe loop; the recipe's central axis (G5: external verification) is `quality-gates.md` Q4 applied inside the loop.
+2. **Hook = PreToolUse soft-warn** (Claude-only, ADR-034). Registered with a `"*"` matcher (all tools, additive to the existing specific-matcher PreToolUse hooks — confirmed against Claude Code hook docs). It tracks a per-session signature (`tool + sha1(tool_input)`) in a `$TMPDIR` trace, and emits a non-blocking `permissionDecision: ask` reminder when the same action repeats ≥ `CONDUCTOR_LOOP_REPEAT_MAX` (default 5; oscillation/no-progress) or session tool calls ≥ `CONDUCTOR_LOOP_BUDGET` (default 120; runaway). Self-gates on `.claude/rules/loop-engineering.md`; fail-open (any error / missing python3 / missing stdin → allow silently, never blocks a tool call); per-session cool-down. All logic is in a python3 block wrapped in try/except for robustness.
+3. **Evidence-grounded, not invented** — every obligation cites the research; the recipe teaches "external verify > self-judge" as the core rule.
+
+**Consequences**: Recipe count 12 → 13, hook templates 9 → 10 (5 PreToolUse + 5 Stop). First PreToolUse recipe-scoped guard; first `"*"`-matcher hook. Verified across 8 functional conditions + 6 exception cases + concurrency + non-blocking exit-0 + no-repo-pollution (see `docs/plans/2026-07-07-loop-engineering-recipe.md`). CI smoke installs the recipe and asserts the hook emits, is executable, is registered, and settings.json stays valid JSON.
+
+**Alternatives considered**:
+- *Universal rule instead of recipe.* Rejected — same token-floor reasoning as ADR-037; opt-in fits the model.
+- *Hard-block on runaway (`deny` / exit 2).* Rejected — a loop guard must never break legitimate work; `ask` surfaces the concern and lets the orchestrator decide. Fail-open throughout.
+- *Cross-tool hook emission.* Deferred — same ADR-034 constraints; the recipe rule text covers non-Claude tools.
+- *Enforce G5 (external-verify) via a hook.* Deferred — "did you verify before claiming done" is hard to detect generically at the tool layer; left to the rule text + quality-gates Q4. The hook targets the mechanically-detectable failures (oscillation, runaway).
