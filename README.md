@@ -6,7 +6,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v0.6.0 — 2026-07-07)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.6.0). Output is emit-verified (format-validator + CI on all 6); live runtime consumption by Gemini / Codex / Windsurf is adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v0.6.0 — 2026-07-07)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.6.0). Output is emit-verified (format-validator + CI on all 6); Codex is additionally **live-verified** (codex-cli 0.130.0 loaded `AGENTS.md`, 2026-06-28); live runtime consumption by Gemini / Windsurf is adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
 > **New in 0.6.0**: an opt-in **`loop-engineering` recipe** — bounded, externally-verified agent loops (explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard), grounded in a 5-source research pass; Claude adds a non-blocking PreToolUse loop-guard, other tools use the rule text (ADR-038). **In 0.5.0**: **`git-hygiene`** shared-repo discipline (ADR-037). **In 0.4.0**: instruction-fidelity **token economy** (ADR-035/036). **In 0.3.0**: **self-improvement / Reflector loop** (ADR-030/032/033) + compatibility-matrix correction (ADR-031). Full history: [`CHANGELOG.md`](./CHANGELOG.md).
 >
@@ -248,7 +248,7 @@ bash ~/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conven
 
 ### Path C — Manual file copy (no script, fully manual)
 
-For tools without an adapter (Gemini / Codex / Windsurf), or for adopters in constrained environments. Step-by-step `cp` / `cat` commands per tool, with frontmatter conversion cheat sheet, are in:
+All 6 tools have a working adapter (Path A/B), so this path is a fallback — for adopters in constrained environments (no bash / no npx) or those who want to see every file before it lands. Step-by-step `cp` / `cat` commands per tool, with frontmatter conversion cheat sheet, are in:
 
 → **[`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)**
 
@@ -497,7 +497,7 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 
 #### Architecture Decision Records (`docs/DESIGN-DECISIONS.md`)
 
-36 ADRs cover the foundational decisions. Highlights:
+38 ADRs cover the foundational decisions. Highlights:
 
 | ADR | Topic | Why it matters |
 |---|---|---|

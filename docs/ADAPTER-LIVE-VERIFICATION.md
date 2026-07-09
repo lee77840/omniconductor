@@ -16,8 +16,8 @@ Status legend: ✅ = automated (CI/validator) · 🧪 = needs a live session (th
 | Cursor | ✅ | 🧪 |
 | GitHub Copilot | ✅ | 🧪 (per-IDE — see `docs/IDE-SMOKE-TESTING.md`) |
 | Gemini CLI | ✅ | 🧪 **(not yet run)** |
-| Codex | ✅ | 🧪 **(not yet run)** |
-| Windsurf | ✅ | 🧪 **(not yet run)** |
+| Codex | ✅ | ✅ **live-verified 2026-06-28** — codex-cli 0.130.0 loaded `AGENTS.md` (see `docs/COMPATIBILITY-MATRIX.md`) |
+| Windsurf / Devin Desktop | ✅ | 🧪 **(not yet run)** |
 
 ## Per-tool procedure
 
@@ -42,8 +42,8 @@ equivalent). A generic answer that ignores the installed file = FAIL (tool didn'
 | Tool | File the tool must auto-load | Check |
 |---|---|---|
 | Gemini CLI | `GEMINI.md` (project root) + `.gemini/styleguide.md` | Does Gemini cite GEMINI.md content? Does it apply the styleguide on a code task? |
-| Codex | `AGENTS.md` (project root) | Does Codex load AGENTS.md on session start? (AGENTS.md is the cross-agent convention) |
-| Windsurf | `.windsurfrules` + `.windsurf/rules/*.md` | Does Windsurf show the rules in its Rules panel? Does it follow them? |
+| Codex | `AGENTS.md` (project root) | **Verified 2026-06-28** — `codex exec` (codex-cli 0.130.0) loaded AGENTS.md and listed the 5 universal rules + "read docs/CURRENT_WORK.md first" |
+| Windsurf / Devin Desktop | `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/`) | Does Windsurf show the rules in its Rules panel? Does it follow them? |
 | Claude Code | `CLAUDE.md` + `.claude/rules/*.md` + agents/hooks | Rules panel + a Stop-hook fires on a stale-docs commit |
 | Cursor | `.cursor/rules/*.mdc` | Settings → Rules tab shows the 5 rules |
 | Copilot | `.github/copilot-instructions.md` (or `.github/instructions/*`) | Per-IDE — see `docs/IDE-SMOKE-TESTING.md` |
@@ -59,5 +59,6 @@ convention (they change), update the adapter's output path, re-run CI, then re-t
 ## Why this is separate from CI
 Running six AI coding tools headlessly in CI is impractical (each needs auth + a model).
 So CONDUCTOR's CI guarantees *correct output*; this guide is the human-in-the-loop
-guarantee of *correct consumption*. Treat the three new adapters (Gemini/Codex/Windsurf)
+guarantee of *correct consumption*. Codex was live-verified on 2026-06-28 (recorded in
+`docs/COMPATIBILITY-MATRIX.md`). Treat the two remaining adapters (Gemini/Windsurf)
 as "emission-verified, live-pending" until a session here is recorded.

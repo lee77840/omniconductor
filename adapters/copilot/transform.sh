@@ -30,7 +30,7 @@
 #   core/recipes/<r>.md (selected) →  <target>/.github/instructions/<r>.instructions.md (applyTo: from paths)
 #   core/docs-templates/*.md       →  <target>/docs/*.md
 #   core/hooks/*                   →  SKIP (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*                   →  SKIP (Copilot has no sub-agent dispatch)
+#   core/roles/*                   →  SKIP (role emission is Claude-only today; Copilot supports sub-agents natively — ADR-031)
 #
 # Layer 2 transformation (--per-rule alternative):
 #   core/universal-rules/<r>.md   →  <target>/.github/instructions/<r>.instructions.md (applyTo: '**')
@@ -94,9 +94,9 @@ Output (default):
   <target>/.github/instructions/<recipe>.instructions.md  (per recipe, applyTo: from paths)
   <target>/docs/{CURRENT_WORK,REMAINING_TASKS,PLANS,TASKS,INDEX}.md
 
-Skipped (not supported by Copilot):
-  Sub-agent dispatch (roles)  — Copilot has no Agent equivalent
-  PreToolUse / Stop hooks     — Copilot has no commit-blocking hooks
+Skipped (not yet emitted for Copilot — the tool supports these natively, ADR-031):
+  Sub-agent dispatch (roles)  — full agent emission is Phase 2
+  PreToolUse / Stop hooks     — full hook emission is Phase 2 (Reflector hook ships via --recipes=self-improvement)
 
 IDE coverage: VS Code, Cursor (Copilot ext), Windsurf (Copilot adapter), JetBrains
               (Copilot plugin), Neovim (copilot.vim) all read .github/instructions/.
@@ -124,6 +124,11 @@ fi
 CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
+
+# CONDUCTOR package version for the manifest — parsed at runtime from package.json
+# so releases never drift the manifest (falls back to "unknown" on any error).
+CONDUCTOR_VERSION="$(/usr/bin/sed -n -E 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONDUCTOR_ROOT/package.json" 2>/dev/null | /usr/bin/head -n 1)"
+[ -n "$CONDUCTOR_VERSION" ] || CONDUCTOR_VERSION="unknown"
 
 if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
@@ -336,7 +341,7 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "v0.2.0",
+  "version": "v$CONDUCTOR_VERSION",
   "adapter": "copilot",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
@@ -580,10 +585,12 @@ if [ "$WIZARD_APPLY_RULES" = "true" ]; then
 
 ## Topology note (Copilot)
 
-GitHub Copilot does not have sub-agent dispatch or commit-blocking hooks. The 5
-universal rules below are self-policed: the human (and Copilot Chat) must follow
+GitHub Copilot supports sub-agent dispatch and hooks natively (ADR-031), but
+CONDUCTOR's Copilot adapter currently emits rule text (plus the Reflector loop)
+only — full hook/agent emission is Phase 2. The 5
+universal rules below are therefore self-policed: the human (and Copilot Chat) must follow
 the same Plan → Architecture → Tasks → Implementation → Review → Spec workflow
-that Claude Code enforces with hooks. Two-stage code review degrades to the
+that Claude Code enforces with CONDUCTOR-emitted hooks. Two-stage code review degrades to the
 Copilot PR review feature for Stage B (configure separately at the repo level).
 
 ---
@@ -719,8 +726,8 @@ fi
 
 # ----- step 4: skip notice -----------------------------------------------
 
-log "Step 4/4: skipped layers (Copilot has no equivalent)"
-log "  - core/roles/         → SKIP (no sub-agent dispatch)"
+log "Step 4/4: skipped layers (not yet emitted for Copilot — tool supports them natively, ADR-031)"
+log "  - core/roles/         → SKIP (agent emission is Phase 2; Copilot supports sub-agents natively — ADR-031)"
 log "  - core/hooks/         → SKIP except Reflector hook (--recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)"
 log "  - hookify-templates/  → SKIP (Claude Code plugin only)"
 

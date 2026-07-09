@@ -24,13 +24,14 @@
 #   core/recipes/*.md (selected)   →  <target>/.devin/rules/*.md     (front-matter stripped)
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (Windsurf has no sub-agent dispatch)
+#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Windsurf supports sub-agents natively — ADR-031)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
-# Windsurf has NO per-pattern glob scoping (all files in .devin/rules/ load
-# together) and NO sub-agents. CONDUCTOR emits the Reflector hook when
-# --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)
-# and are noted in .windsurfrules.
+# This adapter emits no per-pattern glob scoping (all files in .devin/rules/ load
+# together) and no agent personas — Windsurf supports hooks/sub-agents natively
+# (ADR-031); full emission is Phase 2. CONDUCTOR emits the Reflector hook when
+# --recipes=self-improvement (ADR-032); other guards remain Claude-only emission
+# (ADR-034) and are noted in .windsurfrules.
 
 set -eu
 
@@ -71,7 +72,7 @@ Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
   - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (Windsurf has no sub-agent dispatch — single chat session per task)
+  - Sub-agent personas (not yet emitted for Windsurf — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
   - Per-pattern glob scoping (all .devin/rules/*.md load together)
   - Hookify rule templates (Claude-only plugin)
 EOF
@@ -99,6 +100,11 @@ fi
 CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
+
+# CONDUCTOR package version for the manifest — parsed at runtime from package.json
+# so releases never drift the manifest (falls back to "unknown" on any error).
+CONDUCTOR_VERSION="$(/usr/bin/sed -n -E 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONDUCTOR_ROOT/package.json" 2>/dev/null | /usr/bin/head -n 1)"
+[ -n "$CONDUCTOR_VERSION" ] || CONDUCTOR_VERSION="unknown"
 
 if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
@@ -238,7 +244,7 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "v0.2.0",
+  "version": "v$CONDUCTOR_VERSION",
   "adapter": "windsurf",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
@@ -494,10 +500,12 @@ else
 You are the orchestrator: plan first, act deliberately, verify before declaring done.
 당신은 오케스트레이터입니다: 먼저 계획하고, 신중하게 실행하고, 완료 선언 전에 검증하세요.
 
-Windsurf runs a single chat session per task (no sub-agent dispatch). You play
+Windsurf supports sub-agent dispatch natively (ADR-031), but CONDUCTOR does not
+emit agent personas here yet (Phase 2). You play
 both planner and implementer; keep the plan explicit so it survives context resets.
-Windsurf 는 작업당 단일 채팅 세션으로 동작합니다 (서브에이전트 디스패치 없음). 계획을
-명시적으로 유지해 컨텍스트 리셋에도 살아남게 하세요.
+Windsurf 는 서브에이전트 디스패치를 네이티브로 지원하지만 (ADR-031), CONDUCTOR 는 아직
+에이전트 페르소나를 생성하지 않습니다 (Phase 2). 여기서는 계획자와 구현자 역할을 모두
+수행하며, 계획을 명시적으로 유지해 컨텍스트 리셋에도 살아남게 하세요.
 
 ## ABSOLUTE rules / 절대 규칙 (read before every change)
 
@@ -546,14 +554,17 @@ per-pattern glob scoping). Selected recipes are emitted there too.
 
 ## Not enforced on Windsurf / Windsurf 에서 미강제
 
-Windsurf has no hooks and no sub-agent dispatch. The following are self-policed
-reminders here (on Claude Code they are enforced by hooks):
-Windsurf 는 훅과 서브에이전트 디스패치가 없습니다. 다음 항목은 여기서는 자율 준수 사항입니다
-(Claude Code 에서는 훅으로 강제됨):
+Windsurf supports hooks and sub-agents natively (ADR-031), but CONDUCTOR's
+Windsurf adapter currently emits rule text only — full hook/agent emission is
+Phase 2. The following are self-policed
+reminders here (on Claude Code they are enforced by CONDUCTOR-emitted hooks):
+Windsurf 는 훅과 서브에이전트를 네이티브로 지원하지만 (ADR-031), CONDUCTOR 의 Windsurf
+adapter 는 현재 rule 텍스트만 생성합니다 (hook/agent 자동 생성은 Phase 2). 다음 항목은
+여기서는 자율 준수 사항입니다 (Claude Code 에서는 CONDUCTOR 가 생성한 훅으로 강제됨):
 
-- Spec-as-you-go same-turn update — no Stop hook to block stale docs.
+- Spec-as-you-go same-turn update — CONDUCTOR emits no Stop hook here yet to block stale docs.
 - Two-stage code review (pre-commit / pre-merge) — pair with a git pre-commit hook for mechanical enforcement.
-- Model routing — Windsurf uses a single model per session; choose deliberately.
+- Model routing — Windsurf supports per-task model choice natively (ADR-031); CONDUCTOR does not automate it here yet — choose deliberately.
 EOF
   record_emit ".windsurfrules" "<synthesized>" ""
   log "  wrote $WINDSURFRULES_DEST"
@@ -713,7 +724,7 @@ echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
 echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: Windsurf has no sub-agent dispatch — single chat session per task."
+echo "  - Sub-agent personas: not yet emitted for Windsurf (tool supports sub-agents natively — ADR-031; Phase 2)."
 echo "  - Per-pattern glob scoping: all .devin/rules/*.md load together."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""

@@ -199,7 +199,7 @@ bash adapters/codex/transform.sh <target>
 # or: node bin/omniconductor.js init --target=codex <target>
 ```
 
-Produces `AGENTS.md` (all 5 universal rules + workflow + personas concatenated). Output is emit-verified (`validate-adapter-output.sh codex` PASS); live runtime consumption by Codex is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
+Produces `AGENTS.md` (all 5 universal rules + workflow + personas concatenated). Output is emit-verified (`validate-adapter-output.sh codex` PASS); Codex is additionally live-verified (codex-cli 0.130.0 loaded AGENTS.md, 2026-06-28) — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
 
 ### Files produced
 
@@ -210,7 +210,7 @@ docs/                                       # (same as above)
 
 ### What works
 
-- Single-file always-loaded rule bundle (`.codex/codex.md`).
+- Single-file always-loaded rule bundle (`AGENTS.md`).
 - All universal rule TEXT.
 - All doc templates.
 

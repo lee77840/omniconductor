@@ -32,7 +32,7 @@ This is the problem CONDUCTOR solves.
 
 ## The solution
 
-> **한글:** 프로젝트의 규율을 도구 독립적인 포맷으로 **단 한 번** 작성하세요. 도구별로 명령어 하나만 실행하면, CONDUCTOR 가 해당 도구에 맞는 파일을 올바른 경로·올바른 포맷으로 생성합니다 (`core/` 에 룰을 한 번 쓰면 → `.claude/` / `.cursor/rules/` / `.github/instructions/` / `GEMINI.md` / `.codex/codex.md` / `.windsurfrules` 로 변환). 같은 Plan → Architecture → Tasks 워크플로가, 그날 개발자가 어떤 도구를 쓰든 프로젝트의 모든 에이전트를 동일하게 지배하게 됩니다.
+> **한글:** 프로젝트의 규율을 도구 독립적인 포맷으로 **단 한 번** 작성하세요. 도구별로 명령어 하나만 실행하면, CONDUCTOR 가 해당 도구에 맞는 파일을 올바른 경로·올바른 포맷으로 생성합니다 (`core/` 에 룰을 한 번 쓰면 → `.claude/` / `.cursor/rules/` / `.github/instructions/` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules` 로 변환). 같은 Plan → Architecture → Tasks 워크플로가, 그날 개발자가 어떤 도구를 쓰든 프로젝트의 모든 에이전트를 동일하게 지배하게 됩니다.
 
 Write your project's discipline ONCE in a tool-agnostic format. Run a single command per tool, and CONDUCTOR generates the right files at the right paths in the right format for that specific tool.
 

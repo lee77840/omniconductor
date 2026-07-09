@@ -1,12 +1,12 @@
 # ROADMAP — CONDUCTOR
 
-> Last updated: 2026-05-07. Estimated dates assume CONDUCTOR work resumes at ~50% of weekly capacity (the reference project retains priority through its 2026 launch).
+> Last updated: 2026-07-09. Estimated dates assume CONDUCTOR work resumes at ~50% of weekly capacity (the reference project retains priority through its 2026 launch).
 
-> **한글:** 최종 수정 2026-05-07. 아래 예상 일정은 CONDUCTOR 작업이 주간 가용 시간의 약 50% 수준으로 재개된다는 가정입니다 (the reference project 가 2026년 출시까지 우선순위를 유지합니다). CONDUCTOR 는 사이드 프로젝트이므로, the reference project 가 집중을 요구하면 후속 단계는 죄책감 없이 멈춥니다 — 로드맵은 목표일 뿐 계약이 아닙니다.
+> **한글:** 최종 수정 2026-07-09. 아래 예상 일정은 CONDUCTOR 작업이 주간 가용 시간의 약 50% 수준으로 재개된다는 가정입니다 (the reference project 가 2026년 출시까지 우선순위를 유지합니다). CONDUCTOR 는 사이드 프로젝트이므로, the reference project 가 집중을 요구하면 후속 단계는 죄책감 없이 멈춥니다 — 로드맵은 목표일 뿐 계약이 아닙니다.
 
 ## Phase summary
 
-> **한글:** 단계 요약. P0 (기반 리셋) · P1 (Universal 룰 + Claude 어댑터) · P1.5 (KPI 베이스라인 측정) · P1.6 (안티패턴 카탈로그) · P1.7 (캐시히트 Stop 훅 + 대용량 파일 Read 가드 훅) · P2 (Cursor 어댑터) · P3 (Copilot + Gemini 어댑터) · P3.5 (Codex + Windsurf 어댑터) 까지 모두 **완료**되었습니다 — 이제 6개 어댑터 전부 `transform.sh` 를 제공합니다 (출력은 emit-verified; Gemini / Codex / Windsurf 의 실제 런타임 소비는 도입자 검증 대기, `docs/ADAPTER-LIVE-VERIFICATION.md` 참고). 이후 P4 (v1.0 공개 출시) 가 남았습니다. 아래 표의 각 단계는 영문 그대로 두며, 상세 산출물·종료 조건은 각 단계 섹션을 참고하세요.
+> **한글:** 단계 요약. P0 (기반 리셋) · P1 (Universal 룰 + Claude 어댑터) · P1.5 (KPI 베이스라인 측정) · P1.6 (안티패턴 카탈로그) · P1.7 (캐시히트 Stop 훅 + 대용량 파일 Read 가드 훅) · P2 (Cursor 어댑터) · P3 (Copilot + Gemini 어댑터) · P3.5 (Codex + Windsurf 어댑터) 까지 모두 **완료**되었습니다 — 이제 6개 어댑터 전부 `transform.sh` 를 제공하고, npm 에 [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.6.0) 로 배포되어 `npx omniconductor init --target=<tool> <dir>` 가 동작합니다 (출력은 emit-verified; Codex 는 2026-06-28 live-verified, Gemini / Windsurf 의 실제 런타임 소비는 도입자 검증 대기 — `docs/ADAPTER-LIVE-VERIFICATION.md` 참고). 남은 것은 P4 의 v1.0 공식 출시 (베타 피드백 + 런치)입니다. 아래 표의 각 단계는 영문 그대로 두며, 상세 산출물·종료 조건은 각 단계 섹션을 참고하세요.
 
 | Phase | Name | Target end | Status |
 |---|---|---|---|
@@ -16,9 +16,9 @@
 | **P1.6** | Anti-pattern catalog | 2026-05-14 | **Done** |
 | **P1.7** | Cache-hit Stop hook + Large-file Read guard hook | 2026-05-18 | **Done** |
 | **P2** | Cursor adapter + matrix validation | 2026-05-30 | **Done** |
-| **P3** | Remaining T1+T2 adapters (Copilot ✅, Gemini ✅) | 2026-06-28 | **Done** (both ship `transform.sh`; live runtime adopter-pending) |
-| **P3.5** | T3 adapters (Codex ✅, Windsurf ✅) | 2026-06-28 | **Done** (both ship `transform.sh`; live runtime adopter-pending) |
-| **P4** | Public release v1.0 | 2026-07-07 | Planned |
+| **P3** | Remaining T1+T2 adapters (Copilot ✅, Gemini ✅) | 2026-06-28 | **Done** (both ship `transform.sh`; Gemini live runtime adopter-pending) |
+| **P3.5** | T3 adapters (Codex ✅, Windsurf ✅) | 2026-06-28 | **Done** (both ship `transform.sh`; Codex live-verified 2026-06-28, Windsurf live adopter-pending) |
+| **P4** | Public release v1.0 | 2026-07-07 | **In progress** — npm published (`omniconductor` v0.6.0) + public repo live; beta feedback + v1.0 launch remain |
 
 ---
 
@@ -194,23 +194,23 @@ Claude / Cursor / Copilot / Gemini adapters produce installable output and the v
 
 ### Deliverables
 
-- [x] `adapters/codex/transform.sh` → `AGENTS.md` (single bundled file). (Done — emit-verified; live runtime adopter-pending.)
-- [x] `adapters/windsurf/transform.sh` → `.windsurfrules` + `.windsurf/rules/*.md`. (Done — emit-verified; live runtime adopter-pending.)
+- [x] `adapters/codex/transform.sh` → `AGENTS.md` (single bundled file). (Done — emit-verified; **live-verified 2026-06-28**, codex-cli 0.130.0 loaded `AGENTS.md`.)
+- [x] `adapters/windsurf/transform.sh` → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/`). (Done — emit-verified; live runtime adopter-pending.)
 
 ### Stop condition
 
-All 6 tool adapters ship a `transform.sh` and pass `tools/validate-adapter-output.sh` (Done; CI in `.github/workflows/validate.yml` runs all 6). `docs/COMPATIBILITY-MATRIX.md` finalized. Live runtime consumption by Codex / Windsurf remains adopter-pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`.
+All 6 tool adapters ship a `transform.sh` and pass `tools/validate-adapter-output.sh` (Done; CI in `.github/workflows/validate.yml` runs all 6). `docs/COMPATIBILITY-MATRIX.md` finalized. Codex was live-verified 2026-06-28 (codex-cli 0.130.0 loaded `AGENTS.md`); live runtime consumption by Windsurf remains adopter-pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`.
 
 ---
 
-## P4 — Public release v1.0 (2026-06-25 → 2026-07-01)
+## P4 — Public release v1.0 (2026-06-25 → ongoing) — In progress
 
 **Goal**: ship to npm, post launch.
 
 ### Deliverables
 
-- [ ] Install distribution finalized (bash adapters + optional VSCode-extension launcher per ADR-025; no `npx omniconductor` package — install is `bash adapters/<tool>/transform.sh <target>`).
-- [ ] GitHub repo public.
+- [x] Install distribution finalized — bash adapters + `npx omniconductor init --target=<tool> <dir>` CLI, **published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.6.0)**. Optional VSCode-extension launcher stays Phase 2 (ADR-025).
+- [x] GitHub repo public (`lee77840/omniconductor`).
 - [ ] Beta with 5 friends (2 Korean solo devs, 3 English solo devs) — 1 week of dogfooding before public.
 - [ ] Launch: Show HN + Reddit r/ClaudeAI + Twitter/X. Bilingual blog post.
 - [ ] The reference project referenced as the flagship case study (it launches independently on its own timeline).

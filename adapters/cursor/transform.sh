@@ -24,7 +24,7 @@
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   <synthesized>                  →  <target>/.cursorrules          (only if --legacy-cursorrules)
 #   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (Cursor has no sub-agent dispatch)
+#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Cursor supports sub-agents natively — ADR-031)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 
 set -eu
@@ -71,7 +71,7 @@ Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
   - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (Cursor has no sub-agent dispatch — single chat session per task)
+  - Sub-agent personas (not yet emitted for Cursor — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
   - Hookify rule templates (Claude-only plugin)
 EOF
       exit 0
@@ -98,6 +98,11 @@ fi
 CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
+
+# CONDUCTOR package version for the manifest — parsed at runtime from package.json
+# so releases never drift the manifest (falls back to "unknown" on any error).
+CONDUCTOR_VERSION="$(/usr/bin/sed -n -E 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONDUCTOR_ROOT/package.json" 2>/dev/null | /usr/bin/head -n 1)"
+[ -n "$CONDUCTOR_VERSION" ] || CONDUCTOR_VERSION="unknown"
 
 if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
@@ -273,7 +278,7 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "v0.2.0",
+  "version": "v$CONDUCTOR_VERSION",
   "adapter": "cursor",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
@@ -718,7 +723,7 @@ fi
 echo ""
 echo " Skipped (per ADR-004 honesty):"
 echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: Cursor has no sub-agent dispatch — single chat session per task."
+echo "  - Sub-agent personas: not yet emitted for Cursor (tool supports sub-agents natively — ADR-031; Phase 2)."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""
 echo " Activation: reload Cursor window (Cmd/Ctrl+Shift+P → 'Developer: Reload Window')."

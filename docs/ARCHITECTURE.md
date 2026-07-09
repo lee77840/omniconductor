@@ -28,7 +28,7 @@ CONDUCTOR is a 3-layer system. Each layer has a single, sharp responsibility.
 │   adapters/cursor/transform.sh   → .cursor/rules/*.mdc + .cursorrules     │
 │   adapters/copilot/transform.sh  → .github/instructions/*.instructions.md │
 │   adapters/gemini/transform.sh   → GEMINI.md + .gemini/styleguide.md      │
-│   adapters/codex/transform.sh    → .codex/codex.md                        │
+│   adapters/codex/transform.sh    → AGENTS.md                        │
 │   adapters/windsurf/transform.sh → .windsurfrules + .windsurf/rules/*.md  │
 └────────────────┬─────────────────────────────────────────────────────────┘
                  │
@@ -75,7 +75,7 @@ Different tools have different mechanisms for "load this rule when this kind of 
 
 | Universal pattern intent | Claude output | Cursor output | Copilot output | Gemini output | Codex output | Windsurf output |
 |---|---|---|---|---|---|---|
-| Always loaded | `CLAUDE.md` | `.cursorrules` | `.github/instructions/all.instructions.md` (`applyTo: '**'`) | `GEMINI.md` (top section) | `.codex/codex.md` | `.windsurfrules` |
+| Always loaded | `CLAUDE.md` | `.cursorrules` | `.github/instructions/all.instructions.md` (`applyTo: '**'`) | `GEMINI.md` (top section) | `AGENTS.md` | `.windsurfrules` |
 | `<web-app>/**` only | `.claude/rules/web.md` (paths front-matter) | `.cursor/rules/web.mdc` (`globs: <web-app>/**`) | `web.instructions.md` (`applyTo: '<web-app>/**'`) | merged into `GEMINI.md` (no scoping) | merged | `.windsurf/rules/web.md` |
 | Manual / agent-only | `.claude/agents/*.md` | (no equivalent — text bundled into `.cursorrules` as orchestrator manual) | (bundled) | (bundled) | (bundled) | (bundled) |
 

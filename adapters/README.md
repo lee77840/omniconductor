@@ -79,7 +79,7 @@ The Layer-1 universal-rules use `applies_to:` front-matter for routing hints. Ea
 
 | `core/` front-matter | Adapter behavior |
 |---|---|
-| `always_loaded: true` | Merge content into the always-loaded baseline file (`CLAUDE.md`, `.cursorrules`, `applyTo: '**'`, `GEMINI.md`, `.codex/codex.md`, `.windsurfrules`) |
+| `always_loaded: true` | Merge content into the always-loaded baseline file (`CLAUDE.md`, `.cursorrules`, `applyTo: '**'`, `GEMINI.md`, `AGENTS.md`, `.windsurfrules`) |
 | `always_loaded: false` (or absent) | Emit as a separate rule file with appropriate per-pattern scoping |
 
 ## Adapter-specific extensions

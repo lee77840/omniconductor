@@ -98,6 +98,11 @@ CORE_ROOT="$CONDUCTOR_ROOT/core"
 TOOLS_ROOT="$CONDUCTOR_ROOT/tools"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
 
+# CONDUCTOR package version for the manifest — parsed at runtime from package.json
+# so releases never drift the manifest (falls back to "unknown" on any error).
+CONDUCTOR_VERSION="$(/usr/bin/sed -n -E 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONDUCTOR_ROOT/package.json" 2>/dev/null | /usr/bin/head -n 1)"
+[ -n "$CONDUCTOR_VERSION" ] || CONDUCTOR_VERSION="unknown"
+
 if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
@@ -243,7 +248,7 @@ backup_if_exists() {
 # Manifest is generated using only POSIX shell (no jq dependency). Format:
 #
 #   {
-#     "version": "v0.2.0",
+#     "version": "v<CONDUCTOR package.json version>",
 #     "install_timestamp": "2026-05-10T12:00:00Z",
 #     "conductor_root": "/abs/path/to/conductor",
 #     "recipes_enabled": ["monorepo", "i18n"],
@@ -343,7 +348,7 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "v0.2.0",
+  "version": "v$CONDUCTOR_VERSION",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "recipes_enabled": $recipes_json,

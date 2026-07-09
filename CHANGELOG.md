@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-07-09
+
+### Fixed (documentation + adapter output truth-source; from an external audit)
+- **Manifest version bug** — all 6 adapters hardcoded `"version": "v0.2.0"` in the emitted `.conductor-manifest.json`; now read dynamically from `package.json` (installs stamp the real version). Fixes bogus install-history / rollback / bug-report data.
+- **Adapter capability strings** — Codex/Gemini/Windsurf/Copilot emitted output claimed the tool has "no hooks / no sub-agents / single model"; corrected to the ADR-031 *capability vs CONDUCTOR-emission* framing (the tools support these; CONDUCTOR emits rule text + the Reflector loop, full emission Phase 2).
+- **Doc drift to v0.6.0 reality** — README/ROADMAP/COMPARISON/HOW-IT-WORKS/ARCHITECTURE/VISION/COMPATIBILITY-MATRIX/ADAPTER-LIVE-VERIFICATION/SUPPORTED-FEATURES: all 6 tools have working adapters (not "adapter-less"), npm package exists (no "no npx"), Codex output is `AGENTS.md` (not `.codex/codex.md`), Windsurf emits `.devin/rules/` (not "pending"), Codex is live-verified (single-sourced across docs), Claude hook count reconciled (10 hooks / 5 PreToolUse + 5 Stop).
+- **npm completeness** — `package.json` `files` now ships the docs the README links to (COMPATIBILITY-MATRIX, ADAPTER-LIVE-VERIFICATION, PUBLISH-GUIDE, DESIGN-DECISIONS, COMPARISON), so npm-installed users don't hit dead links.
+
 ## [0.6.0] — 2026-07-07
 
 ### Added

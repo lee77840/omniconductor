@@ -1,21 +1,23 @@
 # COMPARISON — CONDUCTOR vs other tools
 
-Honest comparison of CONDUCTOR against the major existing options. Updated 2026-05-09.
+Honest comparison of CONDUCTOR against the major existing options. Updated 2026-07-09 (v0.6.0).
 
 ## Headline matrix
 
-| | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR v0.2** |
+| | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR v0.6** |
 |---|---|---|---|---|---|---|
-| **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 6 tools (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) |
-| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light (5 universal rules + 8 agent definitions + 3 hooks) |
-| **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes (Claude only; documented manual on others — ADR-004) |
+| **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 6 tools, all with working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) — npm-published (`npx omniconductor`) |
+| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 6 roles) + 13 opt-in recipes + 10 hook templates |
+| **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — emitted on Claude today; the other tools support sub-agents too (ADR-031) but adapter emission is Phase 2 (ADR-004) |
 | **Spec-as-you-go enforcement** | Soft (encouraged) | Yes (gates) | Yes (artifacts) | No | No | ABSOLUTE on Claude (Stop hook); rule reminder on others |
 | **Two-stage code review** | Yes | Yes | Yes | No | No | ABSOLUTE on Claude (specialized agents); rule reminder on others |
-| **Token economy rules** | Bonus | Bonus | Not specifically | No | No | Built-in from day 1 |
+| **Token economy rules** | Bonus | Bonus | Not specifically | No | No | Built-in from day 1; instruction-fidelity-first since 0.4.0 (ADR-035/036) |
+| **Self-improvement loop** | No | No | No | No | No | Opt-in `self-improvement` Reflector — propose-only, human-approved (ADR-030/032/033), emitted on all 6 tools |
+| **Agent-loop / git discipline** | No | No | No | No | No | Opt-in `loop-engineering` (bounded, externally-verified loops, ADR-038) + `git-hygiene` (shared-repo discipline, ADR-037) recipes |
 | **Memory pattern** | No | No | No | No | No | 4-type, documented universally; native directory on Claude only |
 | **Bilingual (한/영)** | Translations available | English-first | English-first | English-first | DIY | First-class (한/영, README + marketing) |
 | **Origin** | Single-author theory | Microsoft research roots | Indie author | IDE vendor | None | One year of production iteration at LFamily Labs |
-| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | v0.2-foundation (active development) |
+| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | v0.6.0 — all 6 adapters working + CI-validated, npm-published; pre-1.0 (active development) |
 | **License** | MIT (varies) | MIT | Commercial-friendly | Proprietary IDE | N/A | Apache 2.0 + CONDUCTOR-name trademark (ADR-029) |
 | **Telemetry** | Varies | None | None | Cursor opt-in | None | None ever (ADR-008) |
 | **Uninstall path** | Per-skill manual delete | Per-phase manual delete | Per-artifact manual delete | None (rules accumulate) | N/A | `transform.sh --uninstall` (manifest-tracked, restores backups) — ADR-020 |
@@ -45,12 +47,13 @@ You only use Claude Code, want zero framework, and prefer to extend incrementall
 
 CONDUCTOR is NOT just a tool that translates rules between formats. It is opinionated content + workflow + memory pattern that happens to be portable.
 
-If you only want format conversion, you can write a 50-line script that reads `*.md` and re-emits them with different front-matter. CONDUCTOR's universal rules (operations / coding-conventions / token-economy / spec-as-you-go / model-routing) are the value; the multi-tool transform is the delivery vehicle.
+If you only want format conversion, you can write a 50-line script that reads `*.md` and re-emits them with different front-matter. CONDUCTOR's universal rules (operations / quality-gates / meta-discipline / spec-as-you-go / workflow) plus the 13 opt-in recipes are the value; the multi-tool transform is the delivery vehicle.
 
 ## Honest weaknesses of CONDUCTOR
 
-- **No installer GUI.** Bash + future `npx` CLI only. Power-user tool.
-- **v0.2 is foundation only.** Adapter implementations land P1-P3.5. Until then, only the v0.1 Claude-only install works (via `archive/v0.1/install.sh`).
+- **No installer GUI.** Bash adapters + the `npx omniconductor` CLI only. Power-user tool. (A VSCode-extension launcher is Phase 2 — ADR-023/025.)
+- **Enforcement emission is still Claude-weighted.** All six tools now support hooks / sub-agents / model routing (ADR-031), but CONDUCTOR's adapters currently *emit* the full hook + agent set for Claude only; the other five get the rule/recipe text plus the opt-in Reflector loop. Full non-Claude emission is Phase 2.
+- **Live verification is not complete.** All 6 adapters are emit-verified in CI, and Codex is live-verified (2026-06-28) — but live runtime consumption by Gemini and Windsurf is still adopter-pending (`docs/ADAPTER-LIVE-VERIFICATION.md`).
 - **No community yet.** No Discord, no Twitter/X presence. You're an early adopter.
 - **Tool fragmentation risk.** If 12 new tools launch in 2026, we cannot keep up. Mitigated by documented adapter contribution path (`docs/CONTRIBUTING.md`).
 - **Claude-Code bias.** The orchestrator-centric model maps naturally to Claude. On other tools the human carries more of the weight. This is documented honestly (ADR-004) but it is a real bias.
@@ -60,10 +63,10 @@ If you only want format conversion, you can write a 50-line script that reads `*
 ## Honest strengths
 
 - **Production pedigree.** Every rule earned through a real shipping incident at LFamily Labs. Not theoretical.
-- **Honesty over feature inflation.** ADR-004 says we will NOT fake sub-agents on Cursor. Other multi-tool projects gloss over this.
+- **Honesty over feature inflation.** ADR-004 says we will NOT fake-polyfill sub-agents anywhere; ADR-031 documents per-tool capability vs what CONDUCTOR actually emits. Other multi-tool projects gloss over this.
 - **Bilingual moat.** Korean solo-dev community is meaningful and underserved.
 - **Apache 2.0, no telemetry, no paid tier — fully open and commercial-friendly.** Only the **CONDUCTOR** name is reserved (trademark), so nobody can pass off a modified copy as the original. Same permissive footing as MIT competitors, with brand protection (ADR-029).
-- **Small, opinionated kernel.** 5 universal rules vs GSD's 60 skills. If our rules are wrong for you, you'll know quickly and can move on. No 6-month sunk cost.
+- **Small, opinionated kernel.** 5 universal rules (plus 13 strictly opt-in recipes and 10 hook templates) vs GSD's 60 skills. If our rules are wrong for you, you'll know quickly and can move on. No 6-month sunk cost.
 
 ## Verdict
 

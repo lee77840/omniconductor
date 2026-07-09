@@ -44,7 +44,7 @@ CONDUCTOR ships 10 hooks, all registered in the generated `.claude/settings.json
 | `stop-r6-review-check.sh` | `Stop` (session end) | Inject reminder to run Stage B `/code-review` slash command if a feature/fix branch has open PR + cool-down. |
 | `stop-cache-hit-baseline-check.sh` | `Stop` | Flag prompt-cache baseline regressions at session end. |
 
-`transform.sh` registers all 7 in `.claude/settings.json` (4 `PreToolUse` + 3 `Stop`). Users customize paths and conditions in that generated file, or override per-user in `settings.local.json` (gitignored).
+`transform.sh` registers all 10 in `.claude/settings.json` (5 `PreToolUse` + 5 `Stop`). Users customize paths and conditions in that generated file, or override per-user in `settings.local.json` (gitignored).
 
 ## What Claude DOES NOT support that CONDUCTOR doesn't try to compensate for
 

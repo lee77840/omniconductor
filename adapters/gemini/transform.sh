@@ -26,13 +26,14 @@
 #   core/recipes/coding-conventions →  <target>/.gemini/styleguide.md  (Gemini style-guide convention; opt-in)
 #   core/docs-templates/*.md       →  <target>/docs/*.md          (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (Gemini has no sub-agent dispatch)
+#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Gemini supports sub-agents natively — ADR-031)
 #
 # Gemini reality (per adapters/gemini/SUPPORTED-FEATURES.md):
 #   - Single always-loaded rule file (GEMINI.md). No per-pattern rule scoping.
-#   - No sub-agents, no per-call model routing, no built-in memory dir. CONDUCTOR
+#   - Gemini CLI supports sub-agents / hooks / per-call model routing natively
+#     (ADR-031), but this adapter does not emit them yet (Phase 2). CONDUCTOR
 #     emits the Reflector hook when --recipes=self-improvement (ADR-032); other
-#     guards remain Claude-only (ADR-034).
+#     guards remain Claude-only emission (ADR-034).
 #   The bundle below carries the rule TEXT honestly; Claude-only enforcement mechanisms
 #   are noted as self-policed for Gemini, never faked.
 
@@ -81,8 +82,8 @@ Gemini single-file model:
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
   - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (Gemini has no sub-agent dispatch — single chat session per task)
-  - Per-call model routing (single model per Gemini session)
+  - Sub-agent personas (not yet emitted for Gemini — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
+  - Per-call model routing (supported natively by Gemini CLI, ADR-031; not yet automated by CONDUCTOR)
   - Built-in memory directory (DIY at .memory/ — see the note inside GEMINI.md)
 EOF
       exit 0
@@ -109,6 +110,11 @@ fi
 CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
+
+# CONDUCTOR package version for the manifest — parsed at runtime from package.json
+# so releases never drift the manifest (falls back to "unknown" on any error).
+CONDUCTOR_VERSION="$(/usr/bin/sed -n -E 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONDUCTOR_ROOT/package.json" 2>/dev/null | /usr/bin/head -n 1)"
+[ -n "$CONDUCTOR_VERSION" ] || CONDUCTOR_VERSION="unknown"
 
 if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
@@ -270,7 +276,7 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "v0.2.0",
+  "version": "v$CONDUCTOR_VERSION",
   "adapter": "gemini",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
@@ -547,19 +553,22 @@ else
 **EN** — You are the lead orchestrator for **{{PROJECT_NAME}}**. You translate the
 user's intent into a disciplined Plan → Architecture → Tasks → Implementation →
 Review → Spec workflow. The universal rules below are your operating floor; every
-turn inherits them. Gemini CLI runs a single chat session per task — there are no
-sub-agents and no enforcement hooks here, so these rules are **self-policed**: you
-follow them by reading them, not because a hook blocks you.
+turn inherits them. Gemini CLI supports sub-agents and hooks natively (ADR-031),
+but CONDUCTOR's Gemini adapter currently emits rule text (plus the Reflector loop)
+only — full hook/agent emission is Phase 2 — so these rules are **self-policed**:
+you follow them by reading them, not because an emitted hook blocks you.
 
 **KO** — 당신은 **{{PROJECT_NAME}}** 의 리드 오케스트레이터입니다. 사용자의 의도를
 Plan → Architecture → Tasks → Implementation → Review → Spec 워크플로로 옮깁니다.
-아래 universal rule 은 모든 턴이 상속하는 기본 규칙입니다. Gemini CLI 는 작업당 단일
-세션으로 동작하며 sub-agent 나 enforcement hook 이 없습니다 — 따라서 이 규칙들은
+아래 universal rule 은 모든 턴이 상속하는 기본 규칙입니다. Gemini CLI 는 sub-agent 와
+hook 을 네이티브로 지원하지만 (ADR-031), CONDUCTOR 의 Gemini adapter 는 현재 rule 텍스트
+(+ Reflector loop) 만 생성합니다 (hook/agent 자동 생성은 Phase 2) — 따라서 이 규칙들은
 **자기 규율(self-policed)** 로 지켜야 합니다.
 
 > **Note (Gemini)**: Claude Code enforces parts of these rules with PreToolUse / Stop
-> hooks and sub-agent dispatch. Gemini CLI has none of those surfaces. Where a rule
-> mentions a Claude-only mechanism, treat it as self-policed: read the rule, follow it.
+> hooks and sub-agent dispatch. Gemini CLI has those surfaces natively too (ADR-031),
+> but CONDUCTOR does not emit hooks/agents here yet (Phase 2). Where a rule mentions a
+> Claude-only mechanism, treat it as self-policed: read the rule, follow it.
 
 ## ABSOLUTE rules (summary) / 절대 규칙 요약
 
@@ -830,8 +839,8 @@ echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
 echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: Gemini has no sub-agent dispatch — single chat session per task."
-echo "  - Per-call model routing: single model per Gemini session."
+echo "  - Sub-agent personas: not yet emitted for Gemini (tool supports sub-agents natively — ADR-031; Phase 2)."
+echo "  - Per-call model routing: supported natively by Gemini CLI (ADR-031); not yet automated by CONDUCTOR."
 echo "  - Built-in memory: DIY at .memory/ (see the note inside GEMINI.md)."
 echo ""
 echo " Activation: open $TARGET_ABS with Gemini CLI — it loads GEMINI.md automatically."

@@ -30,7 +30,7 @@
 #   core/recipes/*.md (selected)   →  <target>/AGENTS.md  (each as "## Recipe — <name>")
 #   core/docs-templates/*.md       →  <target>/docs/*.md  (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (Codex has no sub-agent dispatch)
+#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Codex supports sub-agents natively — ADR-031)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
 # Single-file model: Codex reads ONE always-loaded rules file. Everything that
@@ -79,7 +79,7 @@ Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock
 
 What this adapter does NOT install (per ADR-004 honesty):
   - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (Codex has no sub-agent dispatch — single session per task)
+  - Sub-agent personas (not yet emitted for Codex — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
   - Per-pattern rule scoping (Codex loads AGENTS.md whole — all rules always-on)
   - Hookify rule templates (Claude-only plugin)
 EOF
@@ -107,6 +107,11 @@ fi
 CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
+
+# CONDUCTOR package version for the manifest — parsed at runtime from package.json
+# so releases never drift the manifest (falls back to "unknown" on any error).
+CONDUCTOR_VERSION="$(/usr/bin/sed -n -E 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONDUCTOR_ROOT/package.json" 2>/dev/null | /usr/bin/head -n 1)"
+[ -n "$CONDUCTOR_VERSION" ] || CONDUCTOR_VERSION="unknown"
 
 if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
@@ -249,7 +254,7 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "v0.2.0",
+  "version": "v$CONDUCTOR_VERSION",
   "adapter": "codex",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
@@ -504,20 +509,24 @@ build_agents_md() {
 ## How to use this with Codex (한/영)
 
 **한국어** — Codex 는 *한 방(one-shot) 셸 작업* 에 강합니다. 스크립트 작성, 파일 일괄 변환, git 작업,
-"이 명령 실행하고 결과 보고" 류 작업이 최적입니다. 멀티 스텝 오케스트레이션(서브에이전트/훅)은
-Codex 의 강점이 아니므로, 그런 작업은 사람이 순차 프롬프트로 분해하거나 Claude/Cursor 를 쓰세요.
+"이 명령 실행하고 결과 보고" 류 작업이 최적입니다. Codex 는 서브에이전트/훅을 네이티브로 지원하지만
+(ADR-031), CONDUCTOR 의 Codex adapter 는 아직 이를 자동 생성하지 않으므로 (Phase 2), 멀티 스텝
+오케스트레이션은 순차 프롬프트로 분해하거나 CONDUCTOR 의 full-emission 인 Claude adapter 를 쓰세요.
 이 번들은 Codex 가 *인라인으로 생성하는 코드* 가 프로젝트 컨벤션을 따르도록 충분한 맥락을 줍니다.
 
 **English** — Codex shines at *one-shot shell tasks*: writing scripts, batch file transforms, git
-operations, and "run this command and report the output" work. Multi-step orchestration
-(sub-agents / hooks) is not Codex's strength — decompose such work into sequential prompts, or
-reach for Claude/Cursor. This bundle gives Codex enough context that the code it generates inline
+operations, and "run this command and report the output" work. Codex supports sub-agents and hooks
+natively (ADR-031), but CONDUCTOR's Codex adapter does not emit them yet (Phase 2) — decompose
+multi-step orchestration into sequential prompts, or use CONDUCTOR's full-emission Claude adapter.
+This bundle gives Codex enough context that the code it generates inline
 follows your project conventions.
 
-> **Enforcement note (Codex)**: Codex has **no sub-agents, no hooks, and no per-pattern rule
-> scoping**. Every rule below is loaded *always* and is **self-policed** — there is no automated
-> gate. Claude-only enforcement mechanisms cited in the rule text (Stop hooks, agent routing) do
-> NOT run on Codex; treat them as reminders. Pair this with a git pre-commit hook if you want a hard gate.
+> **Enforcement note (Codex)**: Codex supports sub-agents, hooks, and per-task model routing
+> natively (ADR-031), but CONDUCTOR's Codex adapter currently emits rule text (plus the Reflector
+> loop) only — full hook/agent emission is Phase 2. Every rule below is loaded *always* and is
+> **self-policed** — CONDUCTOR installs no automated gate here. Enforcement mechanisms cited in
+> the rule text (Stop hooks, agent routing) are emitted for Claude only today; treat them as
+> reminders. Pair this with a git pre-commit hook if you want a hard gate.
 
 ## ABSOLUTE rules (always-on summary)
 
@@ -574,7 +583,7 @@ more often than other tools** — but the gates that remain (Implementation → 
 - **Review** — Stage A on the diff (correctness), Stage B before merge (block on HIGH-confidence issues).
 - **Spec** — update `docs/specs/<area>.md` to reflect actually-shipped behavior (spec-as-you-go).
 
-> On Codex, phase enforcement is **self-policed** (no Stop hooks). The rule text above is the reminder.
+> On Codex, phase enforcement is **self-policed** (CONDUCTOR emits no Stop hooks here yet). The rule text above is the reminder.
 
 WORKFLOW
 
@@ -734,7 +743,7 @@ echo "  Recipes appended:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
 echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: Codex has no sub-agent dispatch — single session per task."
+echo "  - Sub-agent personas: not yet emitted for Codex (tool supports sub-agents natively — ADR-031; Phase 2)."
 echo "  - Per-pattern scoping: Codex loads AGENTS.md whole — all rules are always-on."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""
