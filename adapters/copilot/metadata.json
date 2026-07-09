@@ -30,6 +30,6 @@
       "model_routing": "none"
     }
   },
-  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "live_verification": { "status": "pending", "date": null, "cli": null, "note": "per-IDE — see docs/IDE-SMOKE-TESTING.md" },
   "headless_cli": { "command": "copilot", "invocation": "copilot -p" }
 }

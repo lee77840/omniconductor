@@ -89,7 +89,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `adapters/copilot/transform.sh` | **✅ Implemented (P3).** core → .github/copilot-instructions.md (default merged bundle) + .github/instructions/*.instructions.md (recipes / `--per-rule`) — covers 5 IDEs. |
 | `adapters/<tool>/metadata.json` | **✅ v0.7.0 (ADR-040).** Single source per adapter for outputs / legacy paths / tier / capabilities / live-verification / headless CLI. CI-checked. |
 | `adapters/gemini/transform.sh` | **✅ adapter shipped (v0.2).** core → `GEMINI.md` + `.gemini/styleguide.md`. Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
-| `adapters/codex/transform.sh` | **✅ adapter shipped (v0.2).** core → `AGENTS.md`. Emit-verified + **live-verified 2026-06-28** — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
+| `adapters/codex/transform.sh` | **✅ adapter shipped (v0.2).** core → `AGENTS.md`. Emit-verified + **live-verified** (auto-probe `tools/live-verify.sh`) — current status in `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 | `adapters/windsurf/transform.sh` | **✅ adapter shipped (v0.2).** core → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/` still read). Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 
 ## `tools/`

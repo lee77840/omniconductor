@@ -7,7 +7,7 @@ OpenAI Codex (the modern shell-driven agent — not the deprecated original Code
 
 **Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Codex ships hooks (default-on), sub-agent dispatch, custom agents, per-task model routing, commands, and built-in managed memory. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). That is a CONDUCTOR gap, not a Codex limitation. Real tool-side caveat: rules scope by nested-file hierarchy, not glob — the adapter bundles everything into one `AGENTS.md`.
 
-**Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md`). Live-verified 2026-06-28 (codex-cli loaded the emitted `AGENTS.md` — `docs/ADAPTER-LIVE-VERIFICATION.md`).
+**Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md`). Live-verified via the automated headless probe (`tools/live-verify.sh` — current status in `docs/ADAPTER-LIVE-VERIFICATION.md`).
 
 > Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
 
@@ -80,4 +80,4 @@ bash adapters/codex/transform.sh <target> --uninstall              # revert (man
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
 - ✅ `transform.sh` (implemented — single-file `AGENTS.md` bundle, recipes, dry-run, manifest-based uninstall)
-- ✅ Live-verified 2026-06-28 (codex-cli loaded the emitted `AGENTS.md` — see `docs/ADAPTER-LIVE-VERIFICATION.md`)
+- ✅ Live-verified (auto-probe `tools/live-verify.sh` — see `docs/ADAPTER-LIVE-VERIFICATION.md`)

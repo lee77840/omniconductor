@@ -77,7 +77,7 @@ test -f "<target>/AGENTS.md"                           || echo "MISSING AGENTS.m
 
 ## P3.5 Codex version compatibility check
 
-- Confirm `AGENTS.md` IS the canonical project-rules location. (Confirmed — live-verified 2026-06-28, see `docs/ADAPTER-LIVE-VERIFICATION.md`.)
+- Confirm `AGENTS.md` IS the canonical project-rules location. (Confirmed — live-verified; current status in `docs/ADAPTER-LIVE-VERIFICATION.md`.)
 - Confirm Codex auto-loads it on session start.
 - Confirm Codex follows the rule TEXT in its inline code generation.
 

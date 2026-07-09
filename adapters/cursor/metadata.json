@@ -29,6 +29,6 @@
       "model_routing": "none"
     }
   },
-  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "live_verification": { "status": "pending", "date": null, "cli": null, "note": "not yet run" },
   "headless_cli": { "command": "cursor-agent", "invocation": "cursor-agent -p" }
 }

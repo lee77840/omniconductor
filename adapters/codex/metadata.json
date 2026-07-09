@@ -29,6 +29,6 @@
       "model_routing": "none"
     }
   },
-  "live_verification": { "status": "verified", "date": "2026-06-28", "cli": "codex-cli 0.130.0" },
+  "live_verification": { "status": "verified", "date": "2026-07-09", "cli": "codex-cli 0.144.0", "note": "headless probe listed 4/5 rules + read-CURRENT_WORK-first" },
   "headless_cli": { "command": "codex", "invocation": "codex exec" }
 }

@@ -199,7 +199,7 @@ bash adapters/codex/transform.sh <target>
 # or: node bin/omniconductor.js init --target=codex <target>
 ```
 
-Produces `AGENTS.md` (all 5 universal rules + compressed workflow concatenated; role personas are not emitted — Phase 2, ADR-034). Output is emit-verified (`validate-adapter-output.sh codex` PASS); Codex is additionally live-verified (codex-cli 0.130.0 loaded AGENTS.md, 2026-06-28) — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
+Produces `AGENTS.md` (all 5 universal rules + compressed workflow concatenated; role personas are not emitted — Phase 2, ADR-034). Output is emit-verified (`validate-adapter-output.sh codex` PASS); Codex is additionally live-verified via the automated headless probe (`tools/live-verify.sh`) — current status in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
 
 ### Files produced
 

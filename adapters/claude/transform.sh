@@ -349,6 +349,7 @@ finalize_manifest() {
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
   "version": "v$CONDUCTOR_VERSION",
+  "adapter": "claude",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "recipes_enabled": $recipes_json,

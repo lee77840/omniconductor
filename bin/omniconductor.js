@@ -7,13 +7,15 @@
  * Usage:
  *   omniconductor init --target=<tool> [target-dir] [--recipes=a,b] [--dry-run] [--no-prompt]
  *   omniconductor init --target=<tool> [target-dir] --uninstall [--force]
+ *   omniconductor doctor [target-dir] [--json]
  *   omniconductor list
  *   omniconductor --help | --version
  *
  * It does NOT reimplement any install logic. It locates this repo's
  * adapters/<tool>/transform.sh and runs it with `bash`, forwarding all flags
  * and inheriting stdio. The shell adapters remain the single source of truth
- * (ADR-018 / the bash adapters are the validated implementation).
+ * (ADR-002/023/025 — the bash adapters are the validated implementation).
+ * `doctor` (ADR-041) is read-only: it inspects an install, never changes it.
  */
 
 const path = require('path');
@@ -36,6 +38,7 @@ function usage() {
 
 Usage:
   omniconductor init --target=<tool> [target-dir] [options]   Install into target-dir (default: .)
+  omniconductor doctor [target-dir] [--json]                  Health-check an existing install (read-only)
   omniconductor list                                          List available tool adapters
   omniconductor --help | --version
 
@@ -52,6 +55,7 @@ Examples:
   omniconductor init --target=claude ./my-app --recipes=tdd,debugging
   omniconductor init --target=cursor ./my-app --dry-run
   omniconductor init --target=codex . --uninstall
+  omniconductor doctor ./my-app --json
 
 Run:  npx omniconductor init --target=<tool> <dir>`;
 }
@@ -85,8 +89,15 @@ function main(argv) {
     return 0;
   }
 
+  if (cmd === 'doctor') {
+    const rest = args.slice(1);
+    const jsonOut = rest.includes('--json');
+    const dir = rest.find((a) => !a.startsWith('-')) || '.';
+    return require('./doctor.js').run(dir, { json: jsonOut });
+  }
+
   if (cmd !== 'init') {
-    fail(`unknown command '${cmd}'. Expected 'init' or 'list'.`);
+    fail(`unknown command '${cmd}'. Expected 'init', 'doctor', or 'list'.`);
   }
 
   // Parse `init` args: extract --target, the positional target-dir, forward the rest.

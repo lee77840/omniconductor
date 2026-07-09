@@ -54,6 +54,21 @@ Tiers are re-defined for the 2026 reality. The old T3 definition ("sub-agents/ho
 | **T2 — Good** | Copilot, Codex, Gemini CLI | Hooks + sub-agents + custom agents + per-task model + commands all present. Caveats: Copilot rule-scoping is glob (`applyTo:`) but the coding agent has no transcript API; Codex/Gemini scope by nested-file hierarchy, not glob; Gemini has no native scheduler (external Action). |
 | **T3 — Basic** | Windsurf / Devin Desktop | Has hooks (but **no session/stop events** → no Stop-style enforcement), sub-agents (Devin Local), commands, memory. No desktop scheduler; rules path moved to `.devin/rules/` (adapter emits it). |
 
+## Adapter outputs at a glance (generated)
+
+<!-- generated:adapter-outputs-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
+| Tool | Tier | Emitted outputs | Legacy paths (still read) | Live-verified | Headless CLI |
+|---|---|---|---|---|---|
+| Claude Code | T1 | `CLAUDE.md` + `.claude/rules` + `.claude/agents` + `.claude/hooks` + `.claude/settings.json` + `docs/CURRENT_WORK.md` | — | ✅ 2026-07-09 | `claude -p` |
+| Cursor | T1 | `.cursor/rules` + `docs/CURRENT_WORK.md` | `.cursorrules` (legacy) | 🧪 pending | `cursor-agent -p` |
+| Copilot | T2 | `.github/copilot-instructions.md` + `.github/instructions` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `copilot -p` |
+| Gemini CLI | T2 | `GEMINI.md` + `.gemini/styleguide.md` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `gemini -p` |
+| Codex | T2 | `AGENTS.md` + `docs/CURRENT_WORK.md` | `.codex/codex.md` (legacy) | ✅ 2026-07-09 | `codex exec` |
+| Windsurf | T3 | `.windsurfrules` + `.devin/rules` + `docs/CURRENT_WORK.md` | `.windsurf/rules` (legacy) | 🧪 pending | `devin -p` |
+<!-- /generated:adapter-outputs-table -->
+
+Source of truth: `adapters/<tool>/metadata.json` (ADR-040) — CI regenerates and fails on drift.
+
 ## Verdict — "If you need X, use Y"
 
 | Need | Recommended tool |
@@ -93,7 +108,7 @@ The discipline is portable. The *enforcement* is now portable in principle too �
 | Cursor | ✅ (P0) | ✅ (SHIPPED v0.2, ADR-021) | ✅ `validate-adapter-output.sh cursor` PASS (2026-05-10) | ⏳ pending (Cursor smoke — see IDE-SMOKE-TESTING § 1) | ⚠️ Synthetic-target smoke + format-validator PASS (4 cases 2026-05-10); real-IDE empirical verification deferred to adopter feedback | ✅ (ADR-021, IDE-COMPATIBILITY-NOTES § Cursor) |
 | Copilot | ✅ (P0) | ✅ (SHIPPED v0.2, ADR-022) | ✅ `validate-adapter-output.sh copilot` PASS (2026-05-10) | ⏳ pending per IDE: VS Code (§ 2), Cursor+Copilot (§ 3), Windsurf (§ 4), JetBrains (§ 5), Neovim (§ 6) | ⚠️ Synthetic-target smoke + format-validator PASS (3 cases 2026-05-10 — fresh / adopter / per-rule); per-IDE real smoke deferred to adopter feedback | ✅ (ADR-022, IDE-COMPATIBILITY-NOTES § Copilot) |
 | Gemini CLI | ✅ (P0) | ✅ (SHIPPED v0.2 — `adapters/gemini/transform.sh` → `GEMINI.md` + `.gemini/styleguide.md`) | ✅ `validate-adapter-output.sh gemini` PASS | n/a (CLI runtime) | ⚠️ Emit-verified (format-validator + synthetic-target smoke PASS); live runtime consumption by Gemini CLI still pending — see `docs/ADAPTER-LIVE-VERIFICATION.md` | ✅ (IDE-COMPATIBILITY-NOTES § Gemini) |
-| Codex | ✅ (P0) | ✅ (SHIPPED v0.2 — `adapters/codex/transform.sh` → `AGENTS.md`) | ✅ `validate-adapter-output.sh codex` PASS | n/a (CLI runtime) | ✅ **Live-verified (2026-06-28)** — `codex exec` (codex-cli 0.130.0) loaded `AGENTS.md` and correctly listed all 5 universal rules + the "read docs/CURRENT_WORK.md first" rule. Also emit-verified (format-validator PASS). | ✅ (IDE-COMPATIBILITY-NOTES § Codex) |
+| Codex | ✅ (P0) | ✅ (SHIPPED v0.2 — `adapters/codex/transform.sh` → `AGENTS.md`) | ✅ `validate-adapter-output.sh codex` PASS | n/a (CLI runtime) | ✅ **Live-verified** — auto-probed by `tools/live-verify.sh` (`codex exec` loaded `AGENTS.md` and listed the universal rules + read-CURRENT_WORK-first); current date/CLI in the generated "Adapter outputs at a glance" table above. Also emit-verified (format-validator PASS). | ✅ (IDE-COMPATIBILITY-NOTES § Codex) |
 | Windsurf | ✅ (P0) | ✅ (SHIPPED v0.2 — own `adapters/windsurf/transform.sh` → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/` still read) — see footnote 11) | ✅ `validate-adapter-output.sh windsurf` PASS | ⏳ adopter follow-up / live-pending (IDE-SMOKE-TESTING § 4) | ⚠️ Emit-verified (format-validator + synthetic-target smoke PASS); live runtime consumption still pending — see `docs/ADAPTER-LIVE-VERIFICATION.md` | ✅ (IDE-COMPATIBILITY-NOTES § Windsurf) |
 
 ## Copilot adapter — IDE coverage

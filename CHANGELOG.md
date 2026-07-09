@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-07-09
+
+### Added — metadata consumers (audit follow-up #1 + #5 + #2 slice 2)
+- **`omniconductor doctor <target>` (3rd CLI command)** — read-only installed-project health check anchored on `.conductor-manifest.json`. Seven groups: manifest validity · version drift (install stamp vs running CLI) · file integrity · stale legacy paths (from adapter `metadata.json`, `--legacy-cursorrules` aware) · hook validity (`.json` parses, `.sh` executable + `bash -n`) · doc-link liveness · stale-claim scan (reuses `tools/stale-tokens.txt` semantics). OK/WARN/FAIL → exit 0/1/2, `--json` for machines. CI runs a positive + negative doctor smoke per adapter. Prior-art differentiated by scope (per-project asset health), not name. — **ADR-041**.
+- **Generated doc regions from metadata (`tools/generate-adapter-docs.js`)** — the live-verification status table (`docs/ADAPTER-LIVE-VERIFICATION.md`) and a new "Adapter outputs at a glance" table (`docs/COMPATIBILITY-MATRIX.md`) are now rendered from `adapters/*/metadata.json`; `--check` fails CI on drift. All remaining hand-written live-verification dates/CLI versions on living surfaces replaced with date-free pointers to the generated table (milestone history keeps "first live-verified" dates). — **ADR-042**.
+- **`tools/live-verify.sh` — automated live rule-loading verification** — per tool: throwaway install → headless probe (read-only) → deterministic grade (≥3/5 universal rule names + CURRENT_WORK; no LLM judge) → writes `live_verification` into `metadata.json` and regenerates the doc tables. Honest SKIP when a CLI isn't installed; >90-day freshness WARN; local-first (CI can't hold six authenticated CLIs). **First run: Claude Code newly live-verified (5/5 rules, Claude Code 2.1.205) and Codex re-verified (4/5, codex-cli 0.144.0), both 2026-07-09.** — **ADR-043**.
+
+### Changed
+- Claude adapter manifest now stamps `"adapter": "claude"` (the other five adapters already stamped theirs) — doctor uses it; footprint inference covers pre-0.8 installs.
+- `bin/omniconductor.js` usage/comments: `doctor` added; stale "ADR-018" citation corrected to ADR-002/023/025.
+
 ## [0.7.0] — 2026-07-09
 
 ### Added — anti-drift guards (audit follow-up #3 + #2 slice 1)

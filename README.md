@@ -6,9 +6,9 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v0.7.0 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); Codex is additionally **live-verified** (codex-cli 0.130.0 loaded `AGENTS.md`, 2026-06-28); live runtime consumption by Gemini / Windsurf is adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v0.8.0 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), the rest are live-pending — current per-tool status in the generated table in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 0.7.0**: **anti-drift guards** — a CI stale-claim/version-stamp check (`tools/check-stale-tokens.sh`, ADR-039) and a per-adapter `metadata.json` single source with a consistency checker (`tools/check-adapter-metadata.sh`, ADR-040), so living docs can no longer contradict shipped reality. Earlier releases (loop-engineering, git-hygiene, token economy, the Reflector loop): [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 0.8.0**: the anti-drift system now has consumers — **`npx omniconductor doctor`** (read-only install health check, ADR-041), **generated doc tables** from adapter metadata (ADR-042), and **`tools/live-verify.sh`** (automated headless live-verification — Claude Code + Codex verified with it, ADR-043). Earlier releases (anti-drift guards, loop-engineering, git-hygiene, token economy, the Reflector loop): [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > Marketplace listing (VSCode Marketplace + Open VSX) remains **Phase 2** (post-0.6) — see ADR-023.
 
@@ -76,7 +76,7 @@ bash ~/conductor/adapters/claude/transform.sh . \
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — `<tool>` = `claude` / `cursor` / `copilot` / `gemini` / `codex` / `windsurf`. `list` · `--dry-run` · `--recipes=A,B` · `--uninstall` 지원.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — `<tool>` = `claude` / `cursor` / `copilot` / `gemini` / `codex` / `windsurf`. `list` · `doctor` (설치 상태 진단, 읽기 전용) · `--dry-run` · `--recipes=A,B` · `--uninstall` 지원.
 - **Path B — bash 어댑터**: CONDUCTOR 클론 후 `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
@@ -177,7 +177,7 @@ The columns below show **CONDUCTOR emission today** (⚠️ = the tool supports 
 
 Full per-feature matrix + first-party footnotes: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` (published to npm) — or `node bin/omniconductor.js init --target=<tool> <dir>` from a local clone — dispatches to these same adapter scripts, with `list`, `--dry-run`, `--recipes=`, and `--uninstall`.
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` (published to npm) — or `node bin/omniconductor.js init --target=<tool> <dir>` from a local clone — dispatches to these same adapter scripts, with `list`, `--dry-run`, `--recipes=`, and `--uninstall`. **`npx omniconductor doctor <dir>`** (v0.8+) health-checks an existing install read-only — manifest validity, version drift, file integrity, stale legacy paths, hook validity, doc links, stale claims — exit 0/1/2 (`--json` for machines).
 
 > **What you keep going Claude → other tools**: all rule text, doc templates, the 4-type memory pattern, the workflow phases, and the opt-in Reflector loop (emitted on all six). **What is still Claude-only in CONDUCTOR's *emission* today**: auto-blocking hooks, per-call model routing, sub-agent dispatch — a Phase-2 emission gap, **not** a tool limitation (the tools support them; Windsurf is the one real exception, for Stop-style hooks). The discipline is portable; the enforcement is becoming portable as adapter emission catches up.
 
@@ -497,7 +497,7 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 
 #### Architecture Decision Records (`docs/DESIGN-DECISIONS.md`)
 
-40 ADRs cover the foundational decisions. Highlights:
+43 ADRs cover the foundational decisions. Highlights:
 
 | ADR | Topic | Why it matters |
 |---|---|---|

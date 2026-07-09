@@ -1196,3 +1196,45 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 - *Generate transform.sh config from metadata (metadata-driven install).* Rejected — inverts ADR-002; runtime JSON parsing in bash is fragile and the transforms are already verified.
 - *Single top-level adapters.json.* Rejected — per-adapter files keep ownership local (an adapter PR touches its own metadata) and diff review honest.
 - *YAML metadata.* Rejected — no YAML parser in the dependency budget; JSON parses with node's stdlib.
+
+## ADR-041 — `omniconductor doctor`: read-only installed-project health check
+
+**Status**: Accepted (2026-07-09)
+
+**Context**: An adopter has no way to answer "is my CONDUCTOR install still healthy?" A file deleted by hand, a hook config corrupted by a merge, a legacy path left behind after a tool rebrand, or an install made by an older package version all fail silently until an agent misbehaves. The manifest (`.conductor-manifest.json`) already records everything an install emitted; nothing consumed it diagnostically. Prior art (web-verified 2026-07-09): Spec Kit `specify check` and SuperClaude/Claude Code `doctor` check the *environment* only; BMAD `status` displays the manifest without verifying anything — no tool in the space does per-project installed-asset health.
+
+**Decision**: `omniconductor doctor [target] [--json]` — the CLI's 3rd command, in `bin/doctor.js` (dependency-free Node, **strictly read-only**, consistent with ADR-002/023/025: it inspects adapter output, never reimplements install logic). Seven check groups anchored on the manifest: **D1** manifest validity · **D2** version drift (manifest stamp vs running package) · **D3** file integrity (every tracked file exists) · **D4** stale legacy paths (from `adapters/<tool>/metadata.json` `legacy_paths`, skipping intentional emissions like `--legacy-cursorrules`) · **D5** hook validity (emitted `.json` parses; emitted `.sh` executable + `bash -n`) · **D6** doc-link liveness (relative links in emitted docs resolve) · **D7** stale claims (emitted files scanned against `tools/stale-tokens.txt` with the same allow/waiver semantics). Severity model FAIL / WARN / OK → exit 2 / 1 / 0; `--json` for machines. The Claude adapter's manifest now also stamps `"adapter": "claude"` (the other five already did); doctor falls back to footprint inference for pre-0.8 claude manifests.
+
+**Consequences**: CI gained a doctor smoke per adapter (fresh install → exit 0; hide a tracked file → non-zero; restore → 0). Differentiated **in scope, not in name** — per-project asset health rather than global environment. Depends on ADR-040 metadata (D4) and ADR-039 tokens (D7); both ship in the same npm package (`files` includes `adapters/` + `tools/`).
+
+**Alternatives considered**:
+- *`doctor --fix`.* Rejected for now — repair = re-run `init` (backups + manifest make it safe); a mutating doctor would duplicate adapter logic (ADR-002).
+- *Bash implementation.* Rejected — JSON-heavy traversal; node is already a CLI dependency, and doctor lives behind the node CLI anyway.
+
+## ADR-042 — Generated doc regions from adapter metadata (ADR-040 slice 2)
+
+**Status**: Accepted (2026-07-09)
+
+**Context**: ADR-040 slice 1 made metadata the *checked* source for enumerable adapter facts, but the prose tables stating those facts were still hand-maintained — the Codex live-verification status alone was restated (and had drifted) across 3+ docs.
+
+**Decision**: `tools/generate-adapter-docs.js` renders marked regions (`<!-- generated:<name> … --> … <!-- /generated:<name> -->`) from `adapters/*/metadata.json`: the **live-verification status table** in `docs/ADAPTER-LIVE-VERIFICATION.md` and the **"Adapter outputs at a glance"** table in `docs/COMPATIBILITY-MATRIX.md`. `--check` mode fails CI on any drift between metadata and the rendered tables (wired into the `adapter-metadata` job). Legacy paths render with an explicit "(legacy)" qualifier so generated rows satisfy the ADR-039 stale-token allow-rules. Alongside this, all remaining hand-written live-verification dates/CLI versions on living surfaces (README status line, ROADMAP, COMPARISON, HOW-IT-WORKS, INDEX, codex README/spec, the live-verification guide prose) were replaced with **date-free pointers to the generated table** — milestone history keeps its dates as "first live-verified" records.
+
+**Consequences**: A metadata change now propagates to the docs by running one script, and CI blocks a PR whose docs disagree with metadata. Hand-editing inside a marked region is futile by design. Remaining slices: more regions (e.g. README tool-coverage cells) as they prove drift-prone.
+
+**Alternatives considered**:
+- *Regenerate whole files.* Rejected — the surrounding prose is genuinely hand-authored; region markers keep human and machine content separate.
+- *Docs as the source, metadata generated from docs.* Rejected — prose is unparseable as a source of truth; JSON is.
+
+## ADR-043 — `tools/live-verify.sh`: automated live rule-loading verification
+
+**Status**: Accepted (2026-07-09)
+
+**Context**: CI proves adapters *emit* correct files; it cannot prove a tool *loads* them (needs an authenticated CLI + a model). That gap was closed manually once (Codex, 2026-06-28) and recorded by hand in three places — which then drifted (the audit's finding). The manual procedure and probe prompt already existed in `docs/ADAPTER-LIVE-VERIFICATION.md`; the headless invocation matrix already existed in `core/reflector/run-weekly.sh` (ADR-033).
+
+**Decision**: `tools/live-verify.sh` automates the procedure per tool: throwaway temp install → headless probe (`claude -p` / `codex exec --sandbox read-only` / `gemini -p` / `cursor-agent -p` / `copilot -p` / `devin -p`, read-only, portable watchdog timeout) → **deterministic grade** (answer must name ≥3 of the 5 universal rules AND mention CURRENT_WORK — no LLM judge) → on PASS, write `live_verification {status, date, cli, note}` into the tool's `metadata.json` and re-run the ADR-042 generator so every doc updates in one motion. CLIs not on PATH are **SKIPped honestly** (never a fake ✅ — Windsurf/Devin likely stays manual). A freshness guard WARNs when a verified date is >90 days old. **Local-first**: CI can't hold six authenticated model CLIs; the script is the recorded, repeatable procedure.
+
+**Consequences**: First run live-verified **Claude Code (5/5 rules + CURRENT_WORK, Claude Code 2.1.205)** and re-verified **Codex (4/5 + CURRENT_WORK, codex-cli 0.144.0)** on 2026-07-09 — both recorded through the metadata → generator pipeline, zero hand-edited docs. Cursor/Copilot/Gemini/Windsurf remain live-pending until their CLIs are available here.
+
+**Alternatives considered**:
+- *LLM-judge grading.* Rejected — ADR-038's own research (verify hierarchy: rules/tests > LLM-judge); substring grading over a fixed rule-name set is deterministic and sufficient.
+- *CI `workflow_dispatch` with stored API keys.* Deferred — secrets for six vendors in CI is a liability; revisit if adopters ask.

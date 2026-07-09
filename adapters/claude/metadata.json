@@ -33,6 +33,6 @@
       "model_routing": "full"
     }
   },
-  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "live_verification": { "status": "verified", "date": "2026-07-09", "cli": "2.1.205 (Claude Code)", "note": "headless probe listed 5/5 rules + read-CURRENT_WORK-first" },
   "headless_cli": { "command": "claude", "invocation": "claude -p" }
 }

@@ -47,6 +47,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run metadata consistency check
         run: bash tools/check-adapter-metadata.sh
+      - name: Generated doc regions match metadata (ADR-042)
+        run: node tools/generate-adapter-docs.js --check
 
   # ---------------------------------------------------------------------------
   # 2. Per-adapter install + validate (matrix over the 6 supported tools).
@@ -75,6 +77,20 @@ jobs:
           bash tools/validate-adapter-output.sh \
             "/tmp/ci-${{ matrix.tool }}" \
             "${{ matrix.tool }}"
+      - name: Doctor passes on a fresh install (ADR-041)
+        run: |
+          node bin/omniconductor.js doctor "/tmp/ci-${{ matrix.tool }}"
+      - name: Doctor detects a broken install (negative)
+        run: |
+          t="/tmp/ci-${{ matrix.tool }}"
+          first="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1]+'/.conductor-manifest.json','utf8')).emitted_files[0].path)" "$t")"
+          mv "$t/$first" "$t/$first.hidden"
+          if node bin/omniconductor.js doctor "$t" >/dev/null 2>&1; then
+            echo "ERROR: doctor exited 0 on a broken install" >&2; exit 1
+          fi
+          mv "$t/$first.hidden" "$t/$first"
+          node bin/omniconductor.js doctor "$t" >/dev/null
+          echo "OK: doctor fails on breakage and recovers"
       - name: Self-improvement runtime is sane (hook script + hook config)
         run: |
           t="/tmp/ci-${{ matrix.tool }}"

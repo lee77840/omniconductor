@@ -1,10 +1,10 @@
 # COMPARISON — CONDUCTOR vs other tools
 
-Honest comparison of CONDUCTOR against the major existing options. Updated 2026-07-09 (v0.6.0).
+Honest comparison of CONDUCTOR against the major existing options. Updated 2026-07-09 — CONDUCTOR version currency lives in [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## Headline matrix
 
-| | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR v0.6** |
+| | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR** |
 |---|---|---|---|---|---|---|
 | **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 6 tools, all with working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) — npm-published (`npx omniconductor`) |
 | **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 6 roles) + 13 opt-in recipes + 10 hook templates |
@@ -17,7 +17,7 @@ Honest comparison of CONDUCTOR against the major existing options. Updated 2026-
 | **Memory pattern** | No | No | No | No | No | 4-type, documented universally; native directory on Claude only |
 | **Bilingual (한/영)** | Translations available | English-first | English-first | English-first | DIY | First-class (한/영, README + marketing) |
 | **Origin** | Single-author theory | Microsoft research roots | Indie author | IDE vendor | None | One year of production iteration at LFamily Labs |
-| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | v0.6.0 — all 6 adapters working + CI-validated, npm-published; pre-1.0 (active development) |
+| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | All 6 adapters working + CI-validated, npm-published; pre-1.0 (active development — current version in `CHANGELOG.md`) |
 | **License** | MIT (varies) | MIT | Commercial-friendly | Proprietary IDE | N/A | Apache 2.0 + CONDUCTOR-name trademark (ADR-029) |
 | **Telemetry** | Varies | None | None | Cursor opt-in | None | None ever (ADR-008) |
 | **Uninstall path** | Per-skill manual delete | Per-phase manual delete | Per-artifact manual delete | None (rules accumulate) | N/A | `transform.sh --uninstall` (manifest-tracked, restores backups) — ADR-020 |
@@ -53,7 +53,7 @@ If you only want format conversion, you can write a 50-line script that reads `*
 
 - **No installer GUI.** Bash adapters + the `npx omniconductor` CLI only. Power-user tool. (A VSCode-extension launcher is Phase 2 — ADR-023/025.)
 - **Enforcement emission is still Claude-weighted.** All six tools now support hooks / sub-agents / model routing (ADR-031), but CONDUCTOR's adapters currently *emit* the full hook + agent set for Claude only; the other five get the rule/recipe text plus the opt-in Reflector loop. Full non-Claude emission is Phase 2.
-- **Live verification is not complete.** All 6 adapters are emit-verified in CI, and Codex is live-verified (2026-06-28) — but live runtime consumption by Gemini and Windsurf is still adopter-pending (`docs/ADAPTER-LIVE-VERIFICATION.md`).
+- **Live verification is not complete.** All 6 adapters are emit-verified in CI; live rule-loading is probed per tool by `tools/live-verify.sh`, and the current per-tool status lives in the generated table in `docs/ADAPTER-LIVE-VERIFICATION.md` (single-sourced from adapter metadata).
 - **No community yet.** No Discord, no Twitter/X presence. You're an early adopter.
 - **Tool fragmentation risk.** If 12 new tools launch in 2026, we cannot keep up. Mitigated by documented adapter contribution path (`docs/CONTRIBUTING.md`).
 - **Claude-Code bias.** The orchestrator-centric model maps naturally to Claude. On other tools the human carries more of the weight. This is documented honestly (ADR-004) but it is a real bias.
