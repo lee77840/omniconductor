@@ -15,13 +15,13 @@ How to keep your CONDUCTOR discipline when you change which AI coding tool you u
    bash adapters/cursor/transform.sh <target>
    ```
    This generates:
-   - `.cursorrules` (always-loaded baseline)
-   - `.cursor/rules/*.mdc` (5 universal rules with appropriate `globs:`)
+   - `.cursor/rules/*.mdc` (5 universal rules with `alwaysApply: true`; recipes glob-scoped)
+   - `.cursorrules` only if you pass `--legacy-cursorrules` (Cursor < 0.45)
    It does NOT touch `.claude/`, `CLAUDE.md`, or `docs/`.
 
-2. **Open Cursor.** Cursor auto-loads `.cursorrules` at session start and the matching `.mdc` files when you touch matching files.
+2. **Open Cursor.** Cursor auto-loads the `alwaysApply` rules at session start and the glob-matched `.mdc` files when you touch matching files.
 
-3. **(Optional) Add CONDUCTOR's orchestrator manual to your Cursor session prompt template.** Cursor lacks sub-agent dispatch, so the human plays orchestrator. The `.cursorrules` file already includes the manual; you can paste relevant sections into your first prompt for a complex task.
+3. **(Optional) Use CONDUCTOR's workflow discipline as your session prompt template.** CONDUCTOR doesn't emit its role agents for Cursor yet (Cursor has native sub-agents — ADR-031; emission is Phase 2), so the human plays orchestrator. The emitted universal rules carry the workflow/dispatch discipline; paste relevant sections into your first prompt for a complex task.
 
 4. **Continue using `docs/CURRENT_WORK.md`, `docs/specs/*.md`, etc.** These files are tool-agnostic — Cursor reads them the same way Claude does.
 
@@ -122,7 +122,7 @@ Updating a universal rule means re-running every adapter you use, OR editing eac
 
 | Going from | To | Command | Manual work |
 |---|---|---|---|
-| Claude | Cursor | `init --target=cursor` | Self-police spec + review (no hooks) |
+| Claude | Cursor | `init --target=cursor` | Self-police spec + review (guard hooks not emitted yet — Phase 2, ADR-034) |
 | Claude | Copilot | `init --target=copilot` | Configure Copilot PR review for Stage B |
 | Claude | Gemini | `init --target=gemini` | All rules become single bundle; lose per-pattern scoping |
 | Claude | Codex / Windsurf | `init --target=codex` / `--target=windsurf` | Same as Gemini, plus more manual orchestrator role |

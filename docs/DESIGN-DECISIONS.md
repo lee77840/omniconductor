@@ -1159,3 +1159,40 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 - *Hard-block on runaway (`deny` / exit 2).* Rejected — a loop guard must never break legitimate work; `ask` surfaces the concern and lets the orchestrator decide. Fail-open throughout.
 - *Cross-tool hook emission.* Deferred — same ADR-034 constraints; the recipe rule text covers non-Claude tools.
 - *Enforce G5 (external-verify) via a hook.* Deferred — "did you verify before claiming done" is hard to detect generically at the tool layer; left to the rule text + quality-gates Q4. The hook targets the mechanically-detectable failures (oscillation, runaway).
+
+## ADR-039 — Stale-token CI check + version-stamp policy (living docs must not contradict shipped reality)
+
+**Status**: Accepted (2026-07-09)
+
+**Context**: An external audit (Codex, 2026-07-09) found the docs/adapter-output surface lagging the shipped v0.6.0 reality. A verification pass confirmed all findings real, and root-caused every instance to the same failure class: **one fact hand-maintained in 3–6 places** (manifest version ×6 adapters, `.codex/codex.md` vs `AGENTS.md`, Codex live-status across 3 docs, `.windsurf/rules` vs `.devin/rules`, hook counts, README version stamp — the README stamp drifted twice despite an R7 checklist item). The 0.6.1 point-fix itself left residue: a post-fix sweep found ~20 more stale lines in `core/**` reference tables, 5 adapter READMEs, and ARCHITECTURE/INDEX/MANUAL-INSTALL/MIGRATION — and the first machine scan then caught 4 further sites (codex transform-spec body, VISION tree, two "npx not yet available" blocks) that **two human sweeps and a 3-agent verification pass had all missed**. Conclusion: prose-claim drift is not human-catchable at this repo's fact density; it needs CI.
+
+**Decision**: Ship `tools/check-stale-tokens.sh` + data file `tools/stale-tokens.txt`, wired as a CI job (`stale-tokens`):
+
+1. **Class A — version stamps, mechanized**: README's status line must stamp the exact `package.json` version, and CHANGELOG must contain a section for it. **Policy: the README stamp is re-stamped on EVERY release, patches included.** (This supersedes the 0.6.1 release-commit stance of "patch releases don't re-stamp" — that exception made the stamp unverifiable; R7's checklist wording stands as written.)
+2. **Class B — known-false claims, data-driven**: each line of `stale-tokens.txt` is `pattern⇥reason⇥hint⇥allow_regex`. A match on a living surface fails CI unless the line matches the token's `allow_regex` (legacy/historical qualifiers like "superseded", "still read") or carries an inline `stale-ok: <why>` waiver.
+3. **Scope = living public surfaces** (README/VISION/ROADMAP, top-level `docs/*.md`, `core/`, `adapters/`); frozen history (CHANGELOG, ADRs, audits, plans, specs, archive) and private session docs are excluded, per the ADR-026 carve-out model.
+4. **Process rule (R5 extension)**: an ADR or release that flips a fact adds the now-false claim to `stale-tokens.txt` in the SAME PR. The initial token set (~15) is seeded from the verified drift inventory above.
+
+**Consequences**: The two drift classes that actually recurred (version stamps, falsified prose claims) now fail CI instead of waiting for an audit. Fixing the seeded tokens forced the full residual cleanup in the same change (5 adapter READMEs reframed to the ADR-031 capability-vs-emission model, Codex T3→T2 tier correction, `core/**` reference tables, MANUAL-INSTALL's "adapter not ready" era text). Cost: a new claim that later becomes false still needs a human to add its token — the check prevents *recurrence* of known-false claims, not first-occurrence drift (that's ADR-040's job for enumerable facts).
+
+**Alternatives considered**:
+- *LLM-based doc review in CI.* Rejected — non-deterministic, expensive, and the failure class is exact-string detectable.
+- *Fixing docs by hand each release (status quo).* Rejected — empirically failed twice for stamps and produced ~30 stale lines across two sweeps.
+- *One regex mega-pattern in the purity checker.* Rejected — purity (ADR-026) answers "is the framework consumer-agnostic"; staleness answers "do living docs match shipped reality". Different scopes, different data, separate checkers cloned from the same skeleton.
+
+## ADR-040 — Adapter metadata single-source (`adapters/<tool>/metadata.json`) + consistency CI
+
+**Status**: Accepted (2026-07-09) — slice 1 (schema + 6 metadata files + consistency checker). Doc generation from metadata is a later slice.
+
+**Context**: Same audit root-cause as ADR-039, restricted to the *enumerable* facts: output paths, legacy paths, tier, capability axes, live-verification status, headless CLI. These were re-stated independently in each transform.sh header, adapter README, ARCHITECTURE, COMPATIBILITY-MATRIX, HOW-IT-WORKS, INDEX, and ADAPTER-LIVE-VERIFICATION — and disagreed (e.g. Codex live-verified in one doc, "not yet run" in two others; Codex README said T3 while the matrix said T2).
+
+**Decision**: One `adapters/<tool>/metadata.json` per adapter is the single source for: `outputs[]` (path/kind/validated), `reflector_outputs[]`, `legacy_paths[]`, `tier`, two-axis `capabilities` (`tool_native` vs `conductor_emitted`, per ADR-031), `live_verification`, `headless_cli`. `tools/check-adapter-metadata.sh` (CI job `adapter-metadata`) asserts 8 invariants: valid+complete JSON (M1); every output/reflector/legacy path literal actually appears in the tool's `transform.sh` (M2/M4) and — when `validated: true` — in `tools/validate-adapter-output.sh` (M3); legacy paths are handled in code, not just prose (M5); a `verified` live status carries a date that appears in `docs/ADAPTER-LIVE-VERIFICATION.md` (M6); the headless CLI is one `core/reflector/run-weekly.sh` auto-detects (M7); and the COMPATIBILITY-MATRIX tier row names the adapter (M8).
+
+**Deliberate constraint**: the bash transforms are NOT retrofitted to parse JSON at runtime (ADR-002/023/025 — bash adapters stay dependency-free and remain the validated implementation). Metadata *validates* the transforms; it does not *drive* them. The checker uses `node` (already a CI + CLI dependency), no jq.
+
+**Consequences**: An adapter change that moves an output path now fails CI until metadata.json agrees, and a doc claim about tier/live-status has a machine-checked source to cite. Later slices per the audit-follow-up plan: a doc generator that rewrites marked regions of README/COMPATIBILITY-MATRIX/HOW-IT-WORKS from metadata (fails CI on diff), and `omniconductor doctor` + `tools/live-verify.sh` consuming/writing the same files.
+
+**Alternatives considered**:
+- *Generate transform.sh config from metadata (metadata-driven install).* Rejected — inverts ADR-002; runtime JSON parsing in bash is fragile and the transforms are already verified.
+- *Single top-level adapters.json.* Rejected — per-adapter files keep ownership local (an adapter PR touches its own metadata) and diff review honest.
+- *YAML metadata.* Rejected — no YAML parser in the dependency budget; JSON parses with node's stdlib.

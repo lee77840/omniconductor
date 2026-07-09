@@ -25,6 +25,30 @@ jobs:
         run: bash tools/check-framework-purity.sh
 
   # ---------------------------------------------------------------------------
+  # 1b. Stale tokens + version stamps — living docs must not contradict shipped
+  #     reality (ADR-039). Data-driven from tools/stale-tokens.txt.
+  # ---------------------------------------------------------------------------
+  stale-tokens:
+    name: stale tokens + version stamps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run stale-token check
+        run: bash tools/check-stale-tokens.sh
+
+  # ---------------------------------------------------------------------------
+  # 1c. Adapter metadata — adapters/<tool>/metadata.json is the single source
+  #     for enumerable adapter facts; assert transform.sh + validator agree (ADR-040).
+  # ---------------------------------------------------------------------------
+  adapter-metadata:
+    name: adapter metadata consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run metadata consistency check
+        run: bash tools/check-adapter-metadata.sh
+
+  # ---------------------------------------------------------------------------
   # 2. Per-adapter install + validate (matrix over the 6 supported tools).
   #    Installs into a fresh temp dir with representative recipes, then runs
   #    the structural validator. Both steps fail the build on non-zero exit.

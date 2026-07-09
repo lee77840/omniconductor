@@ -51,7 +51,7 @@ target-project/
   ├── .github/instructions/ (if --target=copilot)
   ├── GEMINI.md             (if --target=gemini)
   ├── AGENTS.md             (if --target=codex)
-  └── .windsurf/rules/      (if --target=windsurf)
+  └── .devin/rules/         (if --target=windsurf)
 ```
 
 The same Plan → Architecture → Tasks workflow now governs every agent in the project, regardless of which tool the developer happens to be using that day.

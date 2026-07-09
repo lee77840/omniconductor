@@ -44,7 +44,7 @@ Adapter `transform.sh` accepts a `--recipes=<comma-separated-list>` flag (or per
 | Cursor | `.cursor/rules/<recipe>.mdc` |
 | Copilot | `.github/instructions/<recipe>.instructions.md` |
 | Gemini | Section in `GEMINI.md` |
-| Codex | Section in `.codex/codex.md` |
-| Windsurf | `.windsurf/rules/<recipe>.md` |
+| Codex | Section in `AGENTS.md` |
+| Windsurf | `.devin/rules/<recipe>.md` (legacy `.windsurf/rules/` still read) |
 
 Recipes are layered on TOP of universal-rules. They never override; they extend.

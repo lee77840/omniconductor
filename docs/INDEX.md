@@ -13,7 +13,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `CURRENT_WORK.md` | Session continuity — what's in progress, what's next. |
 | `SESSION_HANDOFF.md` | Reference-adopter ↔ Conductor relationship + cross-repo reference index. |
 | `LICENSE` | Apache 2.0 — open + commercial-friendly; the CONDUCTOR name is trademarked so forks cannot pass off as the original (ADR-029). |
-| `package.json` | v0.2.0-foundation; no runtime deps. |
+| `package.json` | npm package `omniconductor` (version is single-sourced here — see the npm registry / CHANGELOG for current); no runtime deps. |
 
 ## `core/` — Layer 1 (universal, tool-agnostic)
 
@@ -85,17 +85,22 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `adapters/claude/transform-spec.md` | P0 transform spec. |
 | `adapters/claude/transform.sh` | **✅ Implemented.** core → .claude/{rules,agents,hooks} + CLAUDE.md + settings.json. |
 | `adapters/claude/hookify-templates/*` | 17 opt-in hookify templates (`.local.md.template`), 5 recipe-scoped (i18n / database / design-system). |
-| `adapters/cursor/transform.sh` | **✅ Implemented (P2).** core → .cursor/rules/*.mdc + .cursorrules. |
-| `adapters/copilot/transform.sh` | **✅ Implemented (P3).** core → .github/instructions/*.instructions.md (covers 5 IDEs). |
+| `adapters/cursor/transform.sh` | **✅ Implemented (P2).** core → .cursor/rules/*.mdc (+ opt-in legacy .cursorrules). |
+| `adapters/copilot/transform.sh` | **✅ Implemented (P3).** core → .github/copilot-instructions.md (default merged bundle) + .github/instructions/*.instructions.md (recipes / `--per-rule`) — covers 5 IDEs. |
+| `adapters/<tool>/metadata.json` | **✅ v0.7.0 (ADR-040).** Single source per adapter for outputs / legacy paths / tier / capabilities / live-verification / headless CLI. CI-checked. |
 | `adapters/gemini/transform.sh` | **✅ adapter shipped (v0.2).** core → `GEMINI.md` + `.gemini/styleguide.md`. Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
-| `adapters/codex/transform.sh` | **✅ adapter shipped (v0.2).** core → `AGENTS.md`. Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
-| `adapters/windsurf/transform.sh` | **✅ adapter shipped (v0.2).** core → `.windsurfrules` + `.windsurf/rules/*.md`. Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
+| `adapters/codex/transform.sh` | **✅ adapter shipped (v0.2).** core → `AGENTS.md`. Emit-verified + **live-verified 2026-06-28** — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
+| `adapters/windsurf/transform.sh` | **✅ adapter shipped (v0.2).** core → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/` still read). Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 
 ## `tools/`
 
 | Path | Purpose |
 |---|---|
 | `tools/measure-tokens.sh` | **P1 ✅ Implemented.** Claude session JSONL token measurement. Zero telemetry. |
+| `tools/check-framework-purity.sh` | Reverse-validation: bans reference-adopter-specific tokens in the framework body (ADR-026). CI job `purity`. |
+| `tools/validate-adapter-output.sh` | Per-tool structural validator for adapter output (frontmatter / sections / placeholders). CI job `adapters`. |
+| `tools/check-stale-tokens.sh` + `tools/stale-tokens.txt` | **v0.7.0 (ADR-039).** Known-false-claim + version-stamp guard over living docs. CI job `stale-tokens`. |
+| `tools/check-adapter-metadata.sh` | **v0.7.0 (ADR-040).** Asserts `adapters/*/metadata.json` agrees with transform.sh / validator / matrix / live-verification doc. CI job `adapter-metadata`. |
 
 ## `docs/` — Repo-internal documentation
 
@@ -149,5 +154,5 @@ Legacy Claude-only scaffold. Kept for backward compatibility. Use `adapters/clau
 | P1.7 — Cache-hit Stop hook + Large-file Read guard | Complete | 2026-05-18 |
 | P2 — Cursor adapter | Complete | 2026-05-30 |
 | P3 — Copilot ✅ + Gemini ✅ adapters | Done (both ship `transform.sh`; live runtime adopter-pending) | 2026-06-28 |
-| P3.5 — Codex ✅ + Windsurf ✅ adapters | Done (both ship `transform.sh`; live runtime adopter-pending) | 2026-06-28 |
-| P4 — Public release (bash adapters; no NPM package) | Pending | ~2026-07 |
+| P3.5 — Codex ✅ + Windsurf ✅ adapters | Done (both ship `transform.sh`; Codex live-verified 2026-06-28, Windsurf live pending) | 2026-06-28 |
+| P4 — Public release | npm `omniconductor` published + public GitHub mirror live (v0.6.0, 2026-07); marketplace listing pending | 2026-07 |

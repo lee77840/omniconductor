@@ -54,7 +54,7 @@ If the rule file is edited daily, every session starts with a fresh cache write 
 ```bash
 # Edits per week to top-of-prefix files
 git log --since='1 week ago' --pretty=format:'%h %s' -- \
-  CLAUDE.md AGENT.md GEMINI.md .codex/codex.md \
+  CLAUDE.md AGENT.md AGENTS.md GEMINI.md \
   .claude/rules/*.md .cursor/rules/*.mdc 2>/dev/null | wc -l
 
 # Anything > 3 in a week is suspect

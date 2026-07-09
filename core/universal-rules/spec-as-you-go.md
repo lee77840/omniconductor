@@ -108,7 +108,7 @@ Per-tool transformations:
 
 - **Claude Code**: keep as-is in `docs/specs/<area>.md`. Stop-hook checks for stale frontmatter when source files in that area are touched.
 - **Cursor / Copilot / Windsurf**: same file path, frontmatter preserved. Tool-specific scoping (`globs:` / `applyTo:`) added by the relevant adapter when the file lives under `.cursor/rules/` or `.github/instructions/`.
-- **Gemini / Codex**: file is referenced by path inside the single GEMINI.md / codex.md.
+- **Gemini / Codex**: file is referenced by path inside the single GEMINI.md / AGENTS.md.
 
 ---
 

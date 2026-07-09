@@ -19,11 +19,8 @@ bash adapters/claude/transform.sh <target> [--dry-run]
 # Or by absolute path:
 /path/to/conductor/adapters/claude/transform.sh /path/to/target [--dry-run]
 
-# (planned / roadmap — not yet available):
-# npx omniconductor init --target=claude [target-dir]
-
-# Today (P0 foundation): use the v0.1 archive:
-/path/to/conductor/archive/v0.1/install.sh /path/to/target
+# Or via the npm CLI (no clone needed):
+npx omniconductor init --target=claude [target-dir]
 ```
 
 ## What gets installed

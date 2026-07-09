@@ -62,7 +62,7 @@ This is the reference. Everything else is measured against this.
 
 ---
 
-## Cursor (T1, partial)
+## Cursor (T1)
 
 ### Install
 
@@ -177,20 +177,20 @@ docs/                                       # (same as above)
 
 ### What is LOST vs Claude
 
-| Lost feature | Workaround |
+| Lost feature (vs Claude emission) | Workaround |
 |---|---|
-| Sub-agent dispatch | Manual orchestrator role. |
-| Per-pattern rule scoping | All rules always-loaded; no per-file routing. |
-| Hooks | Not available. |
-| Custom agents | Manual prompts. |
-| Per-call model routing | Single model per session. |
-| Memory directory | DIY. |
+| Sub-agent dispatch (role agents not emitted — Gemini has native sub-agents, ADR-031) | Manual orchestrator role. |
+| Per-pattern rule scoping | All rules always-loaded; no per-file routing (Gemini scopes by nested-file hierarchy, not glob). |
+| Guard hooks (not emitted — Gemini has native hooks, ADR-031) | Self-police; the Reflector session-end hook IS emitted via `--recipes=self-improvement`. |
+| Custom agents | Manual prompts (reflector agent emitted via the recipe). |
+| Per-call model-routing config | Pick the model per task via Gemini's own model selection. |
+| Memory directory | DIY at `.memory/`. |
 
 Gemini's strength is large-context exploration (its rule bundle being always-loaded is fine for that use case).
 
 ---
 
-## Codex (T3)
+## Codex (T2)
 
 ### Install
 
@@ -199,12 +199,12 @@ bash adapters/codex/transform.sh <target>
 # or: node bin/omniconductor.js init --target=codex <target>
 ```
 
-Produces `AGENTS.md` (all 5 universal rules + workflow + personas concatenated). Output is emit-verified (`validate-adapter-output.sh codex` PASS); Codex is additionally live-verified (codex-cli 0.130.0 loaded AGENTS.md, 2026-06-28) — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
+Produces `AGENTS.md` (all 5 universal rules + compressed workflow concatenated; role personas are not emitted — Phase 2, ADR-034). Output is emit-verified (`validate-adapter-output.sh codex` PASS); Codex is additionally live-verified (codex-cli 0.130.0 loaded AGENTS.md, 2026-06-28) — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
 
 ### Files produced
 
 ```
-AGENTS.md                                   # All 5 universal rules + workflow + personas concatenated
+AGENTS.md                                   # All 5 universal rules + compressed workflow concatenated
 docs/                                       # (same as above)
 ```
 
@@ -216,7 +216,7 @@ docs/                                       # (same as above)
 
 ### What is LOST vs Claude
 
-Same as Gemini, plus more limited overall capability for multi-step orchestration. Codex shines at shell-driven scripting; the rule text serves as a manual checklist for the human running Codex.
+Same as Gemini (single-bundle rule file, guard hooks and role agents not emitted — the tool supports hooks/sub-agents natively, ADR-031; emission is Phase 2). Codex shines at shell-driven scripting and headless automation (`codex exec`); the rule text serves as the working discipline for the session.
 
 ---
 
@@ -254,14 +254,14 @@ docs/                                       # (same as above)
 
 ### What is LOST vs Claude
 
-| Lost feature | Workaround |
+| Lost feature (vs Claude emission) | Workaround |
 |---|---|
-| Sub-agent dispatch | Manual orchestrator. |
-| Per-pattern rule scoping | All rules loaded together; no glob-based routing. |
-| Hooks | Not available. |
-| Custom agents | Manual prompts. |
-| Per-call model routing | Single model per session. |
-| Memory directory | DIY. |
+| Sub-agent dispatch (role agents not emitted — Devin Local has native sub-agents, ADR-031) | Manual orchestrator. |
+| Per-pattern rule scoping | All rules loaded together; no glob-based routing (tool-side). |
+| Guard hooks | Windsurf has hooks but **no session/stop events** (the one real tool-side gap, ADR-031) — Stop-style enforcement isn't possible; the Reflector trajectory hook IS emitted via `--recipes=self-improvement`. |
+| Custom agents | Manual prompts (`/reflect` manual rule emitted via the recipe). |
+| Per-call model-routing config | Pick the model per task via the tool's own model selection. |
+| Memory directory | DIY at `.memory/`. |
 
 ---
 

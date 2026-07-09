@@ -25,11 +25,13 @@ CONDUCTOR is a 3-layer system. Each layer has a single, sharp responsibility.
 │                                                                           │
 │   adapters/claude/transform.sh   → .claude/agents/*  + .claude/rules/*    │
 │                                    + .claude/hooks/*  + CLAUDE.md          │
-│   adapters/cursor/transform.sh   → .cursor/rules/*.mdc + .cursorrules     │
-│   adapters/copilot/transform.sh  → .github/instructions/*.instructions.md │
+│   adapters/cursor/transform.sh   → .cursor/rules/*.mdc                    │
+│                                    (+ opt-in legacy .cursorrules)          │
+│   adapters/copilot/transform.sh  → .github/copilot-instructions.md        │
+│                                    + .github/instructions/*.instructions.md│
 │   adapters/gemini/transform.sh   → GEMINI.md + .gemini/styleguide.md      │
-│   adapters/codex/transform.sh    → AGENTS.md                        │
-│   adapters/windsurf/transform.sh → .windsurfrules + .windsurf/rules/*.md  │
+│   adapters/codex/transform.sh    → AGENTS.md                              │
+│   adapters/windsurf/transform.sh → .windsurfrules + .devin/rules/*.md     │
 └────────────────┬─────────────────────────────────────────────────────────┘
                  │
                  │  (run by user via CLI)
@@ -75,9 +77,9 @@ Different tools have different mechanisms for "load this rule when this kind of 
 
 | Universal pattern intent | Claude output | Cursor output | Copilot output | Gemini output | Codex output | Windsurf output |
 |---|---|---|---|---|---|---|
-| Always loaded | `CLAUDE.md` | `.cursorrules` | `.github/instructions/all.instructions.md` (`applyTo: '**'`) | `GEMINI.md` (top section) | `AGENTS.md` | `.windsurfrules` |
-| `<web-app>/**` only | `.claude/rules/web.md` (paths front-matter) | `.cursor/rules/web.mdc` (`globs: <web-app>/**`) | `web.instructions.md` (`applyTo: '<web-app>/**'`) | merged into `GEMINI.md` (no scoping) | merged | `.windsurf/rules/web.md` |
-| Manual / agent-only | `.claude/agents/*.md` | (no equivalent — text bundled into `.cursorrules` as orchestrator manual) | (bundled) | (bundled) | (bundled) | (bundled) |
+| Always loaded | `CLAUDE.md` | `.cursor/rules/*.mdc` (`alwaysApply: true`) | `.github/copilot-instructions.md` | `GEMINI.md` (top section) | `AGENTS.md` | `.windsurfrules` |
+| `<web-app>/**` only | `.claude/rules/web.md` (paths front-matter) | `.cursor/rules/web.mdc` (`globs: <web-app>/**`) | `web.instructions.md` (`applyTo: '<web-app>/**'`) | merged into `GEMINI.md` (no scoping) | merged | `.devin/rules/web.md` |
+| Manual / agent-only | `.claude/agents/*.md` | (not emitted yet — Phase 2; the tool supports custom agents, ADR-031) | (same) | (same) | (same) | (same) |
 
 ## In-repo docs vs external memory
 
@@ -92,6 +94,6 @@ This separation is universal in `core/memory-pattern/` and is honored by every a
 
 In Claude Code, "orchestrator" = the main session reading `CLAUDE.md`, dispatching sub-agents via the Agent tool, blocked by hooks. The system enforces it.
 
-In Cursor / Copilot / Gemini / Codex / Windsurf, "orchestrator" = the human + the chat session. The chat reads the equivalent rule text. The human follows the discipline manually. No sub-agents, no hooks.
+In Cursor / Copilot / Gemini / Codex / Windsurf, "orchestrator" = the human + the chat session, **today**. The chat reads the equivalent rule text and the human follows the discipline manually — not because those tools lack sub-agents or hooks (as of 2026 they all ship them natively, ADR-031), but because CONDUCTOR's adapters don't emit its agents/guard-hooks for them yet (Phase 2, ADR-034; the opt-in Reflector loop is already emitted on all six, ADR-032).
 
 Both modes are first-class CONDUCTOR users. We document both flows in `docs/HOW-IT-WORKS-PER-TOOL.md`.

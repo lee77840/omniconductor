@@ -6,24 +6,21 @@ GitHub Copilot is a T2 target because:
 - Instructions live IN the repo, so all collaborators automatically share them.
 - Copilot's PR review feature provides a partial Stage B code-review analog tied to GitHub.
 
-It is **T2 (not T1)** because:
+**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Copilot ships hooks (CLI + cloud + VS Code), sub-agent dispatch, custom agents, per-task model routing, commands, and built-in managed memory. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). That is a CONDUCTOR gap, not a Copilot limitation.
 
-- ❌ No sub-agent dispatch.
-- ❌ No hooks for ABSOLUTE enforcement.
-- ❌ No per-call model routing (model picker in UI).
-- ❌ No built-in memory directory.
-- ⚠️ Slash commands limited.
+**Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md` — hooks + sub-agents + per-task model + commands all present; caveats: `applyTo:` glob scoping works, but the coding agent has no transcript API).
 
-**Tier**: T2 — Good support; rule scoping works well, enforcement is limited.
+> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+
 
 ## Installation path
 
 ```bash
-# Install (the copilot adapter is implemented):
-bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run]
+# Recommended (npm, no clone):
+npx omniconductor init --target=copilot <target-dir>
 
-# (planned / roadmap — not yet available):
-# npx omniconductor init --target=copilot [target-dir]
+# Or from a local clone:
+bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run] [--per-rule]
 ```
 
 ## What gets installed
@@ -31,13 +28,9 @@ bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run
 ```
 <target>/
 ├── .github/
+│   ├── copilot-instructions.md                 # 5 universal rules merged (repo-wide, default mode)
 │   └── instructions/
-│       ├── all.instructions.md                 # applyTo: '**' (always-loaded)
-│       ├── operations.instructions.md          # applyTo: '**'
-│       ├── coding-conventions.instructions.md  # applyTo: '**/*.{ts,tsx,js,jsx}'
-│       ├── token-economy.instructions.md       # applyTo: '**'
-│       ├── spec-as-you-go.instructions.md      # applyTo: 'docs/specs/**,**/*.md'
-│       └── model-routing.instructions.md       # applyTo: '**'
+│       └── <recipe>.instructions.md            # per --recipes=, applyTo: from source paths
 └── docs/
     ├── CURRENT_WORK.md                         # Universal templates
     ├── REMAINING_TASKS.md
@@ -47,30 +40,34 @@ bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run
     └── specs/_example.md
 ```
 
-## Native features supported
+- `--per-rule` splits the 5 universal rules into per-file `.github/instructions/<rule>.instructions.md` (`applyTo: '**'`) instead of the single merged file.
+- `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config, `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
-- ✅ Always-loaded baseline (`applyTo: '**'`).
-- ✅ Per-pattern rule scoping (`applyTo:` front-matter).
-- ✅ Instructions IN the repo (collaborator-shared).
+## Native features supported (emitted today)
+
+- ✅ Always-loaded baseline (`.github/copilot-instructions.md`).
+- ✅ Per-pattern rule scoping (`applyTo:` front-matter on recipe files).
+- ✅ Instructions IN the repo (collaborator-shared) — one install covers VS Code, Cursor (Copilot ext), Windsurf (Copilot adapter), JetBrains, Neovim.
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
+- ✅ Reflector loop (opt-in recipe).
 - ⚠️ Copilot PR review feature for Stage B (partial).
 
-## Features NOT supported
+## Not emitted yet (Phase 2 — Copilot supports these natively, ADR-031/034)
 
-| Feature | Workaround |
+| Feature | Interim workaround |
 |---|---|
-| Sub-agent dispatch | Human plays orchestrator role. |
-| Hooks | Pair with project-level pre-commit git hooks for enforcement. |
-| Per-call model routing | Pick model in Copilot Chat UI. |
-| Built-in memory directory | DIY at `.memory/` (gitignored). |
+| Enforcement guard hooks | Self-police, or pair with project-level pre-commit git hooks. Only the Reflector session-end hook is emitted today. |
+| The 6 role agents (sub-agent dispatch) | Copilot has native agents; CONDUCTOR doesn't emit its role definitions for Copilot yet. Human plays orchestrator. |
+| Per-call model-routing config | Pick the model in Copilot Chat UI per task (Copilot supports per-task model selection). |
+| 4-type memory pattern | Self-managed at `.memory/` (gitignored); Copilot's built-in managed memory is separate. |
 | Specialized review agents (Stage A) | Run review prompts manually in Copilot Chat. Use Copilot PR review for Stage B (best-effort). |
 
 ## After install — first steps
 
-1. Commit `.github/instructions/` to your repo. All collaborators automatically pick up the rules.
+1. Commit `.github/copilot-instructions.md` (and `.github/instructions/` if you used recipes or `--per-rule`) to your repo. All collaborators automatically pick up the rules.
 2. Configure Copilot PR review for Stage B (in repo settings).
-3. Customize the always-loaded section of `all.instructions.md` — replace `{{PROJECT_NAME}}`.
+3. Skim `.github/copilot-instructions.md` and adjust recipe `applyTo:` globs to your repo layout if needed.
 4. Rename `docs/specs/_example.md` → `docs/specs/<your-area>.md`.
 5. Add `.memory/` to `.gitignore`. Create your first memory entry.
 

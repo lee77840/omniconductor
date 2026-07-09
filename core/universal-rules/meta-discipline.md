@@ -48,7 +48,7 @@ The user's framework is their craft. Borrowing names dilutes provenance and crea
 - **dispatch brief** — the ≤2K-token instruction object passed at dispatch.
 - **stop condition** — explicit done-criteria for a dispatched task.
 - **flat-with-leader** — orchestration topology where roles never dispatch each other; only the orchestrator dispatches.
-- **Single-Agent Mode** — fallback for tools without native sub-agent support; orchestrator + helper collapse into one thread.
+- **Single-Agent Mode** — fallback when sub-agent dispatch isn't available or isn't emitted for the tool; orchestrator + helper collapse into one thread.
 - **AMB triggers** — the 7-item ambiguity catalog that forces ASK behavior.
 - **ACT-WITH-DECLARATION** — proceed-with-best-guess + surface the assumption.
 - **universal rule** vs **recipe** — universal rules apply to every adopter; recipes are opt-in.
@@ -322,7 +322,7 @@ On other tools, the rule text serves as the constraint.
 | Originality grep | Pre-commit script (orchestrator's responsibility) | Same | Same | Same | Same | Same |
 | AMB-1..7 trigger ASK | Rule text + LLM self-discipline | Same | Same | Same | Same | Same |
 | Token-economy Read discipline | Rule text + Stop-hook reminder when wasteful patterns spike | Rule text | Rule text | Rule text | Rule text | Rule text |
-| Model routing | PreToolUse hook validates explicit `model` | Composer picker manual | Account-level only | Single model | Single model | Single model |
-| Flat-with-leader | PreToolUse hook validates dispatcher | Single-Agent Mode (no sub-agents) | Same | Same | Same | Same |
+| Model routing | PreToolUse hook validates explicit `model` | Manual per-task pick (tool-native) | Same | Same | Same | Same |
+| Flat-with-leader | PreToolUse hook validates dispatcher | Rule text (tools have native sub-agents; role emission is a later adapter phase) | Same | Same | Same | Same |
 
-The honest summary: meta-discipline is enforced by rule text on every tool, with hook-based extras on Claude Code only.
+The honest summary: meta-discipline is enforced by rule text on every tool, with hook-based extras emitted on Claude Code only today — an emission gap, not a tool limitation (every listed tool ships hooks, sub-agents, and per-task model selection natively as of 2026).

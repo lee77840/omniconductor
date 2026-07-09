@@ -6,15 +6,12 @@ Windsurf (the AI-IDE) is a T3 target because:
 - It supports a directory of additional rules at `.devin/rules/*.md` (preferred; legacy `.windsurf/rules/` is still read).
 - Its workflow is similar to Cursor's but with less per-pattern scoping.
 
-It is **T3** because:
+**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Windsurf / Devin Desktop ships hooks (12 events — but **no session/stop events**, the one real Stop-style-enforcement gap), sub-agent dispatch (Devin Local), custom agents, per-task model routing, commands, and built-in memory. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). Real tool-side caveats: no glob rule-scoping (all `.devin/rules/*.md` load together) and no desktop scheduler.
 
-- ❌ No per-pattern rule scoping (rules in `.devin/rules/` all load together; no glob filtering).
-- ❌ No sub-agent dispatch.
-- ❌ No hooks.
-- ❌ No per-call model routing.
-- ❌ No built-in memory directory.
+**Tier**: T3 (see `docs/COMPATIBILITY-MATRIX.md` — the missing session/stop hook events keep it below T2).
 
-**Tier**: T3 — Basic. Rule TEXT installs and groups well, but enforcement and scoping are minimal.
+> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+
 
 ## Installation path
 
@@ -39,11 +36,12 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 ├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules)
 ├── .devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
 │   └── rules/
-│       ├── operations.md
-│       ├── coding-conventions.md
-│       ├── token-economy.md
+│       ├── workflow.md
 │       ├── spec-as-you-go.md
-│       └── model-routing.md
+│       ├── quality-gates.md
+│       ├── operations.md
+│       ├── meta-discipline.md
+│       └── <recipe>.md                          # per --recipes=
 └── docs/
     ├── CURRENT_WORK.md                         # Universal templates
     ├── REMAINING_TASKS.md
@@ -53,22 +51,25 @@ bash adapters/windsurf/transform.sh <target> --uninstall
     └── specs/_example.md
 ```
 
-## Native features supported
+- `--recipes=self-improvement` additionally emits the Reflector loop: trajectory hook config (`.windsurf/hooks.json`, riding `post_cascade_response_with_transcript` — Windsurf has no session/stop event), the `/reflect` workflow (`.windsurf/workflows/reflect.md`), a reflector persona rule (`.devin/rules/reflector.md`, `trigger: manual`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
+
+## Native features supported (emitted today)
 
 - ✅ Always-loaded baseline (`.windsurfrules`).
 - ✅ Directory-based rule loading (`.devin/rules/`; legacy `.windsurf/rules/` still read).
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
+- ✅ Reflector loop (opt-in recipe).
 
-## Features NOT supported
+## Not emitted yet (Phase 2 — Windsurf supports most of these natively, ADR-031/034)
 
-| Feature | Workaround |
+| Feature | Interim workaround |
 |---|---|
-| Per-pattern rule scoping | All rules in `.devin/rules/` load together. No glob filtering. |
-| Sub-agent dispatch | Human plays orchestrator. |
-| Hooks | Pair with project pre-commit git hooks. |
-| Per-call model routing | Single model per session. |
-| Built-in memory directory | DIY at `.memory/`. |
+| Per-pattern rule scoping | All rules in `.devin/rules/` load together. No glob filtering (tool-side). |
+| Enforcement guard hooks | Windsurf has hooks but **no session/stop events** (tool-side gap) — Stop-style enforcement isn't possible; self-police or pair with pre-commit git hooks. |
+| The 6 role agents (sub-agent dispatch) | Devin Local has native sub-agents; CONDUCTOR doesn't emit its role definitions yet. Human plays orchestrator. |
+| Per-call model-routing config | Pick the model per task via the tool's own model selection. |
+| 4-type memory pattern | Self-managed at `.memory/` (gitignored); the tool's built-in memory is separate. |
 
 ## After install — first steps
 

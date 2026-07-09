@@ -1,0 +1,38 @@
+{
+  "_comment": "Single source for enumerable adapter facts (ADR-040). CI asserts transform.sh / validator / matrix agree with this file. Update HERE first; docs follow.",
+  "tool": "claude",
+  "display_name": "Claude Code",
+  "tier": "T1",
+  "outputs": [
+    { "path": "CLAUDE.md", "kind": "always_loaded", "validated": false },
+    { "path": ".claude/rules", "kind": "rules", "validated": true },
+    { "path": ".claude/agents", "kind": "agents", "validated": false },
+    { "path": ".claude/hooks", "kind": "hooks", "validated": false },
+    { "path": ".claude/settings.json", "kind": "config", "validated": false },
+    { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
+  ],
+  "reflector_outputs": [
+    { "path": ".claude/commands", "note": "/reflect command (recipe-gated)" },
+    { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
+  ],
+  "legacy_paths": [],
+  "capabilities": {
+    "tool_native": {
+      "hooks": "yes",
+      "sub_agents": "yes",
+      "model_routing": "yes",
+      "commands": "yes",
+      "glob_scoping": "yes",
+      "scheduler": "local"
+    },
+    "conductor_emitted": {
+      "rules": "full",
+      "guard_hooks": "full",
+      "reflector_loop": "recipe",
+      "role_agents": "full",
+      "model_routing": "full"
+    }
+  },
+  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "headless_cli": { "command": "claude", "invocation": "claude -p" }
+}

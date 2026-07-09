@@ -1,0 +1,35 @@
+{
+  "_comment": "Single source for enumerable adapter facts (ADR-040). CI asserts transform.sh / validator / matrix agree with this file. Update HERE first; docs follow.",
+  "tool": "copilot",
+  "display_name": "Copilot",
+  "tier": "T2",
+  "outputs": [
+    { "path": ".github/copilot-instructions.md", "kind": "always_loaded", "validated": true },
+    { "path": ".github/instructions", "kind": "rules", "validated": true },
+    { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
+  ],
+  "reflector_outputs": [
+    { "path": ".github/hooks/conductor-reflect.json", "note": "session-end trajectory hook config (recipe-gated)" },
+    { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
+  ],
+  "legacy_paths": [],
+  "capabilities": {
+    "tool_native": {
+      "hooks": "yes",
+      "sub_agents": "yes",
+      "model_routing": "yes",
+      "commands": "yes",
+      "glob_scoping": "yes",
+      "scheduler": "cloud-only"
+    },
+    "conductor_emitted": {
+      "rules": "full",
+      "guard_hooks": "none",
+      "reflector_loop": "recipe",
+      "role_agents": "none",
+      "model_routing": "none"
+    }
+  },
+  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "headless_cli": { "command": "copilot", "invocation": "copilot -p" }
+}

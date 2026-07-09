@@ -1,0 +1,34 @@
+{
+  "_comment": "Single source for enumerable adapter facts (ADR-040). CI asserts transform.sh / validator / matrix agree with this file. Update HERE first; docs follow.",
+  "tool": "codex",
+  "display_name": "Codex",
+  "tier": "T2",
+  "outputs": [
+    { "path": "AGENTS.md", "kind": "always_loaded", "validated": true },
+    { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
+  ],
+  "reflector_outputs": [
+    { "path": ".codex/hooks.json", "note": "Stop trajectory hook config (recipe-gated)" },
+    { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
+  ],
+  "legacy_paths": [".codex/codex.md"],
+  "capabilities": {
+    "tool_native": {
+      "hooks": "yes",
+      "sub_agents": "yes",
+      "model_routing": "yes",
+      "commands": "yes",
+      "glob_scoping": "no",
+      "scheduler": "local"
+    },
+    "conductor_emitted": {
+      "rules": "full",
+      "guard_hooks": "none",
+      "reflector_loop": "recipe",
+      "role_agents": "none",
+      "model_routing": "none"
+    }
+  },
+  "live_verification": { "status": "verified", "date": "2026-06-28", "cli": "codex-cli 0.130.0" },
+  "headless_cli": { "command": "codex", "invocation": "codex exec" }
+}

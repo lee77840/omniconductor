@@ -1,0 +1,35 @@
+{
+  "_comment": "Single source for enumerable adapter facts (ADR-040). CI asserts transform.sh / validator / matrix agree with this file. Update HERE first; docs follow.",
+  "tool": "gemini",
+  "display_name": "Gemini CLI",
+  "tier": "T2",
+  "outputs": [
+    { "path": "GEMINI.md", "kind": "always_loaded", "validated": true },
+    { "path": ".gemini/styleguide.md", "kind": "rules", "validated": true },
+    { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
+  ],
+  "reflector_outputs": [
+    { "path": ".gemini/settings.json", "note": "SessionEnd trajectory hook config (recipe-gated)" },
+    { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
+  ],
+  "legacy_paths": [],
+  "capabilities": {
+    "tool_native": {
+      "hooks": "yes",
+      "sub_agents": "yes",
+      "model_routing": "yes",
+      "commands": "yes",
+      "glob_scoping": "no",
+      "scheduler": "none"
+    },
+    "conductor_emitted": {
+      "rules": "full",
+      "guard_hooks": "none",
+      "reflector_loop": "recipe",
+      "role_agents": "none",
+      "model_routing": "none"
+    }
+  },
+  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "headless_cli": { "command": "gemini", "invocation": "gemini -p" }
+}

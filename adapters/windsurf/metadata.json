@@ -1,0 +1,35 @@
+{
+  "_comment": "Single source for enumerable adapter facts (ADR-040). CI asserts transform.sh / validator / matrix agree with this file. Update HERE first; docs follow.",
+  "tool": "windsurf",
+  "display_name": "Windsurf",
+  "tier": "T3",
+  "outputs": [
+    { "path": ".windsurfrules", "kind": "always_loaded", "validated": true },
+    { "path": ".devin/rules", "kind": "rules", "validated": true },
+    { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
+  ],
+  "reflector_outputs": [
+    { "path": ".windsurf/hooks.json", "note": "post_cascade_response_with_transcript trajectory hook config (recipe-gated)" },
+    { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
+  ],
+  "legacy_paths": [".windsurf/rules"],
+  "capabilities": {
+    "tool_native": {
+      "hooks": "partial-no-session-stop",
+      "sub_agents": "yes",
+      "model_routing": "yes",
+      "commands": "yes",
+      "glob_scoping": "no",
+      "scheduler": "none"
+    },
+    "conductor_emitted": {
+      "rules": "full",
+      "guard_hooks": "none",
+      "reflector_loop": "recipe",
+      "role_agents": "none",
+      "model_routing": "none"
+    }
+  },
+  "live_verification": { "status": "pending", "date": null, "cli": null },
+  "headless_cli": { "command": "devin", "invocation": "devin -p" }
+}

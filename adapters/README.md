@@ -6,12 +6,12 @@ One adapter per supported tool. Each reads the tool-agnostic content under `core
 
 ```
 adapters/
-├── claude/        # Claude Code (T1 — full support)
-├── cursor/        # Cursor (T1 — partial; no sub-agents/hooks)
+├── claude/        # Claude Code (T1 — reference implementation, full emission)
+├── cursor/        # Cursor (T1)
 ├── copilot/       # GitHub Copilot (T2)
 ├── gemini/        # Gemini CLI (T2)
-├── codex/         # OpenAI Codex (T3)
-└── windsurf/      # Windsurf (T3)
+├── codex/         # OpenAI Codex (T2)
+└── windsurf/      # Windsurf / Devin Desktop (T3)
 ```
 
 Each adapter directory contains:
@@ -75,11 +75,11 @@ The Layer-1 universal-rules use `applies_to:` front-matter for routing hints. Ea
 | (Cursor) | `globs:\n  - "**/*.ts"\n  - "**/*.tsx"` |
 | (Copilot) | `applyTo: '**/*.ts,**/*.tsx'` |
 | (Gemini / Codex) | (bundled — no per-pattern routing) |
-| (Windsurf) | (bundled into `.windsurf/rules/`) |
+| (Windsurf) | (bundled into `.devin/rules/`; legacy `.windsurf/rules/` still read) |
 
 | `core/` front-matter | Adapter behavior |
 |---|---|
-| `always_loaded: true` | Merge content into the always-loaded baseline file (`CLAUDE.md`, `.cursorrules`, `applyTo: '**'`, `GEMINI.md`, `AGENTS.md`, `.windsurfrules`) |
+| `always_loaded: true` | Merge content into the always-loaded baseline (`CLAUDE.md`, `.cursor/rules/*.mdc` `alwaysApply: true`, `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md`, `.windsurfrules`) |
 | `always_loaded: false` (or absent) | Emit as a separate rule file with appropriate per-pattern scoping |
 
 ## Adapter-specific extensions
@@ -105,8 +105,8 @@ bash adapters/<tool>/transform.sh <target> [--dry-run]
 # Or by absolute path:
 /path/to/conductor/adapters/<tool>/transform.sh /path/to/target [--dry-run]
 
-# (planned / roadmap — not yet available):
-# npx omniconductor init --target=<tool> [target-dir]
+# Or via the npm CLI (no clone needed):
+npx omniconductor init --target=<tool> [target-dir]
 ```
 
 ## Status (P0 foundation)

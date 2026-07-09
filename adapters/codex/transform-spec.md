@@ -41,7 +41,7 @@ adapters/codex/_native/codex.md.tpl              # Header template (Codex-flavor
     └── specs/_example.md
 ```
 
-## `.codex/codex.md` composition (in order)
+## `AGENTS.md` composition (in order)
 
 1. **Header from `_native/codex.md.tpl`** — bilingual (한/영) intro adapted for Codex (one-shot model, shell-task strength).
 2. **ABSOLUTE rules section** — R1-R8 minus Claude-only sub-agent enforcement. R-prefix renumbered.
@@ -60,9 +60,8 @@ Same as Gemini adapter — strip front-matter, concatenate, replace tool-specifi
 
 | Case | Adapter behavior |
 |---|---|
-| `.codex/` doesn't exist | Create it. |
-| Existing `.codex/codex.md` | Skip; report "SKIP (exists)". |
-| `.codex/codex.md` exceeds Codex context budget | Warn; document trim strategy in `notes.md`. |
+| Existing `AGENTS.md` | Back up, then write (manifest-tracked; `--uninstall` restores). |
+| `AGENTS.md` exceeds Codex context budget | Warn; document trim strategy in `notes.md`. |
 
 ## Idempotency check
 
@@ -71,14 +70,14 @@ Re-run reports "SKIP (exists)" for everything.
 ## Verification commands (P3.5 will fill)
 
 ```bash
-test -f "<target>/.codex/codex.md"                     || echo "MISSING codex.md"
+test -f "<target>/AGENTS.md"                           || echo "MISSING AGENTS.md"
 
 # Run Codex in <target>; verify it follows ABSOLUTE rules + universal conventions.
 ```
 
 ## P3.5 Codex version compatibility check
 
-- Confirm `.codex/codex.md` IS the canonical project-rules location.
+- Confirm `AGENTS.md` IS the canonical project-rules location. (Confirmed — live-verified 2026-06-28, see `docs/ADAPTER-LIVE-VERIFICATION.md`.)
 - Confirm Codex auto-loads it on session start.
 - Confirm Codex follows the rule TEXT in its inline code generation.
 

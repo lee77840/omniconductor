@@ -54,7 +54,7 @@
 #
 #   windsurf:
 #     - .windsurfrules exists, non-empty
-#     - .windsurf/rules/ contains the 5 universal rule files
+#     - .devin/rules/ (or legacy .windsurf/rules/) contains the 5 universal rule files
 #       (meta-discipline/operations/quality-gates/spec-as-you-go/workflow)
 #     - no unsubstituted ${...} placeholders (outside code fences)
 #     - no reference-product leakage

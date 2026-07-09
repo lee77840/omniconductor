@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-09
+
+### Added — anti-drift guards (audit follow-up #3 + #2 slice 1)
+- **CI stale-token + version-stamp check** — `tools/check-stale-tokens.sh` + data file `tools/stale-tokens.txt` (`pattern⇥reason⇥hint⇥allow_regex`, inline `stale-ok:` waivers) as a new CI job. Class A mechanizes the R7 stamps (README status line must stamp the exact `package.json` version — **now re-stamped on every release, patches included**; CHANGELOG must have the section). Class B fails CI on known-false claims (seeded ~15 tokens from the verified drift inventory: `.codex/codex.md`-as-current, unqualified `.windsurf/rules`, "no npx", "❌ No hooks/sub-agents", "Single model per session", …). Process rule: a change that flips a fact adds the now-false claim to the token list in the same PR. — **ADR-039**.
+- **Adapter metadata single-source** — `adapters/<tool>/metadata.json` ×6 (outputs / reflector outputs / legacy paths / tier / two-axis capabilities per ADR-031 / live-verification / headless CLI) + `tools/check-adapter-metadata.sh` CI job asserting 8 invariants (paths exist in `transform.sh` and the validator; legacy paths handled in code; verified-status dates single-sourced in `docs/ADAPTER-LIVE-VERIFICATION.md`; headless CLIs known to `run-weekly.sh`; matrix tier rows agree). The bash transforms stay dependency-free — metadata validates them, never drives them (ADR-002/023/025). — **ADR-040**.
+
+### Fixed (residual doc drift the 0.6.1 point-fix missed — found by re-verification + the new checker itself)
+- **5 non-Claude adapter READMEs** rewritten to the ADR-031 capability-vs-emission framing (were still "❌ No sub-agent / No hooks / single model" as tool limitations, with pre-P1 rule names in the install trees, "npx not yet available", and a **Codex tier contradiction (README said T3, matrix says T2)**); Reflector emission (`--recipes=self-improvement`) now documented per adapter.
+- **`core/**` reference tables** — `.codex/codex.md` → `AGENTS.md` and `.windsurf/rules/` → `.devin/rules/` in universal-rules/recipes READMEs, spec-as-you-go, anti-pattern examples; meta-discipline cross-tool enforcement table de-staled.
+- **docs/** — ARCHITECTURE (adapter output map, always-loaded row, orchestrator paragraph), INDEX (package row, adapter rows, Codex live-verified, P4 row: npm published), MANUAL-INSTALL (all-6-adapters decision table, "until adapter ships" headers, "No hooks, no sub-agents" limitations), MIGRATION (modern `.mdc` flow, guard-hook phrasing), HOW-IT-WORKS (Gemini/Windsurf lost-feature tables), VISION (`.devin/rules/` tree).
+- **First machine-scan catches** (missed by two human sweeps + a 3-agent verification pass): `adapters/codex/transform-spec.md` body still specced `.codex/codex.md`, `VISION.md` tree, and two "(planned / roadmap — not yet available): npx …" blocks in adapter READMEs — including a claude README pointer to the retired v0.1 archive installer.
+
+### Changed
+- Version-stamp policy: patch releases now re-stamp the README status line (supersedes the 0.6.1 "feature-baseline stamp" stance) — enforced by CI. — **ADR-039**.
+- README's "New in" blockquote now carries only the current release (older summaries drift and were an unguarded second changelog); history lives here.
+
+### Notes
+- **npm registry skips 0.6.1**: 0.6.1 was tagged + released on GitHub but never `npm publish`-ed; the registry goes 0.6.0 → 0.7.0 directly. Everything in 0.6.1 is contained in 0.7.0.
+
 ## [0.6.1] — 2026-07-09
 
 ### Fixed (documentation + adapter output truth-source; from an external audit)

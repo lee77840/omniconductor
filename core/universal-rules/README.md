@@ -52,11 +52,11 @@ Adapters do not strip these callouts. The honest acknowledgment of degraded enfo
 | Adapter | Output |
 |---|---|
 | Claude | One file per bundle under `.claude/rules/` with `paths:` frontmatter. Universal bundles also referenced from `CLAUDE.md`. |
-| Cursor | One `.mdc` per bundle under `.cursor/rules/` with `globs:` frontmatter. Bundles summarized in `.cursorrules`. |
-| Copilot | One `.instructions.md` per bundle under `.github/instructions/` with `applyTo:` frontmatter. |
+| Cursor | One `.mdc` per bundle under `.cursor/rules/` (`alwaysApply: true`; recipes get `globs:`). Optional legacy `.cursorrules` bundle via `--legacy-cursorrules`. |
+| Copilot | All bundles merged into `.github/copilot-instructions.md` (default) or one `.instructions.md` per bundle under `.github/instructions/` with `--per-rule`. |
 | Gemini | All bundles concatenated into `GEMINI.md`, sectioned. |
-| Codex | All bundles concatenated into `.codex/codex.md`. |
-| Windsurf | One file per bundle under `.windsurf/rules/`. |
+| Codex | All bundles concatenated into `AGENTS.md` (project root). |
+| Windsurf | One file per bundle under `.devin/rules/` (legacy `.windsurf/rules/` still read). |
 
 See `adapters/<tool>/transform-spec.md` for the exact transformation per adapter.
 

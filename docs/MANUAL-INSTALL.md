@@ -2,12 +2,12 @@
 
 > Companion to `README.md`. Step-by-step manual install for every supported tool, on Mac and Windows.
 
-This document is the fallback when the per-tool `transform.sh` adapter is not yet available, when you want to understand exactly what the adapter does, or when you are in a constrained environment (no bash, locked-down corporate machine, etc.) and need to copy files by hand.
+This document is the fallback for when you want to understand exactly what the adapter does, or when you are in a constrained environment (no bash, locked-down corporate machine, etc.) and need to copy files by hand.
 
 For each tool there are two paths:
 
-- **Adapter (recommended)** — a single `bash transform.sh <target>` invocation. Available now for Claude Code, Cursor, GitHub Copilot.
-- **Manual file copy (fallback)** — explicit `cp` / `cat` commands and frontmatter cheat sheet. Available for every tool, including the ones whose adapters have not shipped.
+- **Adapter (recommended)** — `npx omniconductor init --target=<tool> <dir>` or a single `bash transform.sh <target>` invocation. Available for **all six tools** (Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf).
+- **Manual file copy (fallback)** — explicit `cp` / `cat` commands and frontmatter cheat sheet.
 
 > **Read first**: [`README.md`](../README.md) Quick Start. The Claude adapter has a guided wizard that handles 90% of installs. Manual install is for the remaining 10%.
 
@@ -30,14 +30,14 @@ For each tool there are two paths:
 
 | Tool | Adapter ready | Recommended install |
 |---|---|---|
-| Claude Code | ✅ | `bash adapters/claude/transform.sh <target>` (see README) |
-| Cursor | ✅ (P2 in flight) | `bash adapters/cursor/transform.sh <target>` |
-| GitHub Copilot | ✅ (P2 in flight) | `bash adapters/copilot/transform.sh <target>` |
-| Gemini CLI | ❌ | manual copy (this doc) |
-| Codex (OpenAI) | ❌ | manual copy (this doc) |
-| Windsurf | ❌ | manual copy (this doc) |
+| Claude Code | ✅ | `npx omniconductor init --target=claude <target>` (see README) |
+| Cursor | ✅ | `npx omniconductor init --target=cursor <target>` |
+| GitHub Copilot | ✅ | `npx omniconductor init --target=copilot <target>` |
+| Gemini CLI | ✅ | `npx omniconductor init --target=gemini <target>` |
+| Codex (OpenAI) | ✅ | `npx omniconductor init --target=codex <target>` |
+| Windsurf | ✅ | `npx omniconductor init --target=windsurf <target>` |
 
-> Adapter ship status as of 2026-05-10. Cursor and Copilot adapters are in active development under separate dispatches. If `adapters/<tool>/transform.sh` exists and is executable, prefer it; otherwise follow the manual section for that tool.
+> All six adapters ship `transform.sh` and the npm CLI has existed since v0.2. Prefer the adapter — it handles backups, the install manifest, and `--uninstall`. Use the manual sections below only for constrained environments.
 
 ---
 
@@ -66,7 +66,7 @@ Each tool consumes a different syntax. When you copy a rule file into a tool-nat
 
 ---
 
-## Tool 1 — Cursor (manual, until P2 adapter ships)
+## Tool 1 — Cursor (fallback manual install)
 
 ### Prerequisites
 
@@ -164,7 +164,7 @@ rm -f .cursorrules
 
 ---
 
-## Tool 2 — GitHub Copilot (manual, until P2 adapter ships)
+## Tool 2 — GitHub Copilot (fallback manual install)
 
 GitHub Copilot supports custom instructions via `.github/instructions/*.instructions.md` files, which are picked up by the Copilot extension across **VSCode, Cursor, Windsurf, JetBrains, Neovim** simultaneously (one install covers all five IDEs that have the Copilot extension).
 
@@ -281,7 +281,7 @@ Get-ChildItem C:\conductor\core\universal-rules\*.md |
 ### Limitations
 
 - No lazy load — every rule is loaded every turn (token cost higher than Claude/Cursor/Copilot).
-- No hooks, no sub-agents (per ADR-004 honesty principle).
+- Manual install ships rule text only — no hook configs or agents (the tool supports hooks/sub-agents natively, ADR-031; the bash adapter emits the opt-in Reflector hook, broader emission is Phase 2 — ADR-034).
 
 ### Uninstall
 
@@ -330,7 +330,7 @@ None — Codex ignores YAML frontmatter. Optional cleanup: strip `---...---` blo
 ### Limitations
 
 - Single bundled file, no per-pattern routing.
-- No hooks, no sub-agents.
+- Manual install ships rule text only — no hook configs or agents (the tool supports hooks/sub-agents natively, ADR-031; the bash adapter emits the opt-in Reflector hook, broader emission is Phase 2 — ADR-034).
 
 ### Uninstall
 
@@ -385,7 +385,7 @@ Windsurf rule format is **NOT VERIFIED for v0.2** — check the Windsurf docs fo
 ### Limitations
 
 - Per-pattern routing support is version-dependent — likely degrades to "all loaded all the time".
-- No hooks, no sub-agents.
+- Manual install ships rule text only — no hook configs or agents (the tool supports hooks/sub-agents natively, ADR-031; the bash adapter emits the opt-in Reflector hook, broader emission is Phase 2 — ADR-034).
 
 ### Uninstall
 

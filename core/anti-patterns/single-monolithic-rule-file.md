@@ -52,7 +52,7 @@ Two corollaries:
 
 ```bash
 # Find oversized rule files
-wc -l CLAUDE.md AGENT.md GEMINI.md .codex/codex.md 2>/dev/null | \
+wc -l CLAUDE.md AGENT.md AGENTS.md GEMINI.md 2>/dev/null | \
   awk '$1 > 500 { print }'
 ```
 

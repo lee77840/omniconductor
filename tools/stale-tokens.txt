@@ -1,0 +1,31 @@
+# CONDUCTOR stale-token list — data file for tools/check-stale-tokens.sh (ADR-039).
+#
+# Format: one rule per line, TAB-separated fields:
+#   pattern<TAB>reason<TAB>hint<TAB>allow_regex(optional)
+#
+# - pattern     : fixed string (grep -F) that indicates a KNOWN-FALSE claim on living surfaces
+# - reason      : why the claim is false (which release/ADR falsified it)
+# - hint        : what to write instead
+# - allow_regex : extended regex — a matching LINE is allowed (legacy/historical qualifiers)
+#
+# Waiver: a line containing `stale-ok: <why>` is always skipped.
+# Process rule (R5 extension): an ADR that flips a fact adds the now-false claim here in the SAME PR.
+# Scope: living public surfaces only — frozen history (CHANGELOG / ADRs / audits / plans / specs /
+# archive / private session docs) is NOT scanned. See the checker header for the exact path set.
+.codex/codex.md	Codex adapter emits AGENTS.md (v0.6.1, ADR from 0.3.0 era)	write AGENTS.md, or qualify as superseded/legacy	supersed|early-design|legacy|historical
+.windsurf/rules	Windsurf target moved to .devin/rules/ in v0.3.0 (Devin Desktop rebrand)	write .devin/rules/ (legacy .windsurf/rules/ still read)	legacy|still read|\.devin
+v0.2.0-foundation	stale version label; versions are single-sourced from package.json	reference package.json / CHANGELOG instead of stamping
+no npx	npm package `omniconductor` published since v0.4	remove; the npx CLI exists
+no NPM package	npm package `omniconductor` published since v0.4	remove; the npm package exists
+not yet available	all 6 adapters + the npx CLI shipped (CLI since v0.2)	remove the "planned/not yet available" framing
+until P2 adapter ships	all 6 adapters shipped transform.sh in v0.2	drop the "until ... ships" framing
+tools without an adapter	all 6 tools have working adapters since v0.2/v0.3	rewrite: all 6 tools have adapters
+❌ No sub-agent	tools ship sub-agent dispatch natively (2026, ADR-031)	use capability-vs-emission framing (ADR-031/034)
+❌ No hooks	tools ship hooks natively (2026, ADR-031; Windsurf lacks only session/stop events)	use capability-vs-emission framing (ADR-031/034)
+No hooks, no sub-agents	tools ship both natively (2026, ADR-031)	use capability-vs-emission framing (ADR-031/034)
+no sub-agents/hooks	tools ship both natively (2026, ADR-031)	use capability-vs-emission framing (ADR-031/034)
+No sub-agents, no hooks	tools ship both natively (2026, ADR-031)	use capability-vs-emission framing (ADR-031/034)
+Single model per session	all 6 tools support per-task model selection (ADR-031)	write: manual per-task pick (tool-native); emission is Phase 2
+Single model per Codex invocation	Codex supports per-task model selection (ADR-031)	write: manual per-task pick (tool-native)
+Codex (T3)	Codex tier corrected T3 → T2 in v0.7.0 (matrix is the tier source, ADR-040 M8)	write Codex (T2)
+Codex adapter (T3)	Codex tier corrected T3 → T2 in v0.7.0	write T2
