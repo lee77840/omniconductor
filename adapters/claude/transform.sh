@@ -34,6 +34,7 @@ set -eu
 
 TARGET=""
 RECIPES=""
+MODE="full"
 DRY_RUN="false"
 MEASURE_BASELINE="false"
 NO_PROMPT="false"
@@ -48,6 +49,7 @@ WIZARD_SHOW_ANTI_PATTERNS="false"
 while [ $# -gt 0 ]; do
   case "$1" in
     --recipes=*) RECIPES="${1#--recipes=}" ;;
+    --mode=*)    MODE="${1#--mode=}" ;;
     --dry-run)   DRY_RUN="true" ;;
     --measure-baseline) MEASURE_BASELINE="true" ;;
     --no-prompt) NO_PROMPT="true" ;;
@@ -60,6 +62,11 @@ Usage: bash adapters/claude/transform.sh <target-project> [options]
 
 Options:
   --recipes=A,B,C       Comma-separated list of recipes to install
+  --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules + recipes
+                        text + docs + CLAUDE.md; no agents/hooks/hookify) | strict (abort if
+                        CLAUDE.md exists) | recipes-only (ONLY the selected recipe rule files;
+                        requires --recipes=) | reflector-only (self-improvement loop standalone:
+                        recipe + reflector agent + trajectory hook + /reflect)
   --dry-run             Preview only — no files written
   --measure-baseline    After install, measure cache token baseline (opt-in)
   --no-prompt           Skip all interactive prompts; apply sensible defaults (CI-safe)
@@ -89,6 +96,21 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: target-project path is required." >&2
   echo "Usage: bash adapters/claude/transform.sh <target-project> [--recipes=...]" >&2
+  exit 1
+fi
+
+case "$MODE" in
+  full|minimal|strict|recipes-only|reflector-only) : ;;
+  *) echo "Error: unknown --mode '$MODE' (one of: full, minimal, strict, recipes-only, reflector-only)" >&2; exit 1 ;;
+esac
+if [ "$MODE" = "reflector-only" ]; then
+  if [ -n "$RECIPES" ] && [ "$RECIPES" != "self-improvement" ]; then
+    echo "NOTE: --mode=reflector-only ignores --recipes (installs self-improvement only)" >&2
+  fi
+  RECIPES="self-improvement"
+fi
+if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true" ]; then
+  echo "Error: --mode=recipes-only requires --recipes=A,B,..." >&2
   exit 1
 fi
 
@@ -350,6 +372,7 @@ finalize_manifest() {
 {
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "claude",
+  "mode": "$MODE",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "recipes_enabled": $recipes_json,
@@ -380,6 +403,19 @@ backup_and_remember() {
       # Store relative-to-target path for portability.
       MANIFEST_LAST_BACKUP="${backup#$TARGET_ABS/}"
     fi
+  fi
+}
+
+# ----- framework detection (ADR-044 — suggest, NEVER auto-switch) ----------
+
+detect_coexisting_frameworks() {
+  local found=""
+  [ -d "$TARGET_ABS/.specify" ] && found="$found Spec-Kit"
+  { [ -d "$TARGET_ABS/_bmad" ] || [ -d "$TARGET_ABS/.bmad-core" ]; } && found="$found BMAD"
+  if [ -n "$found" ] && [ "$MODE" = "full" ]; then
+    log "NOTE: detected coexisting framework(s):$found"
+    log "      Consider --mode=recipes-only or --mode=reflector-only to coexist without"
+    log "      overlapping workflow rules (suggestion only — nothing was changed)."
   fi
 }
 
@@ -571,6 +607,26 @@ if [ -d "$TARGET_ABS/.claude" ] || [ -f "$TARGET_ABS/CLAUDE.md" ]; then
   IS_ADOPTER_CASE="true"
 fi
 
+detect_coexisting_frameworks
+
+# --mode=strict: never overwrite an existing baseline, even with a backup (ADR-044).
+if [ "$MODE" = "strict" ]; then
+  if [ -f "$TARGET_ABS/CLAUDE.md" ]; then
+    echo "Error (--mode=strict): $TARGET_ABS/CLAUDE.md already exists — strict mode aborts instead of overwriting a baseline." >&2
+    echo "  Use --mode=full (timestamped backup + manifest-based restore), or move the file first." >&2
+    exit 3
+  fi
+  if [ -d "$TARGET_ABS/.claude/rules" ] && [ -n "$(/bin/ls -A "$TARGET_ABS/.claude/rules" 2>/dev/null)" ]; then
+    echo "Error (--mode=strict): $TARGET_ABS/.claude/rules/ already has files — strict mode never writes next to an existing rules surface." >&2
+    exit 3
+  fi
+fi
+
+# À-la-carte modes are non-interactive by design.
+if [ "$MODE" != "full" ] && [ "$MODE" != "strict" ]; then
+  NO_PROMPT="true"
+fi
+
 if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN" = "false" ]; then
   echo ""
   echo "========================================================"
@@ -639,7 +695,9 @@ fi
 # Initialize manifest before any emit happens.
 init_manifest
 
-if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 1/6: universal-rules — skipped (--mode=$MODE is à la carte)"
+elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   log "Step 1/6: universal-rules → .claude/rules/"
   mkdir_if_real "$TARGET_ABS/.claude/rules"
 
@@ -660,9 +718,16 @@ fi
 
 # ----- step 2: roles -----------------------------------------------------
 
-if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+if [ "$MODE" = "minimal" ]; then
+  log "Step 2/6: roles — skipped (--mode=minimal ships text only)"
+elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   log "Step 2/6: roles → .claude/agents/"
-  mkdir_if_real "$TARGET_ABS/.claude/agents"
+  # À la carte without self-improvement must not leave an empty .claude/agents/.
+  if [ "$MODE" != "recipes-only" ] && [ "$MODE" != "reflector-only" ]; then
+    mkdir_if_real "$TARGET_ABS/.claude/agents"
+  else
+    case ",$RECIPES," in *",self-improvement,"*) mkdir_if_real "$TARGET_ABS/.claude/agents" ;; esac
+  fi
 
   # Map each universal role to Claude-native agent frontmatter.
   declare_agent() {
@@ -689,12 +754,16 @@ EOF
     record_emit ".claude/agents/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
   }
 
+  if [ "$MODE" != "recipes-only" ] && [ "$MODE" != "reflector-only" ]; then
   declare_agent planner  "Architecture, gap analysis, ADRs, trade-off decisions. No implementation code."  opus
   declare_agent builder  "Multi-file or cross-cutting code implementation (3+ files)."                       opus
   declare_agent reviewer "Plan validation before implementation. Read-only gatekeeper."                      opus
   declare_agent helper   "Single-file or 1-2-file work where the pattern is established."                    sonnet
   declare_agent designer "UI / UX implementation. Visual components, design tokens, accessibility."          sonnet
   declare_agent scribe   "Documentation sync after implementation. No code edits."                           sonnet
+  else
+    log "  (à la carte — the 6 universal role agents skipped)"
+  fi
   case ",$RECIPES," in *",self-improvement,"*)
     declare_agent reflector "Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply." opus ;;
   esac
@@ -705,7 +774,9 @@ fi
 # ----- step 3: recipes (opt-in) ------------------------------------------
 
 log "Step 3/6: recipes (opt-in) → .claude/rules/"
+RECIPES_EMITTED=0
 if [ -n "$RECIPES" ]; then
+  mkdir_if_real "$TARGET_ABS/.claude/rules"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     src="$CORE_ROOT/recipes/$r.md"
@@ -717,20 +788,71 @@ if [ -n "$RECIPES" ]; then
     backup_and_remember "$dest"
     copy_with_paths_frontmatter "$src" "$dest" "**"
     record_emit ".claude/rules/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+    RECIPES_EMITTED=$((RECIPES_EMITTED + 1))
   done
 else
   log "  (no recipes selected — pass --recipes=name1,name2 to install)"
 fi
+if [ "$MODE" = "recipes-only" ] && [ "${RECIPES_EMITTED:-0}" -eq 0 ] && [ "$DRY_RUN" != "true" ]; then
+  echo "Error: --mode=recipes-only resolved ZERO valid recipes from '--recipes=$RECIPES' — nothing to install (check the names)." >&2
+  /bin/rm -f "$MANIFEST_STAGE_PATH"
+  exit 1
+fi
 
 # ----- step 4: hooks + settings.json -------------------------------------
 
+INSTALLED_HOOKS=()
+
+if [ "$MODE" = "minimal" ]; then
+  log "Step 4/6: hooks + settings.json — skipped (--mode=minimal ships text only)"
+elif [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  # À la carte: only the Reflector's trajectory hook (when self-improvement is selected).
+  case ",$RECIPES," in
+    *",self-improvement,"*)
+      log "Step 4/6: hooks — à la carte: stop-trajectory-log only (--mode=$MODE)"
+      mkdir_if_real "$TARGET_ABS/.claude/hooks"
+      src="$CORE_ROOT/hooks/stop-trajectory-log.sh.template"
+      dest="$TARGET_ABS/.claude/hooks/stop-trajectory-log.sh"
+      if [ -f "$src" ]; then
+        backup_and_remember "$dest"
+        substitute_template "$src" "$dest"
+        record_emit ".claude/hooks/stop-trajectory-log.sh" "core/hooks/stop-trajectory-log.sh.template" "$MANIFEST_LAST_BACKUP"
+      fi
+      SETTINGS_PATH="$TARGET_ABS/.claude/settings.json"
+      if [ -f "$SETTINGS_PATH" ]; then
+        log "  $SETTINGS_PATH exists — add the Stop hook manually: \"\$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-trajectory-log.sh"
+      elif [ "$DRY_RUN" = "true" ]; then
+        log "would write minimal $SETTINGS_PATH (trajectory Stop hook only)"
+      else
+        /bin/cat > "$SETTINGS_PATH" <<'MINSETTINGS_EOF'
+{
+  "$comment": "Minimal project settings generated by CONDUCTOR (à-la-carte mode): registers only the Reflector trajectory Stop hook.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-trajectory-log.sh" }
+        ]
+      }
+    ]
+  }
+}
+MINSETTINGS_EOF
+        log "  wrote minimal $SETTINGS_PATH (trajectory Stop hook only)"
+        record_emit ".claude/settings.json" "<synthesized:minimal>" ""
+      fi
+      ;;
+    *)
+      log "Step 4/6: hooks — skipped (--mode=$MODE without self-improvement)"
+      ;;
+  esac
+else
 log "Step 4/6: hooks → .claude/hooks/"
 mkdir_if_real "$TARGET_ABS/.claude/hooks"
 
 # Core hooks (always emitted when template exists). Optional hooks (cache-hit baseline, large-file
 # read guard) emit only if their templates are present in the CONDUCTOR core/ tree, allowing the
 # adapter to remain forward-compatible with P1.7 work in progress.
-INSTALLED_HOOKS=()
 for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log stop-git-hygiene-guard pretool-loop-guard; do
   src="$CORE_ROOT/hooks/$hook.sh.template"
   dest="$TARGET_ABS/.claude/hooks/$hook.sh"
@@ -827,6 +949,7 @@ SETTINGS_EOF
   log "  wrote $SETTINGS_PATH ($(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 10 core hooks: 5 PreToolUse + 5 Stop)"
   record_emit ".claude/settings.json" "<synthesized>" ""
 fi
+fi
 
 # ----- step 4.5: hookify rule templates ----------------------------------
 #
@@ -839,7 +962,9 @@ fi
 # Forward-compat: silent skip if the hookify-templates directory is empty or missing.
 
 HOOKIFY_TEMPLATE_DIR="$CONDUCTOR_ROOT/adapters/claude/hookify-templates"
-if [ -d "$HOOKIFY_TEMPLATE_DIR" ]; then
+if [ "$MODE" != "full" ] && [ "$MODE" != "strict" ]; then
+  log "Step 4.5/6: hookify rules — skipped (--mode=$MODE)"
+elif [ -d "$HOOKIFY_TEMPLATE_DIR" ]; then
   log "Step 4.5/6: hookify rules → .claude/hookify.*.local.md"
   HOOKIFY_INSTALLED=0
   HOOKIFY_SKIPPED=0
@@ -872,7 +997,13 @@ if [ -d "$HOOKIFY_TEMPLATE_DIR" ]; then
 fi
 
 # ---- Step 4.6: self-improvement runtime artifacts (only when recipe selected) ----
-case ",$RECIPES," in
+if [ "$MODE" = "minimal" ]; then
+  RECIPES_FOR_RUNTIME=""
+  log "Step 4.6: self-improvement runtime — skipped (--mode=minimal ships text only)"
+else
+  RECIPES_FOR_RUNTIME="$RECIPES"
+fi
+case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
     log "Step 4.6: emitting self-improvement runtime (prune script + /reflect command)"
     # prune script → .conductor/reflect/prune-lessons.sh
@@ -935,6 +1066,9 @@ esac
 
 # ----- step 5: docs templates --------------------------------------------
 
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 5/6: docs templates — skipped (--mode=$MODE is à la carte)"
+else
 log "Step 5/6: docs templates → docs/"
 mkdir_if_real "$TARGET_ABS/docs"
 mkdir_if_real "$TARGET_ABS/docs/specs"
@@ -968,8 +1102,13 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
   fi
 fi
 
+fi
+
 # ----- step 6: synthesize CLAUDE.md --------------------------------------
 
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 6/6: CLAUDE.md — skipped (--mode=$MODE is à la carte)"
+else
 log "Step 6/6: synthesize CLAUDE.md"
 CLAUDE_MD="$TARGET_ABS/CLAUDE.md"
 
@@ -1056,6 +1195,8 @@ else
 fi
 
 # Finalize manifest now that all emits are complete (before optional baseline measurement).
+fi
+
 finalize_manifest
 
 # ----- step 7 (optional): baseline measurement ---------------------------
@@ -1163,20 +1304,35 @@ echo ""
 echo "========================================================"
 echo " Done."
 echo "  Target: $TARGET_ABS"
-echo "  Universal rules: 5"
-case ",$RECIPES," in
-  *",self-improvement,"*) echo "  Roles: 7 (incl. reflector)" ;;
-  *)                      echo "  Roles: 6" ;;
-esac
+echo "  Mode: $MODE"
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  echo "  Universal rules: 0 (à la carte)"
+  case ",$RECIPES," in
+    *",self-improvement,"*) echo "  Roles: 1 (reflector only)" ;;
+    *)                      echo "  Roles: 0" ;;
+  esac
+else
+  echo "  Universal rules: 5"
+  if [ "$MODE" = "minimal" ]; then
+    echo "  Roles: 0 (--mode=minimal)"
+  else
+    case ",$RECIPES," in
+      *",self-improvement,"*) echo "  Roles: 7 (incl. reflector)" ;;
+      *)                      echo "  Roles: 6" ;;
+    esac
+  fi
+fi
 echo "  Recipes installed: ${RECIPES:-(none)}"
 echo "  Hooks: ${#INSTALLED_HOOKS[@]} (${INSTALLED_HOOKS[*]:-none})"
-echo "  Settings: .claude/settings.json (permissions allowlist + hooks registry)"
+if [ -f "$TARGET_ABS/.claude/settings.json" ]; then
+  echo "  Settings: .claude/settings.json (permissions allowlist + hooks registry)"
+fi
 echo ""
 echo " Run \`claude\` (Claude Code restart) to activate new rules."
 echo "========================================================"
 echo ""
 echo "Next steps for the project:"
 echo "  1. Open $TARGET_ABS in Claude Code."
-echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
+[ -d "$TARGET_ABS/docs" ] && echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
 echo "  3. Edit CLAUDE.md if you have project-specific orchestrator rules to add."
 echo "  4. Verify hook installation: ls -la $TARGET_ABS/.claude/hooks/"

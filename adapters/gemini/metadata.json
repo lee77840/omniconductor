@@ -12,6 +12,7 @@
     { "path": ".gemini/settings.json", "note": "SessionEnd trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
   ],
+  "install": { "ala_carte": "block" },
   "legacy_paths": [],
   "capabilities": {
     "tool_native": {

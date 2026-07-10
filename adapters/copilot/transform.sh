@@ -56,6 +56,7 @@ set -eu
 
 TARGET=""
 RECIPES=""
+MODE="full"
 DRY_RUN="false"
 NO_PROMPT="false"
 PER_RULE="false"
@@ -67,6 +68,7 @@ WIZARD_APPLY_RULES="true"
 while [ $# -gt 0 ]; do
   case "$1" in
     --recipes=*) RECIPES="${1#--recipes=}" ;;
+    --mode=*)    MODE="${1#--mode=}" ;;
     --dry-run)   DRY_RUN="true" ;;
     --no-prompt) NO_PROMPT="true" ;;
     --per-rule)  PER_RULE="true" ;;
@@ -78,6 +80,11 @@ Usage: bash adapters/copilot/transform.sh <target-project> [options]
 
 Options:
   --recipes=A,B,C       Comma-separated list of recipes to install
+  --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
+                        docs only; no Reflector runtime) | strict (abort if
+                        .github/copilot-instructions.md exists) | recipes-only (ONLY the
+                        selected recipe .instructions.md files; requires --recipes=) |
+                        reflector-only (self-improvement loop standalone)
   --dry-run             Preview only — no files written
   --no-prompt           Skip interactive prompts; apply defaults (CI-safe)
   --per-rule            Split 5 universal rules into per-file .instructions.md
@@ -118,6 +125,21 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: target-project path is required." >&2
   echo "Usage: bash adapters/copilot/transform.sh <target-project> [--recipes=...]" >&2
+  exit 1
+fi
+
+case "$MODE" in
+  full|minimal|strict|recipes-only|reflector-only) : ;;
+  *) echo "Error: unknown --mode '$MODE' (one of: full, minimal, strict, recipes-only, reflector-only)" >&2; exit 1 ;;
+esac
+if [ "$MODE" = "reflector-only" ]; then
+  if [ -n "$RECIPES" ] && [ "$RECIPES" != "self-improvement" ]; then
+    echo "NOTE: --mode=reflector-only ignores --recipes (installs self-improvement only)" >&2
+  fi
+  RECIPES="self-improvement"
+fi
+if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true" ]; then
+  echo "Error: --mode=recipes-only requires --recipes=A,B,..." >&2
   exit 1
 fi
 
@@ -343,6 +365,7 @@ finalize_manifest() {
 {
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "copilot",
+  "mode": "$MODE",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "per_rule_mode": $PER_RULE,
@@ -354,6 +377,19 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+}
+
+# ----- framework detection (ADR-044 — suggest, NEVER auto-switch) ----------
+
+detect_coexisting_frameworks() {
+  local found=""
+  [ -d "$TARGET_ABS/.specify" ] && found="$found Spec-Kit"
+  { [ -d "$TARGET_ABS/_bmad" ] || [ -d "$TARGET_ABS/.bmad-core" ]; } && found="$found BMAD"
+  if [ -n "$found" ] && [ "$MODE" = "full" ]; then
+    log "NOTE: detected coexisting framework(s):$found"
+    log "      Consider --mode=recipes-only or --mode=reflector-only to coexist without"
+    log "      overlapping workflow rules (suggestion only — nothing was changed)."
+  fi
 }
 
 # ----- uninstall flow ----------------------------------------------------
@@ -508,6 +544,26 @@ if [ -f "$TARGET_ABS/.github/copilot-instructions.md" ] || [ -d "$TARGET_ABS/.gi
   IS_ADOPTER_CASE="true"
 fi
 
+detect_coexisting_frameworks
+
+# --mode=strict: never overwrite an existing baseline, even with a backup (ADR-044).
+if [ "$MODE" = "strict" ]; then
+  if [ -f "$TARGET_ABS/.github/copilot-instructions.md" ]; then
+    echo "Error (--mode=strict): $TARGET_ABS/.github/copilot-instructions.md already exists — strict mode aborts instead of overwriting a baseline." >&2
+    echo "  Use --mode=full (timestamped backup + manifest-based restore), or move the file first." >&2
+    exit 3
+  fi
+  if [ -d "$TARGET_ABS/.github/instructions" ] && [ -n "$(/bin/ls -A "$TARGET_ABS/.github/instructions" 2>/dev/null)" ]; then
+    echo "Error (--mode=strict): $TARGET_ABS/.github/instructions/ already has files — strict mode never writes next to an existing rules surface." >&2
+    exit 3
+  fi
+fi
+
+# À-la-carte modes are non-interactive by design.
+if [ "$MODE" != "full" ] && [ "$MODE" != "strict" ]; then
+  NO_PROMPT="true"
+fi
+
 if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN" = "false" ]; then
   echo ""
   echo "========================================================"
@@ -552,7 +608,9 @@ fi
 
 init_manifest
 
-if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
+elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   if [ "$PER_RULE" = "true" ]; then
     log "Step 1/4: universal-rules → .github/instructions/*.instructions.md (per-rule mode)"
     mkdir_if_real "$TARGET_ABS/.github/instructions"
@@ -620,6 +678,7 @@ fi
 # ----- step 2: recipes → .github/instructions/<r>.instructions.md --------
 
 log "Step 2/4: recipes (opt-in) → .github/instructions/"
+INSTALLED_RECIPES=""
 if [ -n "$RECIPES" ]; then
   mkdir_if_real "$TARGET_ABS/.github/instructions"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
@@ -638,13 +697,26 @@ if [ -n "$RECIPES" ]; then
     write_copilot_per_file "$src" "$dest" "$applyto"
     log "  recipe $r → applyTo: '$applyto'"
     record_emit ".github/instructions/$r.instructions.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+    INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
   done
 else
   log "  (no recipes selected — pass --recipes=name1,name2 to install)"
 fi
 
 # ---- Step 2.6: self-improvement runtime (only with --recipes=self-improvement) ----
-case ",$RECIPES," in
+if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_RUN" != "true" ]; then
+  echo "Error: --mode=recipes-only resolved ZERO valid recipes from '--recipes=$RECIPES' — nothing to install (check the names)." >&2
+  /bin/rm -f "$MANIFEST_STAGE_PATH"
+  exit 1
+fi
+
+if [ "$MODE" = "minimal" ]; then
+  RECIPES_FOR_RUNTIME=""
+  log "Step 2.6/4: self-improvement runtime — skipped (--mode=minimal ships text only)"
+else
+  RECIPES_FOR_RUNTIME="$RECIPES"
+fi
+case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
     log "Step 2.6/4: self-improvement (Reflector) → hooks/prompt/agent"
     if [ "$DRY_RUN" != "true" ]; then
@@ -691,6 +763,9 @@ esac
 
 # ----- step 3: docs templates --------------------------------------------
 
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 3/4: docs templates — skipped (--mode=$MODE is à la carte; docs ship with full/minimal)"
+else
 log "Step 3/4: docs templates → docs/"
 mkdir_if_real "$TARGET_ABS/docs"
 mkdir_if_real "$TARGET_ABS/docs/specs"
@@ -731,6 +806,8 @@ log "  - core/roles/         → SKIP (agent emission is Phase 2; Copilot suppor
 log "  - core/hooks/         → SKIP except Reflector hook (--recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)"
 log "  - hookify-templates/  → SKIP (Claude Code plugin only)"
 
+fi
+
 finalize_manifest
 
 # ----- summary -----------------------------------------------------------
@@ -739,13 +816,16 @@ echo ""
 echo "========================================================"
 echo " Done."
 echo "  Target: $TARGET_ABS"
-if [ "$PER_RULE" = "true" ]; then
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  echo "  Universal rules: 0 (à la carte)"
+elif [ "$PER_RULE" = "true" ]; then
   echo "  Universal rules: 5 → .github/instructions/*.instructions.md (per-rule mode)"
 else
   echo "  Universal rules: 5 → .github/copilot-instructions.md (single-file mode)"
 fi
 echo "  Recipes installed: ${RECIPES:-(none)}"
-echo "  Skipped (Copilot incompatibility): roles, hooks, hookify-templates"
+echo "  Mode: $MODE"
+echo "  Not emitted (Phase 2 — Copilot supports these natively, ADR-031/034): roles, guard hooks, hookify"
 echo ""
 echo " Activation:"
 echo "   GitHub Copilot reads .github/copilot-instructions.md and .github/instructions/"
@@ -759,6 +839,6 @@ echo "========================================================"
 echo ""
 echo "Next steps for the project:"
 echo "  1. Open the project in any IDE with Copilot enabled."
-echo "  2. Edit docs/CURRENT_WORK.md with the project's current state."
+[ -d "$TARGET_ABS/docs" ] && echo "  2. Edit docs/CURRENT_WORK.md with the project's current state."
 echo "  3. Configure Copilot PR review at the repo level (Stage B analog)."
 echo "  4. Verify: cat $TARGET_ABS/.github/copilot-instructions.md | head -30"

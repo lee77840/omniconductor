@@ -11,6 +11,7 @@
     { "path": ".cursor/hooks.json", "note": "session-end trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
   ],
+  "install": { "ala_carte": "per-file" },
   "legacy_paths": [".cursorrules"],
   "capabilities": {
     "tool_native": {

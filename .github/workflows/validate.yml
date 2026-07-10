@@ -124,6 +124,22 @@ jobs:
           echo "OK: loop-engineering recipe + hook emitted and registered"
 
   # ---------------------------------------------------------------------------
+  # 2b. Install-mode presets (ADR-044) — full/minimal/strict/recipes-only/
+  #     reflector-only behavior + marked-block round-trips per adapter.
+  # ---------------------------------------------------------------------------
+  install-modes:
+    name: modes ${{ matrix.tool }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [claude, cursor, copilot, gemini, codex, windsurf]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run mode test harness
+        run: bash tools/test-install-modes.sh "${{ matrix.tool }}"
+
+  # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a
   #    --dry-run install writes 0 files.
   # ---------------------------------------------------------------------------

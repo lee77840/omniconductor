@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-09
+
+### Added — install modes (audit follow-up #4; the final pre-1.0 feature)
+- **`--mode=full|minimal|strict|recipes-only|reflector-only` on all six adapters** (npx CLI forwards it; manifest stamps `"mode"`). `full` = unchanged default. `minimal` = discipline text + docs only (no agents/hooks/Reflector runtime). `strict` = abort (exit 3) instead of touching an existing baseline. `recipes-only` = à la carte (requires `--recipes=`). `reflector-only` = the self-improvement loop standalone — the least-conflicting install for projects already on Spec Kit / BMAD. — **ADR-044**.
+- **Marked append-blocks for single-file tools (Gemini/Codex)** — à-la-carte modes APPEND `<!-- conductor:block … -->` to an existing `GEMINI.md`/`AGENTS.md` instead of overwriting; the manifest tracks `type: block` + content `sha256` + `created_file`, and `--uninstall` strips the block only when unmodified (a customized block is left in place with a warning). Windsurf needed no blocks — its rules are per-file under `.devin/rules/`.
+- **Framework detection** — the installer detects Spec Kit (`.specify/`) / BMAD (`_bmad`/`.bmad-core`) and *suggests* an à-la-carte mode. Suggest only; never auto-switches.
+- **`tools/test-install-modes.sh`** — per-tool mode-behavior harness (strict abort incl. secondary rules surfaces, à-la-carte emission sets, **byte-lossless block round-trips (checksum-asserted)**, cross-mode block cleanup, customized-block preservation, zero-valid-recipes failure); CI job `install-modes` runs it for all six adapters.
+- **`install.ala_carte` in adapter metadata** — the block-vs-per-file à-la-carte strategy is single-sourced in `metadata.json` (new M9 consistency check + a column in the generated outputs table). npm-registry lag now surfaces as a non-fatal `WARN[A3]` in the stale-token check.
+
+### Changed
+- ROADMAP P4 marked **Done** — v1.0.0 is the public release (beta feedback + marketplace listing move post-1.0). COMPARISON's "pre-1.0" maturity framing retired (tokenized per the ADR-039 process rule).
+- Claude adapter: `INSTALLED_HOOKS` initialized before mode branches; recipes step creates `.claude/rules/` itself (à-la-carte no longer depends on step 1).
+
+### Milestone
+- **v1.0.0** — all five features from the 2026-07-09 audit-follow-up plan are shipped (#3 stale-token CI + #2 metadata single-source in 0.7.0; #1 doctor + #5 live-verify + #2 slice 2 doc generation in 0.8.0; #4 install modes here). The anti-drift system is closed-loop: metadata is the single source, CI regenerates and verifies the docs, doctor checks installs, live-verify records reality.
+
 ## [0.8.0] — 2026-07-09
 
 ### Added — metadata consumers (audit follow-up #1 + #5 + #2 slice 2)

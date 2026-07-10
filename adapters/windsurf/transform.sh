@@ -39,6 +39,7 @@ set -eu
 
 TARGET=""
 RECIPES=""
+MODE="full"
 DRY_RUN="false"
 NO_PROMPT="false"
 UNINSTALL="false"
@@ -50,6 +51,7 @@ WIZARD_APPLY_RULES="true"
 while [ $# -gt 0 ]; do
   case "$1" in
     --recipes=*) RECIPES="${1#--recipes=}" ;;
+    --mode=*)    MODE="${1#--mode=}" ;;
     --dry-run)   DRY_RUN="true" ;;
     --no-prompt) NO_PROMPT="true" ;;
     --uninstall|--rollback) UNINSTALL="true" ;;
@@ -60,6 +62,11 @@ Usage: bash adapters/windsurf/transform.sh <target-project> [options]
 
 Options:
   --recipes=A,B,C       Comma-separated list of recipes to install
+  --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
+                        docs only; no Reflector runtime) | strict (abort if .windsurfrules or
+                        .devin/rules/ already exists) | recipes-only (ONLY the selected recipe
+                        files into .devin/rules/; requires --recipes=) | reflector-only
+                        (self-improvement loop standalone)
   --dry-run             Preview only — no files written
   --no-prompt           Skip all interactive prompts; apply sensible defaults (CI-safe)
   --uninstall           Revert a previous install using <target>/.conductor-manifest.json
@@ -93,6 +100,21 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: target-project path is required." >&2
   echo "Usage: bash adapters/windsurf/transform.sh <target-project> [--recipes=...]" >&2
+  exit 1
+fi
+
+case "$MODE" in
+  full|minimal|strict|recipes-only|reflector-only) : ;;
+  *) echo "Error: unknown --mode '$MODE' (one of: full, minimal, strict, recipes-only, reflector-only)" >&2; exit 1 ;;
+esac
+if [ "$MODE" = "reflector-only" ]; then
+  if [ -n "$RECIPES" ] && [ "$RECIPES" != "self-improvement" ]; then
+    echo "NOTE: --mode=reflector-only ignores --recipes (installs self-improvement only)" >&2
+  fi
+  RECIPES="self-improvement"
+fi
+if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true" ]; then
+  echo "Error: --mode=recipes-only requires --recipes=A,B,..." >&2
   exit 1
 fi
 
@@ -246,6 +268,7 @@ finalize_manifest() {
 {
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "windsurf",
+  "mode": "$MODE",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "recipes_enabled": $recipes_json,
@@ -272,6 +295,19 @@ backup_and_remember() {
       log "  backed up existing $1 -> $backup"
       MANIFEST_LAST_BACKUP="${backup#$TARGET_ABS/}"
     fi
+  fi
+}
+
+# ----- framework detection (ADR-044 — suggest, NEVER auto-switch) ----------
+
+detect_coexisting_frameworks() {
+  local found=""
+  [ -d "$TARGET_ABS/.specify" ] && found="$found Spec-Kit"
+  { [ -d "$TARGET_ABS/_bmad" ] || [ -d "$TARGET_ABS/.bmad-core" ]; } && found="$found BMAD"
+  if [ -n "$found" ] && [ "$MODE" = "full" ]; then
+    log "NOTE: detected coexisting framework(s):$found"
+    log "      Consider --mode=recipes-only or --mode=reflector-only to coexist without"
+    log "      overlapping workflow rules (suggestion only — nothing was changed)."
   fi
 }
 
@@ -433,6 +469,20 @@ if [ -d "$TARGET_ABS/.windsurf" ] || [ -f "$TARGET_ABS/.windsurfrules" ]; then
   IS_ADOPTER_CASE="true"
 fi
 
+detect_coexisting_frameworks
+
+# --mode=strict: never touch an existing rules surface (ADR-044).
+if [ "$MODE" = "strict" ] && { [ -f "$TARGET_ABS/.windsurfrules" ] || [ -d "$TARGET_ABS/.devin/rules" ]; }; then
+  echo "Error (--mode=strict): .windsurfrules or .devin/rules/ already exists in $TARGET_ABS — strict mode aborts instead of writing next to an existing baseline." >&2
+  echo "  Use --mode=full (timestamped backups + manifest-based restore), or move them first." >&2
+  exit 3
+fi
+
+# À-la-carte modes are non-interactive by design.
+if [ "$MODE" != "full" ] && [ "$MODE" != "strict" ]; then
+  NO_PROMPT="true"
+fi
+
 if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN" = "false" ]; then
   echo ""
   echo "========================================================"
@@ -480,8 +530,12 @@ init_manifest
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
-log "Step 1/4: synthesize .windsurfrules (always-loaded baseline)"
 WINDSURFRULES_DEST="$TARGET_ABS/.windsurfrules"
+
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 1/4: .windsurfrules baseline — skipped (--mode=$MODE is à la carte)"
+elif true; then
+log "Step 1/4: synthesize .windsurfrules (always-loaded baseline)"
 
 if [ -f "$WINDSURFRULES_DEST" ]; then
   log "  $WINDSURFRULES_DEST exists — SKIP (exists), leaving in place"
@@ -570,9 +624,13 @@ EOF
   log "  wrote $WINDSURFRULES_DEST"
 fi
 
+fi
+
 # ----- step 2: universal rules -> .devin/rules/*.md ----------------------
 
-if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 2/4: universal-rules — skipped (--mode=$MODE is à la carte)"
+elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   log "Step 2/4: universal-rules → .devin/rules/ (preferred; legacy .windsurf/rules/ still read)"
   mkdir_if_real "$TARGET_ABS/.devin/rules"
 
@@ -627,7 +685,19 @@ fi
 
 # ----- step 3.5: self-improvement runtime (only with --recipes=self-improvement) ----
 
-case ",$RECIPES," in
+if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_RUN" != "true" ]; then
+  echo "Error: --mode=recipes-only resolved ZERO valid recipes from '--recipes=$RECIPES' — nothing to install (check the names)." >&2
+  /bin/rm -f "$MANIFEST_STAGE_PATH"
+  exit 1
+fi
+
+if [ "$MODE" = "minimal" ]; then
+  RECIPES_FOR_RUNTIME=""
+  log "Step: self-improvement runtime — skipped (--mode=minimal ships text only)"
+else
+  RECIPES_FOR_RUNTIME="$RECIPES"
+fi
+case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
     log "Step: self-improvement (Reflector) → hook/workflow/rule"
     if [ "$DRY_RUN" != "true" ]; then
@@ -675,6 +745,9 @@ esac
 
 # ----- step 4: docs templates --------------------------------------------
 
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 4/4: docs templates — skipped (--mode=$MODE is à la carte; docs ship with full/minimal)"
+else
 log "Step 4/4: docs templates → docs/"
 mkdir_if_real "$TARGET_ABS/docs"
 mkdir_if_real "$TARGET_ABS/docs/specs"
@@ -709,6 +782,8 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
 fi
 
 # Finalize manifest after all emits.
+fi
+
 finalize_manifest
 
 # ----- completion summary -------------------------------------------------
@@ -718,8 +793,13 @@ echo "========================================================"
 echo " Done."
 echo "  Target: $TARGET_ABS"
 echo "  Adapter: windsurf"
-echo "  Always-loaded baseline: .windsurfrules"
-echo "  Universal rules: 5 (.devin/rules/*.md, front-matter stripped)"
+echo "  Mode: $MODE"
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  echo "  Universal rules: 0 (à la carte — no .windsurfrules baseline)"
+else
+  echo "  Always-loaded baseline: .windsurfrules"
+  echo "  Universal rules: 5 (.devin/rules/*.md, front-matter stripped)"
+fi
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Skipped (per ADR-004 honesty):"
@@ -733,6 +813,6 @@ echo "========================================================"
 echo ""
 echo "Next steps for the project:"
 echo "  1. Open $TARGET_ABS in Windsurf."
-echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
+[ -d "$TARGET_ABS/docs" ] && echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
 echo "  3. Verify rule loading: confirm .windsurfrules + all .devin/rules/*.md show in the rule indicator."
 echo "  4. Add .memory/ to .gitignore if you adopt the DIY memory pattern."

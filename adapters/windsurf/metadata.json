@@ -12,6 +12,7 @@
     { "path": ".windsurf/hooks.json", "note": "post_cascade_response_with_transcript trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
   ],
+  "install": { "ala_carte": "per-file" },
   "legacy_paths": [".windsurf/rules"],
   "capabilities": {
     "tool_native": {

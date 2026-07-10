@@ -33,6 +33,7 @@ set -eu
 
 TARGET=""
 RECIPES=""
+MODE="full"
 DRY_RUN="false"
 NO_PROMPT="false"
 UNINSTALL="false"
@@ -45,6 +46,7 @@ WIZARD_APPLY_RULES="true"
 while [ $# -gt 0 ]; do
   case "$1" in
     --recipes=*) RECIPES="${1#--recipes=}" ;;
+    --mode=*)    MODE="${1#--mode=}" ;;
     --dry-run)   DRY_RUN="true" ;;
     --no-prompt) NO_PROMPT="true" ;;
     --uninstall|--rollback) UNINSTALL="true" ;;
@@ -56,6 +58,11 @@ Usage: bash adapters/cursor/transform.sh <target-project> [options]
 
 Options:
   --recipes=A,B,C       Comma-separated list of recipes to install
+  --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
+                        docs only; no Reflector runtime) | strict (abort if .cursor/rules/
+                        already has files) | recipes-only (ONLY the selected recipe .mdc
+                        files; requires --recipes=) | reflector-only (self-improvement
+                        loop standalone)
   --dry-run             Preview only — no files written
   --no-prompt           Skip all interactive prompts; apply sensible defaults (CI-safe)
   --legacy-cursorrules  ALSO emit a flat .cursorrules bundle alongside .cursor/rules/*.mdc
@@ -91,6 +98,21 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: target-project path is required." >&2
   echo "Usage: bash adapters/cursor/transform.sh <target-project> [--recipes=...]" >&2
+  exit 1
+fi
+
+case "$MODE" in
+  full|minimal|strict|recipes-only|reflector-only) : ;;
+  *) echo "Error: unknown --mode '$MODE' (one of: full, minimal, strict, recipes-only, reflector-only)" >&2; exit 1 ;;
+esac
+if [ "$MODE" = "reflector-only" ]; then
+  if [ -n "$RECIPES" ] && [ "$RECIPES" != "self-improvement" ]; then
+    echo "NOTE: --mode=reflector-only ignores --recipes (installs self-improvement only)" >&2
+  fi
+  RECIPES="self-improvement"
+fi
+if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true" ]; then
+  echo "Error: --mode=recipes-only requires --recipes=A,B,..." >&2
   exit 1
 fi
 
@@ -280,6 +302,7 @@ finalize_manifest() {
 {
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "cursor",
+  "mode": "$MODE",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "recipes_enabled": $recipes_json,
@@ -307,6 +330,19 @@ backup_and_remember() {
       log "  backed up existing $1 -> $backup"
       MANIFEST_LAST_BACKUP="${backup#$TARGET_ABS/}"
     fi
+  fi
+}
+
+# ----- framework detection (ADR-044 — suggest, NEVER auto-switch) ----------
+
+detect_coexisting_frameworks() {
+  local found=""
+  [ -d "$TARGET_ABS/.specify" ] && found="$found Spec-Kit"
+  { [ -d "$TARGET_ABS/_bmad" ] || [ -d "$TARGET_ABS/.bmad-core" ]; } && found="$found BMAD"
+  if [ -n "$found" ] && [ "$MODE" = "full" ]; then
+    log "NOTE: detected coexisting framework(s):$found"
+    log "      Consider --mode=recipes-only or --mode=reflector-only to coexist without"
+    log "      overlapping workflow rules (suggestion only — nothing was changed)."
   fi
 }
 
@@ -469,6 +505,26 @@ if [ -d "$TARGET_ABS/.cursor" ] || [ -f "$TARGET_ABS/.cursorrules" ]; then
   IS_ADOPTER_CASE="true"
 fi
 
+detect_coexisting_frameworks
+
+# --mode=strict: never write next to an existing rules surface (ADR-044).
+if [ "$MODE" = "strict" ]; then
+  if [ -d "$TARGET_ABS/.cursor/rules" ] && [ -n "$(/bin/ls -A "$TARGET_ABS/.cursor/rules" 2>/dev/null)" ]; then
+    echo "Error (--mode=strict): $TARGET_ABS/.cursor/rules/ already has files — strict mode aborts instead of writing next to an existing baseline." >&2
+    echo "  Use --mode=full (timestamped backups + manifest-based restore), or move them first." >&2
+    exit 3
+  fi
+  if [ -f "$TARGET_ABS/.cursorrules" ]; then
+    echo "Error (--mode=strict): $TARGET_ABS/.cursorrules already exists — strict mode never overwrites a rules surface (the legacy bundle step would touch it)." >&2
+    exit 3
+  fi
+fi
+
+# À-la-carte modes are non-interactive by design.
+if [ "$MODE" != "full" ] && [ "$MODE" != "strict" ]; then
+  NO_PROMPT="true"
+fi
+
 if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN" = "false" ]; then
   echo ""
   echo "========================================================"
@@ -523,7 +579,9 @@ init_manifest
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
-if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
+elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   log "Step 1/4: universal-rules → .cursor/rules/"
   mkdir_if_real "$TARGET_ABS/.cursor/rules"
 
@@ -579,7 +637,7 @@ fi
 # that don't yet read .cursor/rules/*.mdc. Modern Cursor reads BOTH (per ADR-021) — adopters can
 # safely keep both surfaces during a transition.
 
-if [ "$LEGACY_CURSORRULES" = "true" ]; then
+if [ "$LEGACY_CURSORRULES" = "true" ] && [ "$MODE" != "recipes-only" ] && [ "$MODE" != "reflector-only" ]; then
   log "Step 2.5/4: legacy bundle → .cursorrules"
   CURSORRULES_DEST="$TARGET_ABS/.cursorrules"
   backup_and_remember "$CURSORRULES_DEST"
@@ -620,7 +678,19 @@ if [ "$LEGACY_CURSORRULES" = "true" ]; then
 fi
 
 # ---- Step 2.6: self-improvement runtime (only with --recipes=self-improvement) ----
-case ",$RECIPES," in
+if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_RUN" != "true" ]; then
+  echo "Error: --mode=recipes-only resolved ZERO valid recipes from '--recipes=$RECIPES' — nothing to install (check the names)." >&2
+  /bin/rm -f "$MANIFEST_STAGE_PATH"
+  exit 1
+fi
+
+if [ "$MODE" = "minimal" ]; then
+  RECIPES_FOR_RUNTIME=""
+  log "Step 2.6/4: self-improvement runtime — skipped (--mode=minimal ships text only)"
+else
+  RECIPES_FOR_RUNTIME="$RECIPES"
+fi
+case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
     log "Step 2.6/4: self-improvement (Reflector) → hooks/skills/agents"
     if [ "$DRY_RUN" != "true" ]; then
@@ -671,6 +741,9 @@ esac
 
 # ----- step 3: docs templates --------------------------------------------
 
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 3/4: docs templates — skipped (--mode=$MODE is à la carte; docs ship with full/minimal)"
+else
 log "Step 3/4: docs templates → docs/"
 mkdir_if_real "$TARGET_ABS/docs"
 mkdir_if_real "$TARGET_ABS/docs/specs"
@@ -705,6 +778,8 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
 fi
 
 # Finalize manifest after all emits.
+fi
+
 finalize_manifest
 
 # ----- step 4: completion summary ----------------------------------------
@@ -715,7 +790,12 @@ echo "========================================================"
 echo " Done."
 echo "  Target: $TARGET_ABS"
 echo "  Adapter: cursor"
-echo "  Universal rules: 5 (.cursor/rules/*.mdc, alwaysApply:true)"
+echo "  Mode: $MODE"
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  echo "  Universal rules: 0 (à la carte)"
+else
+  echo "  Universal rules: 5 (.cursor/rules/*.mdc, alwaysApply:true)"
+fi
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 if [ "$LEGACY_CURSORRULES" = "true" ]; then
   echo "  Legacy .cursorrules bundle: emitted"
@@ -731,6 +811,6 @@ echo "========================================================"
 echo ""
 echo "Next steps for the project:"
 echo "  1. Open $TARGET_ABS in Cursor."
-echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
+[ -d "$TARGET_ABS/docs" ] && echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
 echo "  3. Verify rule loading: open the Cursor settings → Rules tab → confirm 5 universal + recipes shown."
 echo "  4. Tighten recipe globs if needed (.cursor/rules/<recipe>.mdc has a sensible default)."

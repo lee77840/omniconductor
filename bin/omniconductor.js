@@ -46,6 +46,8 @@ Tools: ${TOOLS.join(', ')}
 
 Common options (forwarded to the adapter):
   --recipes=a,b,c     Opt-in recipes to install
+  --mode=<m>          Install preset: full (default) | minimal | strict |
+                      recipes-only | reflector-only (ADR-044)
   --dry-run           Preview only — write nothing
   --no-prompt         Skip interactive prompts (CI-safe)
   --uninstall         Revert a previous install (manifest-based)

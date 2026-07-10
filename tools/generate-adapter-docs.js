@@ -68,11 +68,12 @@ function renderOutputsTable(metas) {
       ? `✅ ${m.live_verification.date}`
       : '🧪 pending';
     const headless = `\`${m.headless_cli.invocation}\``;
-    return `| ${m.display_name} | ${m.tier} | ${outputs} | ${legacy} | ${live} | ${headless} |`;
+    const alaCarte = m.install && m.install.ala_carte === 'block' ? 'marked block' : 'per-file';
+    return `| ${m.display_name} | ${m.tier} | ${outputs} | ${legacy} | ${live} | ${headless} | ${alaCarte} |`;
   });
   return [
-    '| Tool | Tier | Emitted outputs | Legacy paths (still read) | Live-verified | Headless CLI |',
-    '|---|---|---|---|---|---|',
+    '| Tool | Tier | Emitted outputs | Legacy paths (still read) | Live-verified | Headless CLI | À la carte (`--mode`) |',
+    '|---|---|---|---|---|---|---|',
     ...rows,
   ].join('\n');
 }

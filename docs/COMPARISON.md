@@ -17,7 +17,7 @@ Honest comparison of CONDUCTOR against the major existing options. Updated 2026-
 | **Memory pattern** | No | No | No | No | No | 4-type, documented universally; native directory on Claude only |
 | **Bilingual (한/영)** | Translations available | English-first | English-first | English-first | DIY | First-class (한/영, README + marketing) |
 | **Origin** | Single-author theory | Microsoft research roots | Indie author | IDE vendor | None | One year of production iteration at LFamily Labs |
-| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | All 6 adapters working + CI-validated, npm-published; pre-1.0 (active development — current version in `CHANGELOG.md`) |
+| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | All 6 adapters working + CI-validated, npm-published; 1.0 shipped 2026-07 (current version in `CHANGELOG.md`) |
 | **License** | MIT (varies) | MIT | Commercial-friendly | Proprietary IDE | N/A | Apache 2.0 + CONDUCTOR-name trademark (ADR-029) |
 | **Telemetry** | Varies | None | None | Cursor opt-in | None | None ever (ADR-008) |
 | **Uninstall path** | Per-skill manual delete | Per-phase manual delete | Per-artifact manual delete | None (rules accumulate) | N/A | `transform.sh --uninstall` (manifest-tracked, restores backups) — ADR-020 |

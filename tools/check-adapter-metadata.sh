@@ -22,6 +22,8 @@
 #       core/reflector/run-weekly.sh (word match on that line — comments don't count)
 #   M8: tier — the COMPATIBILITY-MATRIX tier-assignment TABLE ROW (a line starting
 #       with '| **<tier> — ') must name the adapter's display_name
+#   M9: install.ala_carte strategy matches the code — "block" iff transform.sh
+#       contains the conductor:block marker machinery (ADR-044)
 #
 # Dependency: node (already required by the CLI + CI). No jq.
 
@@ -67,6 +69,7 @@ flatten_metadata() {
     if (m.live_verification.status === "verified") nonEmpty(m.live_verification.date, "live_verification.date (required when verified)");
     if (!m.headless_cli) die("headless_cli missing");
     nonEmpty(m.headless_cli.command, "headless_cli.command");
+    if (!m.install || (m.install.ala_carte !== "block" && m.install.ala_carte !== "per-file")) die("install.ala_carte must be block|per-file");
     for (const o of m.outputs) console.log(["OUTPUT", o.path, o.validated ? "true" : "false"].join("\t"));
     for (const r of m.reflector_outputs) console.log(["REFLECTOR", r.path].join("\t"));
     for (const l of m.legacy_paths) console.log(["LEGACY", l].join("\t"));
@@ -76,6 +79,7 @@ flatten_metadata() {
     console.log(["FIELD","live_status",m.live_verification.status].join("\t"));
     console.log(["FIELD","live_date",m.live_verification.date || ""].join("\t"));
     console.log(["FIELD","headless_command",m.headless_cli.command].join("\t"));
+    console.log(["FIELD","ala_carte",m.install.ala_carte].join("\t"));
   ' "$1"
 }
 
@@ -95,7 +99,7 @@ for tool in $TOOLS; do
   ok "M1" "$meta valid + complete"
 
   tier="";     display=""
-  live_status=""; live_date=""; headless=""
+  live_status=""; live_date=""; headless=""; ala_carte=""
   while IFS=$'\t' read -r kind a b; do
     case "$kind" in
       OUTPUT)
@@ -137,6 +141,7 @@ for tool in $TOOLS; do
           live_status) live_status="$b" ;;
           live_date) live_date="$b" ;;
           headless_command) headless="$b" ;;
+          ala_carte) ala_carte="$b" ;;
           tool)
             [ "$b" = "$tool" ] || fail "M1" "$meta: tool field '$b' != directory '$tool'"
             ;;
@@ -168,6 +173,21 @@ for tool in $TOOLS; do
     ok "M7" "$tool: headless CLI '$headless' in $RUNNER auto-detect list"
   else
     fail "M7" "$tool: headless CLI '$headless' NOT in $RUNNER auto-detect list: $detect_line"
+  fi
+
+  # M9 — à-la-carte strategy matches the code (block ⇔ marker machinery present)
+  if [ "$ala_carte" = "block" ]; then
+    if grep -qF 'conductor:block' "$transform"; then
+      ok "M9" "$tool: ala_carte=block matches conductor:block machinery in transform.sh"
+    else
+      fail "M9" "$tool: metadata says ala_carte=block but $transform has no conductor:block machinery"
+    fi
+  else
+    if grep -qF 'conductor:block' "$transform"; then
+      fail "M9" "$tool: metadata says ala_carte=per-file but $transform contains conductor:block machinery"
+    else
+      ok "M9" "$tool: ala_carte=per-file (no block machinery, as declared)"
+    fi
   fi
 
   # M8 — the tier-assignment TABLE ROW must name this adapter

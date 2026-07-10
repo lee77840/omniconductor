@@ -6,7 +6,7 @@
 
 ## Phase summary
 
-> **한글:** 단계 요약. P0 (기반 리셋) · P1 (Universal 룰 + Claude 어댑터) · P1.5 (KPI 베이스라인 측정) · P1.6 (안티패턴 카탈로그) · P1.7 (캐시히트 Stop 훅 + 대용량 파일 Read 가드 훅) · P2 (Cursor 어댑터) · P3 (Copilot + Gemini 어댑터) · P3.5 (Codex + Windsurf 어댑터) 까지 모두 **완료**되었습니다 — 이제 6개 어댑터 전부 `transform.sh` 를 제공하고, npm 에 [`omniconductor`](https://www.npmjs.com/package/omniconductor) 로 배포되어 `npx omniconductor init --target=<tool> <dir>` 가 동작합니다 (출력은 emit-verified; 도구별 라이브 검증 현황은 `docs/ADAPTER-LIVE-VERIFICATION.md` 의 생성 테이블 참고 — `tools/live-verify.sh` 가 자동 갱신). 남은 것은 P4 의 v1.0 공식 출시 (베타 피드백 + 런치)입니다. 아래 표의 각 단계는 영문 그대로 두며, 상세 산출물·종료 조건은 각 단계 섹션을 참고하세요.
+> **한글:** 단계 요약. P0 (기반 리셋) · P1 (Universal 룰 + Claude 어댑터) · P1.5 (KPI 베이스라인 측정) · P1.6 (안티패턴 카탈로그) · P1.7 (캐시히트 Stop 훅 + 대용량 파일 Read 가드 훅) · P2 (Cursor 어댑터) · P3 (Copilot + Gemini 어댑터) · P3.5 (Codex + Windsurf 어댑터) 까지 모두 **완료**되었습니다 — 이제 6개 어댑터 전부 `transform.sh` 를 제공하고, npm 에 [`omniconductor`](https://www.npmjs.com/package/omniconductor) 로 배포되어 `npx omniconductor init --target=<tool> <dir>` 가 동작합니다 (출력은 emit-verified; 도구별 라이브 검증 현황은 `docs/ADAPTER-LIVE-VERIFICATION.md` 의 생성 테이블 참고 — `tools/live-verify.sh` 가 자동 갱신). **P4 의 v1.0 공식 출시도 완료**되었습니다 (2026-07-09; 남은 후속: 커뮤니티/베타 피드백 수집 + 마켓플레이스 리스팅). 아래 표의 각 단계는 영문 그대로 두며, 상세 산출물·종료 조건은 각 단계 섹션을 참고하세요.
 
 | Phase | Name | Target end | Status |
 |---|---|---|---|
@@ -18,7 +18,7 @@
 | **P2** | Cursor adapter + matrix validation | 2026-05-30 | **Done** |
 | **P3** | Remaining T1+T2 adapters (Copilot ✅, Gemini ✅) | 2026-06-28 | **Done** (both ship `transform.sh`) |
 | **P3.5** | T3 adapters (Codex ✅, Windsurf ✅) | 2026-06-28 | **Done** (both ship `transform.sh`; Codex first live-verified 2026-06-28) |
-| **P4** | Public release v1.0 | 2026-07-07 | **In progress** — npm published (`omniconductor` v0.6.0) + public repo live; beta feedback + v1.0 launch remain |
+| **P4** | Public release v1.0 | 2026-07-09 | **Done (v1.0.0 shipped)** — git tags + GitHub Releases + public mirror; launch activities (beta feedback, Show HN/Reddit posts, marketplace listing) moved post-1.0 |
 
 ---
 
@@ -203,17 +203,21 @@ All 6 tool adapters ship a `transform.sh` and pass `tools/validate-adapter-outpu
 
 ---
 
-## P4 — Public release v1.0 (2026-06-25 → ongoing) — In progress
+## P4 — Public release v1.0 (2026-06-25 → 2026-07-09) — Done (launch activities → post-1.0)
 
 **Goal**: ship to npm, post launch.
 
 ### Deliverables
 
-- [x] Install distribution finalized — bash adapters + `npx omniconductor init --target=<tool> <dir>` CLI, **published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor) (v0.6.0)**. Optional VSCode-extension launcher stays Phase 2 (ADR-025).
+- [x] Install distribution finalized — bash adapters + `npx omniconductor init --target=<tool> <dir>` CLI, **published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor)**. Optional VSCode-extension launcher stays Phase 2 (ADR-025).
 - [x] GitHub repo public (`lee77840/omniconductor`).
-- [ ] Beta with 5 friends (2 Korean solo devs, 3 English solo devs) — 1 week of dogfooding before public.
+
+### Post-1.0 follow-ups (open — not gating the 1.0 version)
+
+- [ ] Beta with 5 friends (2 Korean solo devs, 3 English solo devs) — dogfooding feedback round.
 - [ ] Launch: Show HN + Reddit r/ClaudeAI + Twitter/X. Bilingual blog post.
 - [ ] The reference project referenced as the flagship case study (it launches independently on its own timeline).
+- [ ] Marketplace listing (VSCode Marketplace + Open VSX) — ADR-023 Phase 2.
 
 ### Success metric (30 days post-launch)
 

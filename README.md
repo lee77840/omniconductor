@@ -6,9 +6,9 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v0.8.0 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), the rest are live-pending — current per-tool status in the generated table in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.0.0 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), the rest are live-pending — current per-tool status in the generated table in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 0.8.0**: the anti-drift system now has consumers — **`npx omniconductor doctor`** (read-only install health check, ADR-041), **generated doc tables** from adapter metadata (ADR-042), and **`tools/live-verify.sh`** (automated headless live-verification — Claude Code + Codex verified with it, ADR-043). Earlier releases (anti-drift guards, loop-engineering, git-hygiene, token economy, the Reflector loop): [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.0.0**: **install modes** — `--mode=full|minimal|strict|recipes-only|reflector-only` on every adapter, with hash-tracked marked blocks for single-file tools and Spec Kit / BMAD coexistence detection (ADR-044). 1.0 closes the audit-follow-up plan: anti-drift guards (ADR-039/040), `doctor` (ADR-041), generated doc tables (ADR-042), automated live-verification (ADR-043). Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > Marketplace listing (VSCode Marketplace + Open VSX) remains **Phase 2** (post-0.6) — see ADR-023.
 
@@ -76,7 +76,7 @@ bash ~/conductor/adapters/claude/transform.sh . \
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — `<tool>` = `claude` / `cursor` / `copilot` / `gemini` / `codex` / `windsurf`. `list` · `doctor` (설치 상태 진단, 읽기 전용) · `--dry-run` · `--recipes=A,B` · `--uninstall` 지원.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — `<tool>` = `claude` / `cursor` / `copilot` / `gemini` / `codex` / `windsurf`. `list` · `doctor` (설치 상태 진단, 읽기 전용) · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` (v1.0: `full`/`minimal`/`strict`/`recipes-only`/`reflector-only` — Spec Kit·BMAD 와 공존용 à-la-carte 포함) · `--uninstall` 지원.
 - **Path B — bash 어댑터**: CONDUCTOR 클론 후 `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
@@ -341,6 +341,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 |---|---|
 | `<target-project>` | Project directory to install into (required). `.` for current dir. |
 | `--recipes=A,B,C` | Comma-separated recipes from the 13 in `core/recipes/`. |
+| `--mode=<m>` | Install preset (v1.0, ADR-044): `full` (default) · `minimal` (rule text + docs only — no agents/hooks/Reflector runtime) · `strict` (abort with exit 3 instead of touching an existing baseline) · `recipes-only` (à la carte: ONLY the selected recipes; single-file tools get a hash-tracked marked block appended, stripped losslessly on uninstall) · `reflector-only` (the self-improvement loop standalone — least-conflicting when coexisting with Spec Kit / BMAD, which the installer detects and suggests, never auto-switches). |
 | `--dry-run` | Preview only — no files written. |
 | `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if cache hit < 95%. |
 | `--no-prompt` | Skip wizard, apply defaults (CI-safe). Combine with `--recipes` and `--measure-baseline` as needed. |
@@ -355,7 +356,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 
 | File | Already exists |
 |---|---|
-| `CLAUDE.md` / `.cursorrules` / `.github/instructions/all.instructions.md` | Backed up to `.conductor-backup-YYYYMMDD-HHMMSS`, then overwritten |
+| `CLAUDE.md` / `GEMINI.md` / `AGENTS.md` / `.github/copilot-instructions.md` | Backed up to `.conductor-backup-YYYYMMDD-HHMMSS`, then overwritten (`--mode=strict`: aborts instead) |
 | `.claude/rules/*.md` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` | Backed up + overwritten |
 | `.claude/agents/*.md` | Backed up + overwritten |
 | `.claude/hooks/*.sh` | Overwritten |
@@ -497,7 +498,7 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 
 #### Architecture Decision Records (`docs/DESIGN-DECISIONS.md`)
 
-43 ADRs cover the foundational decisions. Highlights:
+44 ADRs cover the foundational decisions. Highlights:
 
 | ADR | Topic | Why it matters |
 |---|---|---|

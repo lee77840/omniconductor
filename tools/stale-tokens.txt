@@ -29,3 +29,4 @@ Single model per session	all 6 tools support per-task model selection (ADR-031)	
 Single model per Codex invocation	Codex supports per-task model selection (ADR-031)	write: manual per-task pick (tool-native)
 Codex (T3)	Codex tier corrected T3 → T2 in v0.7.0 (matrix is the tier source, ADR-040 M8)	write Codex (T2)
 Codex adapter (T3)	Codex tier corrected T3 → T2 in v0.7.0	write T2
+pre-1.0 (active	v1.0.0 shipped 2026-07-09 — the pre-1.0 framing is falsified	reference CHANGELOG for current version

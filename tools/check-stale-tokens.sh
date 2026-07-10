@@ -67,6 +67,16 @@ else
   FAIL=1
 fi
 
+# A3 (advisory, never fails the check): npm registry lag. The docs say "published to
+# npm"; if the registry is behind package.json, `npm publish` is the missing R7 step.
+# Skipped silently when npm/network is unavailable (CI-safe).
+if command -v npm >/dev/null 2>&1; then
+  REG_VERSION="$(npm view omniconductor version 2>/dev/null || true)"
+  if [ -n "$REG_VERSION" ] && [ "$REG_VERSION" != "$PKG_VERSION" ]; then
+    echo "WARN[A3] npm registry serves omniconductor@${REG_VERSION} but package.json is ${PKG_VERSION} — run \`npm publish\` (advisory only)"
+  fi
+fi
+
 # --------------------------------------------------------------------------
 # Class B — stale-claim tokens
 # --------------------------------------------------------------------------

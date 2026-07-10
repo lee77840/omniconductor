@@ -12,6 +12,7 @@
     { "path": ".github/hooks/conductor-reflect.json", "note": "session-end trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
   ],
+  "install": { "ala_carte": "per-file" },
   "legacy_paths": [],
   "capabilities": {
     "tool_native": {

@@ -57,14 +57,14 @@ Tiers are re-defined for the 2026 reality. The old T3 definition ("sub-agents/ho
 ## Adapter outputs at a glance (generated)
 
 <!-- generated:adapter-outputs-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
-| Tool | Tier | Emitted outputs | Legacy paths (still read) | Live-verified | Headless CLI |
-|---|---|---|---|---|---|
-| Claude Code | T1 | `CLAUDE.md` + `.claude/rules` + `.claude/agents` + `.claude/hooks` + `.claude/settings.json` + `docs/CURRENT_WORK.md` | — | ✅ 2026-07-09 | `claude -p` |
-| Cursor | T1 | `.cursor/rules` + `docs/CURRENT_WORK.md` | `.cursorrules` (legacy) | 🧪 pending | `cursor-agent -p` |
-| Copilot | T2 | `.github/copilot-instructions.md` + `.github/instructions` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `copilot -p` |
-| Gemini CLI | T2 | `GEMINI.md` + `.gemini/styleguide.md` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `gemini -p` |
-| Codex | T2 | `AGENTS.md` + `docs/CURRENT_WORK.md` | `.codex/codex.md` (legacy) | ✅ 2026-07-09 | `codex exec` |
-| Windsurf | T3 | `.windsurfrules` + `.devin/rules` + `docs/CURRENT_WORK.md` | `.windsurf/rules` (legacy) | 🧪 pending | `devin -p` |
+| Tool | Tier | Emitted outputs | Legacy paths (still read) | Live-verified | Headless CLI | À la carte (`--mode`) |
+|---|---|---|---|---|---|---|
+| Claude Code | T1 | `CLAUDE.md` + `.claude/rules` + `.claude/agents` + `.claude/hooks` + `.claude/settings.json` + `docs/CURRENT_WORK.md` | — | ✅ 2026-07-09 | `claude -p` | per-file |
+| Cursor | T1 | `.cursor/rules` + `docs/CURRENT_WORK.md` | `.cursorrules` (legacy) | 🧪 pending | `cursor-agent -p` | per-file |
+| Copilot | T2 | `.github/copilot-instructions.md` + `.github/instructions` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `copilot -p` | per-file |
+| Gemini CLI | T2 | `GEMINI.md` + `.gemini/styleguide.md` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `gemini -p` | marked block |
+| Codex | T2 | `AGENTS.md` + `docs/CURRENT_WORK.md` | `.codex/codex.md` (legacy) | ✅ 2026-07-09 | `codex exec` | marked block |
+| Windsurf | T3 | `.windsurfrules` + `.devin/rules` + `docs/CURRENT_WORK.md` | `.windsurf/rules` (legacy) | 🧪 pending | `devin -p` | per-file |
 <!-- /generated:adapter-outputs-table -->
 
 Source of truth: `adapters/<tool>/metadata.json` (ADR-040) — CI regenerates and fails on drift.

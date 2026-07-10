@@ -42,6 +42,7 @@ set -eu
 
 TARGET=""
 RECIPES=""
+MODE="full"
 DRY_RUN="false"
 NO_PROMPT="false"
 UNINSTALL="false"
@@ -53,6 +54,7 @@ WIZARD_APPLY_RULES="true"
 while [ $# -gt 0 ]; do
   case "$1" in
     --recipes=*) RECIPES="${1#--recipes=}" ;;
+    --mode=*)    MODE="${1#--mode=}" ;;
     --dry-run)   DRY_RUN="true" ;;
     --no-prompt) NO_PROMPT="true" ;;
     --uninstall|--rollback) UNINSTALL="true" ;;
@@ -63,6 +65,10 @@ Usage: bash adapters/codex/transform.sh <target-project> [options]
 
 Options:
   --recipes=A,B,C       Comma-separated list of recipes to append into AGENTS.md
+  --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
+                        docs only) | strict (abort if AGENTS.md exists) | recipes-only
+                        (marked block appended to AGENTS.md; requires --recipes=) |
+                        reflector-only (self-improvement loop standalone as a marked block)
   --dry-run             Preview only — no files written
   --no-prompt           Skip all interactive prompts; apply sensible defaults (CI-safe)
   --uninstall           Revert a previous install using <target>/.conductor-manifest.json
@@ -100,6 +106,21 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: target-project path is required." >&2
   echo "Usage: bash adapters/codex/transform.sh <target-project> [--recipes=...]" >&2
+  exit 1
+fi
+
+case "$MODE" in
+  full|minimal|strict|recipes-only|reflector-only) : ;;
+  *) echo "Error: unknown --mode '$MODE' (one of: full, minimal, strict, recipes-only, reflector-only)" >&2; exit 1 ;;
+esac
+if [ "$MODE" = "reflector-only" ]; then
+  if [ -n "$RECIPES" ] && [ "$RECIPES" != "self-improvement" ]; then
+    echo "NOTE: --mode=reflector-only ignores --recipes (installs self-improvement only)" >&2
+  fi
+  RECIPES="self-improvement"
+fi
+if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true" ]; then
+  echo "Error: --mode=recipes-only requires --recipes=A,B,..." >&2
   exit 1
 fi
 
@@ -256,6 +277,7 @@ finalize_manifest() {
 {
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "codex",
+  "mode": "$MODE",
   "install_timestamp": "$MANIFEST_TS",
   "conductor_root": "$CONDUCTOR_ROOT",
   "recipes_enabled": $recipes_json,
@@ -266,6 +288,74 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+}
+
+# ----- marked append-blocks (ADR-044, --mode=recipes-only / reflector-only) ----
+#
+# Single-file tools can't take recipes as separate files, so à-la-carte modes
+# APPEND a marked block to the existing baseline instead of overwriting it.
+# The manifest records {"type": "block", "sha256": <hash of content>, "created_file"}.
+# Uninstall strips the block only when its content hash still matches.
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum | /usr/bin/awk '{print $1}'
+  else /usr/bin/shasum -a 256 | /usr/bin/awk '{print $1}'; fi
+}
+
+# append_block <abs_file> <block_name> <content_file> — sets BLOCK_SHA + BLOCK_CREATED.
+append_block() {
+  local f="$1" name="$2" content="$3"
+  local open="<!-- conductor:block $name -->" close="<!-- /conductor:block $name -->"
+  BLOCK_CREATED="false"; BLOCK_SHA=""
+  if [ "$DRY_RUN" = "true" ]; then
+    log "would append marked block '$name' to $f"
+    return
+  fi
+  # Content must never contain the marker syntax itself — a colliding line would
+  # truncate extraction AND stripping while the hash guard computes the same
+  # truncation on both sides (silent data loss). Refuse instead.
+  if /usr/bin/grep -qE '<!-- /?conductor:block ' "$content"; then
+    echo "Error: block content contains the conductor:block marker syntax — refusing to append." >&2
+    exit 1
+  fi
+  if [ ! -f "$f" ]; then
+    BLOCK_CREATED="true"
+    : > "$f"
+  else
+    if /usr/bin/grep -qF "$open" "$f"; then
+      # Replace our own block in place — no backup (the operation is reversible
+      # and per-run backups litter the target).
+      /usr/bin/awk -v o="$open" -v c="$close" '$0==o{inb=1; if (heldset && held ~ /^[[:space:]]*$/) heldset=0; next} $0==c{inb=0;next} inb{next} {if (heldset) print held; held=$0; heldset=1} END{if (heldset) print held}' "$f" > "$f.conductor-tmp"
+      /bin/mv "$f.conductor-tmp" "$f"
+      log "  replaced existing block '$name' in $f"
+    else
+      # First append into a pre-existing file: one safety backup.
+      backup_and_remember "$f"
+    fi
+  fi
+  { echo ""; echo "$open"; /bin/cat "$content"; echo "$close"; } >> "$f"
+  BLOCK_SHA="$(/usr/bin/awk -v o="$open" -v c="$close" '$0==o{b=1;next} $0==c{b=0;next} b' "$f" | sha256_of)"
+  log "  appended block '$name' to $f (sha256 $(printf '%s' "$BLOCK_SHA" | /usr/bin/cut -c1-12)...)"
+}
+
+record_emit_block() {
+  if [ "$DRY_RUN" = "true" ] || [ "$UNINSTALL" = "true" ]; then return; fi
+  local relpath="$1" name="$2" sha="$3" created="$4"
+  printf '    {"path": "%s", "type": "block", "block": "%s", "sha256": "%s", "created_file": %s},\n' \
+    "$relpath" "$name" "$sha" "$created" >> "$MANIFEST_STAGE_PATH"
+}
+
+# ----- framework detection (ADR-044 — suggest, NEVER auto-switch) ----------
+
+detect_coexisting_frameworks() {
+  local found=""
+  [ -d "$TARGET_ABS/.specify" ] && found="$found Spec-Kit"
+  { [ -d "$TARGET_ABS/_bmad" ] || [ -d "$TARGET_ABS/.bmad-core" ]; } && found="$found BMAD"
+  if [ -n "$found" ] && [ "$MODE" = "full" ]; then
+    log "NOTE: detected coexisting framework(s):$found"
+    log "      Consider --mode=recipes-only or --mode=reflector-only to coexist without"
+    log "      overlapping workflow rules (suggestion only — nothing was changed)."
+  fi
 }
 
 # ----- uninstall flow (mirrored from Cursor/Claude adapter) ---------------
@@ -302,9 +392,45 @@ do_uninstall() {
   local restored=0
   local deleted=0
   local missing=0
+  local blocks_removed=0
+  local blocks_kept=0
 
   while IFS= read -r line; do
     case "$line" in
+      *'"type": "block"'*)
+        entries_count=$((entries_count + 1))
+        local b_rel b_name b_sha b_created b_abs b_open b_close b_cur_sha
+        b_rel="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"path": *"([^"]*)".*/\1/')"
+        b_name="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"block": *"([^"]*)".*/\1/')"
+        b_sha="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"sha256": *"([^"]*)".*/\1/')"
+        b_created="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"created_file": *(true|false).*/\1/')"
+        b_abs="$TARGET_ABS/$b_rel"
+        b_open="<!-- conductor:block $b_name -->"
+        b_close="<!-- /conductor:block $b_name -->"
+        if [ ! -f "$b_abs" ] || ! /usr/bin/grep -qF "$b_open" "$b_abs"; then
+          log "  skip block '$b_name' ($b_rel absent or markers removed)"
+          continue
+        fi
+        b_cur_sha="$(/usr/bin/awk -v o="$b_open" -v c="$b_close" '$0==o{b=1;next} $0==c{b=0;next} b' "$b_abs" | sha256_of)"
+        if [ "$b_cur_sha" = "$b_sha" ]; then
+          if [ "$DRY_RUN" = "true" ]; then
+            log "  would strip block '$b_name' from $b_rel"
+          else
+            /usr/bin/awk -v o="$b_open" -v c="$b_close" '$0==o{inb=1; if (heldset && held ~ /^[[:space:]]*$/) heldset=0; next} $0==c{inb=0;next} inb{next} {if (heldset) print held; held=$0; heldset=1} END{if (heldset) print held}' "$b_abs" > "$b_abs.conductor-tmp"
+            /bin/mv "$b_abs.conductor-tmp" "$b_abs"
+            log "  stripped block '$b_name' from $b_rel"
+            if [ "$b_created" = "true" ] && ! /usr/bin/grep -q '[^[:space:]]' "$b_abs"; then
+              /bin/rm -f "$b_abs"
+              log "  deleted $b_rel (created by CONDUCTOR, now empty)"
+            fi
+          fi
+          blocks_removed=$((blocks_removed + 1))
+        else
+          log "  WARNING: block '$b_name' in $b_rel was customized (hash mismatch) — left in place"
+          blocks_kept=$((blocks_kept + 1))
+        fi
+        continue
+        ;;
       *'"path":'*'"source":'*'"had_backup":'*)
         ;;
       *) continue ;;
@@ -392,6 +518,9 @@ do_uninstall() {
   echo "  Backups restored: $restored"
   echo "  Files deleted: $deleted"
   echo "  Backup-missing deletes: $missing"
+  if [ "$blocks_removed" -gt 0 ] || [ "$blocks_kept" -gt 0 ]; then
+    echo "  Blocks stripped: $blocks_removed (customized blocks left: $blocks_kept)"
+  fi
   echo "========================================================"
 }
 
@@ -424,6 +553,20 @@ fi
 IS_ADOPTER_CASE="false"
 if [ -f "$TARGET_ABS/AGENTS.md" ] || [ -d "$TARGET_ABS/.codex" ]; then
   IS_ADOPTER_CASE="true"
+fi
+
+detect_coexisting_frameworks
+
+# --mode=strict: never overwrite an existing baseline, even with a backup (ADR-044).
+if [ "$MODE" = "strict" ] && [ -f "$TARGET_ABS/AGENTS.md" ]; then
+  echo "Error (--mode=strict): $TARGET_ABS/AGENTS.md already exists — strict mode aborts instead of overwriting a baseline." >&2
+  echo "  Use --mode=full (timestamped backup + manifest-based restore), or move the file first." >&2
+  exit 3
+fi
+
+# À-la-carte modes are non-interactive by design.
+if [ "$MODE" != "full" ] && [ "$MODE" != "strict" ]; then
+  NO_PROMPT="true"
 fi
 
 if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN" = "false" ]; then
@@ -475,6 +618,10 @@ init_manifest
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
 AGENTS_DEST="$TARGET_ABS/AGENTS.md"
+
+INSTALLED_RECIPES=""
+
+if [ "$MODE" != "recipes-only" ] && [ "$MODE" != "reflector-only" ]; then
 
 log "Step 1/2: AGENTS.md → $AGENTS_DEST"
 backup_and_remember "$AGENTS_DEST"
@@ -637,9 +784,71 @@ else
   log "  wrote $AGENTS_DEST"
 fi
 
+else
+  # ----- à-la-carte modes: marked block appended to AGENTS.md (ADR-044) ------
+  BLOCK_NAME="recipes"; [ "$MODE" = "reflector-only" ] && BLOCK_NAME="reflector"
+  log "Step 1/2: --mode=$MODE — '$BLOCK_NAME' marked block → $AGENTS_DEST (no full bundle)"
+  if [ "$DRY_RUN" = "true" ]; then
+    log "would append marked block '$BLOCK_NAME' (selected recipes: $RECIPES) to $AGENTS_DEST"
+  else
+    _blk="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/conductor-block.XXXXXX")"
+    {
+      echo "# CONDUCTOR — à la carte (--mode=$MODE)"
+      echo ""
+      echo "> Installed by CONDUCTOR WITHOUT the universal-rule bundle. This is a managed"
+      echo "> block: --uninstall strips it when unmodified. Full workflow: --mode=full."
+      echo ""
+      IFS=',' read -ra _RECIPE_LIST <<< "$RECIPES"
+      for r in "${_RECIPE_LIST[@]}"; do
+        r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
+        [ -z "$r" ] && continue
+        src="$CORE_ROOT/recipes/$r.md"
+        if [ ! -f "$src" ]; then
+          echo "Warning: recipe '$r' not found at $src; skipping" >&2
+          continue
+        fi
+        echo "## Recipe — $r"
+        echo ""
+        strip_frontmatter "$src"
+        echo ""
+        INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
+      done
+    } > "$_blk"
+    if [ -z "${INSTALLED_RECIPES// /}" ]; then
+      /bin/rm -f "$_blk"
+      echo "Error: --mode=$MODE resolved ZERO valid recipes from '--recipes=$RECIPES' — nothing to install (check the names)." >&2
+      /bin/rm -f "$MANIFEST_STAGE_PATH"
+      exit 1
+    fi
+    append_block "$AGENTS_DEST" "$BLOCK_NAME" "$_blk"
+    /bin/rm -f "$_blk"
+    record_emit_block "AGENTS.md" "$BLOCK_NAME" "$BLOCK_SHA" "$BLOCK_CREATED"
+    # Preserve OTHER à-la-carte blocks from a previous install (e.g. recipes-only
+    # then reflector-only): carry their manifest entries forward so uninstall can
+    # still strip them (ADR-044 review fix — cross-mode orphaned block).
+    if [ -f "$MANIFEST_PATH" ]; then
+      while IFS= read -r _prev; do
+        case "$_prev" in *'"type": "block"'*) : ;; *) continue ;; esac
+        _pname="$(printf '%s' "$_prev" | /usr/bin/sed -E 's/.*"block": *"([^"]*)".*/\1/')"
+        [ "$_pname" = "$BLOCK_NAME" ] && continue
+        if /usr/bin/grep -qF "<!-- conductor:block $_pname -->" "$AGENTS_DEST" 2>/dev/null; then
+          printf '%s\n' "$_prev" | /usr/bin/sed 's/,*$/,/' >> "$MANIFEST_STAGE_PATH"
+          log "  preserved previous block '$_pname' in manifest"
+        fi
+      done < "$MANIFEST_PATH"
+    fi
+  fi
+fi
+
 # ----- opt-in: self-improvement (Reflector) --------------------------------
 
-case ",$RECIPES," in
+if [ "$MODE" = "minimal" ]; then
+  RECIPES_FOR_RUNTIME=""
+  log "Step: self-improvement runtime — skipped (--mode=minimal ships text only)"
+else
+  RECIPES_FOR_RUNTIME="$RECIPES"
+fi
+case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
     log "Step: self-improvement (Reflector) → .codex hook/skill/agent"
     if [ "$DRY_RUN" != "true" ]; then
@@ -687,6 +896,9 @@ esac
 
 # ----- step 2: docs templates --------------------------------------------
 
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  log "Step 2/2: docs templates — skipped (--mode=$MODE is à la carte; docs ship with full/minimal)"
+else
 log "Step 2/2: docs templates → docs/"
 mkdir_if_real "$TARGET_ABS/docs"
 mkdir_if_real "$TARGET_ABS/docs/specs"
@@ -721,6 +933,8 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
 fi
 
 # Finalize manifest after all emits.
+fi
+
 finalize_manifest
 
 # ----- completion summary -------------------------------------------------
@@ -734,7 +948,9 @@ else
 fi
 echo "  Target: $TARGET_ABS"
 echo "  Adapter: codex"
-if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+  echo "  AGENTS.md: marked à-la-carte block appended (no universal-rule bundle)"
+elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   echo "  AGENTS.md: intro + 5 universal rules + compressed workflow + memory note"
 else
   echo "  AGENTS.md: intro + compressed workflow + memory note (universal rules skipped)"
@@ -752,6 +968,6 @@ echo "========================================================"
 echo ""
 echo "Next steps for the project:"
 echo "  1. Open $TARGET_ABS with Codex."
-echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
+[ -d "$TARGET_ABS/docs" ] && echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
 echo "  3. (optional) Create .memory/ and add it to .gitignore — see the Memory section in AGENTS.md."
 echo "  4. Verify Codex cites project conventions when generating code (confirms AGENTS.md loaded)."

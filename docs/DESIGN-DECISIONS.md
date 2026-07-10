@@ -1238,3 +1238,31 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 **Alternatives considered**:
 - *LLM-judge grading.* Rejected — ADR-038's own research (verify hierarchy: rules/tests > LLM-judge); substring grading over a fixed rule-name set is deterministic and sufficient.
 - *CI `workflow_dispatch` with stored API keys.* Deferred — secrets for six vendors in CI is a liability; revisit if adopters ask.
+
+## ADR-044 — `--mode` install presets + marked append-blocks + framework detection (v1.0)
+
+**Status**: Accepted (2026-07-09)
+
+**Context**: CONDUCTOR's install was all-or-nothing: every run emitted the full set (baseline + rules + agents + hooks + docs). That blocks two real adopter shapes the audit-follow-up plan identified: (a) projects already running another workflow framework (Spec Kit, BMAD, Superpowers) that want ONLY CONDUCTOR's differentiators — a recipe or the Reflector loop — without overlapping workflow rules; (b) conservative adopters who refuse baseline overwrites even with backups. All emission steps already existed as separable blocks inside the six `transform.sh` scripts; modes are presets over those booleans (default unchanged).
+
+**Decision**: `--mode=full|minimal|strict|recipes-only|reflector-only` on all six adapters (forwarded by the npx CLI; manifest stamps `"mode"`):
+
+1. **full** (default) — today's behavior, byte-for-byte; zero break.
+2. **minimal** — discipline text + session continuity only: universal rules + recipe text + docs (+ the baseline file where it's the rule carrier). No agents, no hooks, no hookify, no Reflector runtime.
+3. **strict** — full, but if the tool's baseline surface already exists (`CLAUDE.md` / non-empty `.cursor/rules/` / `.github/copilot-instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules` or `.devin/rules/`) the install **aborts with exit 3 before writing anything** — for adopters where backup-then-overwrite is still too much.
+4. **recipes-only** — à la carte: ONLY the selected recipes (`--recipes=` required, else exit 1). Per-file tools (Claude/Cursor/Copilot/Windsurf) emit the recipe files; **single-file tools (Gemini/Codex) APPEND a marked block** to the existing baseline instead of overwriting it.
+5. **reflector-only** — the self-improvement loop standalone (recipes forced to exactly `self-improvement`): recipe text + reflector agent/rule + trajectory hook config + `.conductor/reflect/` runtime. On Claude this emits a *minimal* `settings.json` (trajectory Stop hook only) when none exists. The least-conflicting way to coexist with another framework.
+
+**Marked append-blocks** (Gemini/Codex): `<!-- conductor:block <name> -->…<!-- /conductor:block <name> -->` appended to `GEMINI.md`/`AGENTS.md`; the manifest records `{"type": "block", "block", "sha256", "created_file"}`. Uninstall re-extracts the block (same awk + direct-pipe hashing as emit — shell-variable round-trips strip trailing newlines and were rejected for breaking the comparison), strips it only when the hash still matches, deletes the file only when CONDUCTOR created it and it's now blank, and **leaves a customized block in place with a warning** (backup ≠ silently destroying user edits). À-la-carte modes are non-interactive by design.
+
+**Adversarial-review hardening (same PR):** the strip awk also removes the one separator blank line the append adds, making N× reinstall + uninstall **byte-lossless** (CI asserts by checksum); block content that itself matches the marker syntax is **refused at emit** (a colliding line would truncate extraction identically on both sides, defeating the hash guard); sequential à-la-carte installs of different modes **carry the other block's manifest entry forward** so uninstall strips both (no orphaned blocks); the host file is backed up only on the **first** append (replacing our own block is reversible; per-run backups litter); à-la-carte with **zero resolved recipes exits 1** on every adapter instead of "succeeding" with nothing (or an empty block); strict also aborts on **secondary rules surfaces** (`.claude/rules/`, `.github/instructions/`, `.cursorrules`, `.gemini/styleguide.md`) — not just the primary baseline; and completion summaries are mode-aware (no "Universal rules: 5" in à-la-carte). The à-la-carte **strategy** (block vs per-file) is single-sourced in `adapters/<tool>/metadata.json` `install.ala_carte`, checked by M9 (block ⇔ marker machinery present in the transform) and rendered in the generated outputs table.
+
+**Framework detection** — the installer probes `.specify/` (Spec Kit) and `_bmad`/`.bmad-core` (BMAD) and, in full mode, *suggests* `--mode=recipes-only`/`reflector-only`. **Suggest only — never auto-switch** (an installer that changes behavior based on other tools' presence is spooky action).
+
+**Consequences**: manifest schema gains `mode` + block entries (doctor D1/D3 treat block entries' host file as the tracked path — hash verification is a doctor follow-up). `tools/test-install-modes.sh` verifies all five modes per tool (strict abort, à-la-carte emission sets, block round-trip, customized-block preservation) and runs as the CI `install-modes` matrix. Windsurf needed no blocks (its rules are per-file under `.devin/rules/`); only Gemini/Codex are true single-file. This closes the last audit-follow-up feature (#4) and, with it, v1.0.0.
+
+**Alternatives considered**:
+- *Fine-grained flags (`--no-hooks --no-agents …`).* Rejected — presets communicate intent; a flag soup invites unsupported combinations.
+- *Auto-switching modes on framework detection.* Rejected — suggestion only; explicit is better than clever.
+- *Diff3/merge-driver for single-file coexistence.* Rejected — marked blocks + content hashes are inspectable, greppable, and uninstallable with POSIX tools.
+- *Blocks on every tool.* Rejected — per-file tools don't need them; blocks are strictly the single-file fallback.
