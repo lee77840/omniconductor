@@ -6,9 +6,11 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v1.0.0 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), the rest are live-pending — current per-tool status in the generated table in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.0.1 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). This release is ready for npm publication as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), the rest are live-pending — current per-tool status in the generated table in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.0.0**: **install modes** — `--mode=full|minimal|strict|recipes-only|reflector-only` on every adapter, with hash-tracked marked blocks for single-file tools and Spec Kit / BMAD coexistence detection (ADR-044). 1.0 closes the audit-follow-up plan: anti-drift guards (ADR-039/040), `doctor` (ADR-041), generated doc tables (ADR-042), automated live-verification (ADR-043). Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.0.1**: manifest-backed install/uninstall is now checksum-safe: user-modified emitted files are retained, original baselines survive re-installs, and Gemini/Codex only replace manifest-owned, unmodified marked blocks. 1.0 introduced install modes, anti-drift guards, `doctor`, generated doc tables, and live verification. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+>
+> **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
 > Marketplace listing (VSCode Marketplace + Open VSX) remains **Phase 2** (post-0.6) — see ADR-023.
 
@@ -373,7 +375,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 cd ~/conductor && git pull
 ```
 
-Then re-run `transform.sh` on each target — installs are idempotent. Existing files get fresh timestamped backups before overwrite (manifest tracks every emitted file, see ADR-020).
+Then re-run `transform.sh` on each target — installs are idempotent. An unchanged CONDUCTOR file retains its original pre-install backup; a user-edited emitted file is backed up before replacement. Manifest entries record the emitted SHA-256 to make uninstall non-destructive.
 
 ### Re-measure cache hit (1 week after install)
 
@@ -396,9 +398,10 @@ bash ~/conductor/adapters/claude/transform.sh ~/your-project --uninstall
 ```
 
 Behavior:
-- For each manifested file: restore backup if one exists, otherwise delete.
-- Adopter-customized files (anything not in the manifest) are preserved.
-- `.conductor-backup-*` siblings cleaned up.
+- For each unchanged manifested file: restore its original backup if one exists, otherwise delete it.
+- A manifested file whose SHA-256 differs (or a legacy manifest without a checksum) is treated as user-modified and left in place with a warning; any original backup is retained for recovery.
+- Adopter-customized files outside the manifest are preserved.
+- Manifest-history backup siblings are cleaned up; retained original backups are never deleted when a user-modified file needs them.
 - Best-effort `rmdir` of empty `.claude/{rules,agents,hooks}/`.
 
 ---
@@ -548,7 +551,7 @@ A: See `docs/COMPARISON.md` for the conflict-resolution decision tree (3 pattern
 
 **Q: Idempotent re-install? Will it clobber my edits?**
 
-A: Re-running `transform.sh` is safe. Every overwrite creates a timestamped backup (`.conductor-backup-YYYYMMDD-HHMMSS`); your prior state is recoverable. `docs/CURRENT_WORK.md` and other doc templates are NEVER overwritten if they already exist.
+A: Re-running `transform.sh` is safe. An unchanged emitted file keeps its first pre-CONDUCTOR backup; an edited emitted file is snapshotted before replacement. `--uninstall` preserves any file whose emitted SHA-256 no longer matches, rather than deleting it. `docs/CURRENT_WORK.md` and other doc templates are NEVER overwritten if they already exist.
 
 **Q: Use Conductor before all 6 adapters ship?**
 

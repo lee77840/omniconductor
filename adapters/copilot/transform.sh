@@ -273,20 +273,7 @@ EOF
 
 # backup_if_exists <dest>
 backup_if_exists() {
-  local dest="$1"
-  MANIFEST_LAST_BACKUP=""
-  if [ -f "$dest" ]; then
-    if [ "$DRY_RUN" = "true" ]; then
-      log "would back up existing $dest -> $dest.conductor-backup-<ts>"
-    else
-      local ts
-      ts="$(/bin/date +%Y%m%d-%H%M%S)"
-      local backup="${dest}.conductor-backup-${ts}"
-      /bin/cp "$dest" "$backup"
-      log "  backed up existing $dest -> $backup"
-      MANIFEST_LAST_BACKUP="${backup#$TARGET_ABS/}"
-    fi
-  fi
+  conductor_manifest_backup_and_remember "$1"
 }
 
 # ----- manifest tracking (mirrors claude adapter ADR-020) ----------------
@@ -295,6 +282,9 @@ MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
+
+# shellcheck source=../../tools/manifest-safety.sh
+. "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
 
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
@@ -314,12 +304,13 @@ record_emit() {
   local relpath="$1" src="$2" backup="${3:-}"
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
-  local esc_path esc_src esc_backup
+  local esc_path esc_src esc_backup emitted_sha
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
-  printf '    {"path": "%s", "source": "%s", "had_backup": %s, "backup_path": "%s"},\n' \
-    "$esc_path" "$esc_src" "$had_backup" "$esc_backup" >> "$MANIFEST_STAGE_PATH"
+  emitted_sha="$(conductor_sha256_file "$TARGET_ABS/$relpath")"
+  printf '    {"path": "%s", "source": "%s", "had_backup": %s, "backup_path": "%s", "sha256": "%s"},\n' \
+    "$esc_path" "$esc_src" "$had_backup" "$esc_backup" "$emitted_sha" >> "$MANIFEST_STAGE_PATH"
 }
 
 finalize_manifest() {
@@ -424,6 +415,7 @@ do_uninstall() {
   local restored=0
   local deleted=0
   local missing=0
+  local preserved=0
 
   while IFS= read -r line; do
     case "$line" in
@@ -431,14 +423,25 @@ do_uninstall() {
       *) continue ;;
     esac
     entries_count=$((entries_count + 1))
-    local rel_path had_backup backup_path
+    local rel_path had_backup backup_path expected_sha
     rel_path="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"path": *"([^"]*)".*/\1/')"
     had_backup="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"had_backup": *(true|false).*/\1/')"
     backup_path="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"backup_path": *"([^"]*)".*/\1/')"
+    expected_sha="$(conductor_manifest_field "$line" sha256 2>/dev/null || true)"
 
     local abs_dest="$TARGET_ABS/$rel_path"
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
+
+    if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
+      if [ -z "$expected_sha" ]; then
+        log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
+      else
+        log "  WARNING: preserving user-modified $rel_path"
+      fi
+      preserved=$((preserved + 1))
+      continue
+    fi
 
     if [ "$had_backup" = "true" ] && [ -n "$abs_backup" ]; then
       if [ -f "$abs_backup" ]; then
@@ -511,6 +514,7 @@ do_uninstall() {
   echo "  Backups restored: $restored"
   echo "  Files deleted: $deleted"
   echo "  Backup-missing deletes: $missing"
+  [ "$preserved" -gt 0 ] && echo "  User-modified files preserved: $preserved"
   echo "========================================================"
 }
 

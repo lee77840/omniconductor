@@ -63,6 +63,35 @@ if bash "$T" "$d" --no-prompt --recipes=tdd,self-improvement >/dev/null 2>&1 \
   ok "full: install + validator + manifest mode stamp"
 else bad "full mode"; fi
 
+# ---- manifest safety: repeat install + user edits -------------------------
+# Re-running a full install must retain the original pre-CONDUCTOR baseline
+# for uninstall, and uninstall must never delete a post-install user edit.
+d="$BASE/full-reinstall"; mkdir -p "$d/$(dirname "$BASELINE")"
+printf 'ORIGINAL-USER-BASELINE-%s\n' "$TOOL" > "$d/$BASELINE"
+before="$(/usr/bin/cksum < "$d/$BASELINE")"
+bash "$T" "$d" --no-prompt >/dev/null 2>&1 \
+  && bash "$T" "$d" --no-prompt >/dev/null 2>&1 \
+  && bash "$T" "$d" --uninstall >/dev/null 2>&1
+after="MISSING"; [ -f "$d/$BASELINE" ] && after="$(/usr/bin/cksum < "$d/$BASELINE")"
+[ "$before" = "$after" ] && ok "full: re-install + uninstall restores original baseline" || bad "full re-install lost original baseline"
+
+d="$BASE/full-customized"; mkdir -p "$d"
+bash "$T" "$d" --no-prompt >/dev/null 2>&1
+printf '\nUSER-CUSTOMIZATION-MUST-SURVIVE\n' >> "$d/$BASELINE"
+bash "$T" "$d" --uninstall >/dev/null 2>&1
+grep -q 'USER-CUSTOMIZATION-MUST-SURVIVE' "$d/$BASELINE" 2>/dev/null \
+  && ok "full: uninstall preserves user-modified emitted file" \
+  || bad "full uninstall deleted user customization"
+
+d="$BASE/full-edit-then-update"; mkdir -p "$d"
+bash "$T" "$d" --no-prompt >/dev/null 2>&1
+printf '\nUSER-EDIT-BEFORE-UPDATE\n' >> "$d/$BASELINE"
+bash "$T" "$d" --no-prompt >/dev/null 2>&1
+bash "$T" "$d" --uninstall >/dev/null 2>&1
+grep -q 'USER-EDIT-BEFORE-UPDATE' "$d/$BASELINE" 2>/dev/null \
+  && ok "full: update snapshots a user edit before replacement" \
+  || bad "full update lost user edit"
+
 # ---- minimal ---------------------------------------------------------------
 d="$BASE/minimal"; mkdir -p "$d"
 bash "$T" "$d" --mode=minimal --recipes=tdd,self-improvement >/dev/null 2>&1
@@ -175,6 +204,39 @@ else bad "recipes-only zero-valid-recipes guard"; fi
 
 # ---- byte-lossless block round-trip + cross-mode (single-file tools) ---------
 if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
+  # A user-owned marker (including a malformed one) must never be treated as
+  # an existing CONDUCTOR block. Refuse without touching the host file.
+  d="$BASE/marker-collision"; mkdir -p "$d"
+  printf 'USER PREFIX\n<!-- conductor:block recipes -->\nUSER CONTENT AFTER MARKER\n' > "$d/$BASELINE"
+  before="$(/usr/bin/cksum < "$d/$BASELINE")"
+  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  rc=$?
+  after="$(/usr/bin/cksum < "$d/$BASELINE")"
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+    ok "block: foreign/unpaired marker aborts without data loss"
+  else bad "block: foreign marker collision (rc=$rc)"; fi
+
+  d="$BASE/marker-foreign-paired"; mkdir -p "$d"
+  printf 'USER PREFIX\n<!-- conductor:block recipes -->\nUSER BLOCK\n<!-- /conductor:block recipes -->\nUSER SUFFIX\n' > "$d/$BASELINE"
+  before="$(/usr/bin/cksum < "$d/$BASELINE")"
+  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  rc=$?
+  after="$(/usr/bin/cksum < "$d/$BASELINE")"
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+    ok "block: foreign paired marker aborts without data loss"
+  else bad "block: foreign paired-marker collision (rc=$rc)"; fi
+
+  d="$BASE/marker-custom-reinstall"; mkdir -p "$d"
+  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE" && rm -f "$d/$BASELINE.bak"
+  before="$(/usr/bin/cksum < "$d/$BASELINE")"
+  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  rc=$?
+  after="$(/usr/bin/cksum < "$d/$BASELINE")"
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+    ok "block: customized managed block is not overwritten on re-install"
+  else bad "block: customized managed block overwritten (rc=$rc)"; fi
+
   d="$BASE/lossless"; mkdir -p "$d"
   printf 'MY EXISTING RULES\n' > "$d/$BASELINE"
   before="$(/usr/bin/cksum < "$d/$BASELINE")"

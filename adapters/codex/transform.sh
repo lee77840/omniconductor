@@ -180,20 +180,7 @@ derive_title() {
 # backup path in MANIFEST_LAST_BACKUP for the next record_emit. Honors DRY_RUN.
 # Origin: ADR-019 (Claude adapter pattern), mirrored per ADR-021.
 backup_and_remember() {
-  MANIFEST_LAST_BACKUP=""
-  if [ -f "$1" ]; then
-    if [ "$DRY_RUN" = "true" ]; then
-      log "would back up existing $1 -> $1.conductor-backup-<ts>"
-      MANIFEST_LAST_BACKUP=""
-    else
-      local ts
-      ts="$(/bin/date +%Y%m%d-%H%M%S)"
-      local backup="$1.conductor-backup-$ts"
-      /bin/cp "$1" "$backup"
-      log "  backed up existing $1 -> $backup"
-      MANIFEST_LAST_BACKUP="${backup#$TARGET_ABS/}"
-    fi
-  fi
+  conductor_manifest_backup_and_remember "$1"
 }
 
 # ----- manifest tracking (ADR-020, mirrored per ADR-021) ------------------
@@ -204,6 +191,9 @@ MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
+
+# shellcheck source=../../tools/manifest-safety.sh
+. "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
 
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
@@ -223,12 +213,13 @@ record_emit() {
   local relpath="$1" src="$2" backup="${3:-}"
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
-  local esc_path esc_src esc_backup
+  local esc_path esc_src esc_backup emitted_sha
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
-  printf '    {"path": "%s", "source": "%s", "had_backup": %s, "backup_path": "%s"},\n' \
-    "$esc_path" "$esc_src" "$had_backup" "$esc_backup" >> "$MANIFEST_STAGE_PATH"
+  emitted_sha="$(conductor_sha256_file "$TARGET_ABS/$relpath")"
+  printf '    {"path": "%s", "source": "%s", "had_backup": %s, "backup_path": "%s", "sha256": "%s"},\n' \
+    "$esc_path" "$esc_src" "$had_backup" "$esc_backup" "$emitted_sha" >> "$MANIFEST_STAGE_PATH"
 }
 
 finalize_manifest() {
@@ -304,7 +295,7 @@ sha256_of() {
 
 # append_block <abs_file> <block_name> <content_file> — sets BLOCK_SHA + BLOCK_CREATED.
 append_block() {
-  local f="$1" name="$2" content="$3"
+  local f="$1" name="$2" content="$3" rel entry expected_sha current_sha open_count close_count
   local open="<!-- conductor:block $name -->" close="<!-- /conductor:block $name -->"
   BLOCK_CREATED="false"; BLOCK_SHA=""
   if [ "$DRY_RUN" = "true" ]; then
@@ -316,21 +307,39 @@ append_block() {
   # truncation on both sides (silent data loss). Refuse instead.
   if /usr/bin/grep -qE '<!-- /?conductor:block ' "$content"; then
     echo "Error: block content contains the conductor:block marker syntax — refusing to append." >&2
+    /bin/rm -f "${MANIFEST_STAGE_PATH:-}"
     exit 1
   fi
   if [ ! -f "$f" ]; then
     BLOCK_CREATED="true"
     : > "$f"
   else
-    if /usr/bin/grep -qF "$open" "$f"; then
-      # Replace our own block in place — no backup (the operation is reversible
-      # and per-run backups litter the target).
+    rel="${f#$TARGET_ABS/}"
+    open_count="$(/usr/bin/grep -cF "$open" "$f" || true)"
+    close_count="$(/usr/bin/grep -cF "$close" "$f" || true)"
+    if [ "$open_count" -ne 0 ] || [ "$close_count" -ne 0 ]; then
+      if [ "$open_count" -ne 1 ] || [ "$close_count" -ne 1 ]; then
+        echo "Error: found an unpaired or duplicate '$name' CONDUCTOR marker in $f; refusing to change user content." >&2
+        /bin/rm -f "${MANIFEST_STAGE_PATH:-}"
+        exit 1
+      fi
+      entry="$(conductor_manifest_block_entry "$rel" "$name" 2>/dev/null || true)"
+      if [ -z "$entry" ]; then
+        echo "Error: '$name' marker in $f is not owned by this install manifest; refusing to replace user content." >&2
+        /bin/rm -f "${MANIFEST_STAGE_PATH:-}"
+        exit 1
+      fi
+      expected_sha="$(conductor_manifest_field "$entry" sha256 2>/dev/null || true)"
+      current_sha="$(/usr/bin/awk -v o="$open" -v c="$close" '$0==o{b=1;next} $0==c{b=0;next} b' "$f" | sha256_of)"
+      if [ -z "$expected_sha" ] || [ "$current_sha" != "$expected_sha" ]; then
+        echo "Error: managed '$name' block in $f was customized; refusing to overwrite it." >&2
+        /bin/rm -f "${MANIFEST_STAGE_PATH:-}"
+        exit 1
+      fi
+      # The manifest owns this one, unmodified block, so replacement is safe.
       /usr/bin/awk -v o="$open" -v c="$close" '$0==o{inb=1; if (heldset && held ~ /^[[:space:]]*$/) heldset=0; next} $0==c{inb=0;next} inb{next} {if (heldset) print held; held=$0; heldset=1} END{if (heldset) print held}' "$f" > "$f.conductor-tmp"
       /bin/mv "$f.conductor-tmp" "$f"
       log "  replaced existing block '$name' in $f"
-    else
-      # First append into a pre-existing file: one safety backup.
-      backup_and_remember "$f"
     fi
   fi
   { echo ""; echo "$open"; /bin/cat "$content"; echo "$close"; } >> "$f"
@@ -392,6 +401,7 @@ do_uninstall() {
   local restored=0
   local deleted=0
   local missing=0
+  local preserved=0
   local blocks_removed=0
   local blocks_kept=0
 
@@ -436,15 +446,26 @@ do_uninstall() {
       *) continue ;;
     esac
     entries_count=$((entries_count + 1))
-    local rel_path src had_backup backup_path
+    local rel_path src had_backup backup_path expected_sha
     rel_path="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"path": *"([^"]*)".*/\1/')"
     src="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"source": *"([^"]*)".*/\1/')"
     had_backup="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"had_backup": *(true|false).*/\1/')"
     backup_path="$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"backup_path": *"([^"]*)".*/\1/')"
+    expected_sha="$(conductor_manifest_field "$line" sha256 2>/dev/null || true)"
 
     local abs_dest="$TARGET_ABS/$rel_path"
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
+
+    if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
+      if [ -z "$expected_sha" ]; then
+        log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
+      else
+        log "  WARNING: preserving user-modified $rel_path"
+      fi
+      preserved=$((preserved + 1))
+      continue
+    fi
 
     if [ "$had_backup" = "true" ] && [ -n "$abs_backup" ]; then
       if [ -f "$abs_backup" ]; then
@@ -518,6 +539,7 @@ do_uninstall() {
   echo "  Backups restored: $restored"
   echo "  Files deleted: $deleted"
   echo "  Backup-missing deletes: $missing"
+  [ "$preserved" -gt 0 ] && echo "  User-modified files preserved: $preserved"
   if [ "$blocks_removed" -gt 0 ] || [ "$blocks_kept" -gt 0 ]; then
     echo "  Blocks stripped: $blocks_removed (customized blocks left: $blocks_kept)"
   fi

@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-07-09
+
+### Fixed — manifest safety follow-up
+- **Checksum-protected uninstall on all six adapters** — normal manifest entries now record the emitted file's SHA-256. `--uninstall` removes or restores only an unchanged emitted file; a user-modified file (and legacy manifest entries without a checksum) is preserved with a warning instead of being deleted.
+- **Lossless full-mode re-install** — an unmodified re-install retains the original pre-CONDUCTOR backup rather than replacing it with the prior generated bundle. Backup names are collision-safe within the same second. If a generated file was edited before an update, that edit is backed up before replacement.
+- **Owned marked blocks only** — Gemini/Codex replace an existing `conductor:block` only when exactly one matching marker pair is present, the current manifest owns it, and its content hash is unchanged. Foreign, malformed, duplicate, or customized markers abort without changing the host file.
+- **Regression coverage** — `tools/test-install-modes.sh` now asserts original-baseline restoration after two full installs, preservation of user edits during uninstall for every adapter, and non-destructive foreign-marker rejection for Gemini/Codex.
+- **Private-source/public-mirror policy** — the source repository remains private; a fail-closed filtered snapshot is the only route to the public mirror and npm release. `sync-public.sh HEAD --check` is network-free and runs in CI to reject denied paths or private tokens before merge. See `docs/PUBLICATION-POLICY.md`.
+
 ## [1.0.0] — 2026-07-09
 
 ### Added — install modes (audit follow-up #4; the final pre-1.0 feature)
