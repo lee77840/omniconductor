@@ -23,11 +23,49 @@
 #   core/recipes/*.md (selected)   →  <target>/.cursor/rules/*.mdc   (path-scoped via globs:)
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   <synthesized>                  →  <target>/.cursorrules          (only if --legacy-cursorrules)
-#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Cursor supports sub-agents natively — ADR-031)
+#   core/hooks/*.sh.template       →  Cursor-verified lifecycle/recipe subset only; Claude/Codex have additional verified guards
+#   core/roles/*.md                →  <target>/.cursor/agents/*.md (native roles; saved Tier model — ADR-049)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 
 set -eu
+
+# Direct adapter calls enter through the CLI so one-time Tier-model setup runs
+# before role emission. Array forwarding preserves exact shell argument
+# boundaries; the CLI marks its adapter child to prevent wrapper recursion.
+ORIGINAL_ARGS=("$@")
+CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDUCTOR_DELEGATE_TO_CLI="true"
+[ "${#ORIGINAL_ARGS[@]}" -gt 0 ] || CONDUCTOR_DELEGATE_TO_CLI="false"
+if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    case "$_conductor_arg" in --help|-h) CONDUCTOR_DELEGATE_TO_CLI="false" ;; esac
+  done
+fi
+CONDUCTOR_CLI_CHILD="false"
+conductor_file_identity() {
+  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
+    stat -f '%i:%z' "$1"
+  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
+    stat -c '%i:%s' "$1"
+  else
+    return 1
+  fi
+}
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
+  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
+    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
+    && [ -n "$_conductor_dispatch_identity" ] \
+    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+    CONDUCTOR_CLI_CHILD="true"
+  fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required for one-time CONDUCTOR model setup." >&2
+    exit 127
+  }
+  exec node "$CONDUCTOR_ROOT/bin/omniconductor.js" init --target=cursor "${ORIGINAL_ARGS[@]}"
+fi
 
 # ----- arg parsing --------------------------------------------------------
 
@@ -77,8 +115,8 @@ Options:
 Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene, loop-engineering
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
-  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (not yet emitted for Cursor — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
+  - Unverified guard ports (CONDUCTOR emits only Cursor contracts verified by this adapter; Reflector is opt-in)
+  - Claude-only hook contracts (Agent/Read tool names and Hookify rules)
   - Hookify rule templates (Claude-only plugin)
 EOF
       exit 0
@@ -116,8 +154,7 @@ if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true"
   exit 1
 fi
 
-# Resolve CONDUCTOR root (where this script lives: adapters/cursor/).
-CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Resolve CONDUCTOR assets (root was resolved by the invocation wrapper).
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
 
@@ -130,6 +167,16 @@ if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
 TARGET_ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "Error: target directory does not exist or is not a directory: $TARGET" >&2; exit 1; }
+
+if [ "$UNINSTALL" != "true" ] && [ "$DRY_RUN" != "true" ] && [ "$MODE" != "recipes-only" ]; then
+  _conductor_models=()
+  while IFS= read -r _conductor_model; do _conductor_models+=("$_conductor_model"); done \
+    < <(node "$CONDUCTOR_ROOT/bin/model-routing.js" resolve "$TARGET_ABS" cursor)
+  [ "${#_conductor_models[@]}" -eq 3 ] || { echo "Error: valid Cursor Tier routing is required before installation." >&2; exit 2; }
+  export CONDUCTOR_CURSOR_MODEL_TIER_1="${_conductor_models[0]}"
+  export CONDUCTOR_CURSOR_MODEL_TIER_2="${_conductor_models[1]}"
+  export CONDUCTOR_CURSOR_MODEL_TIER_3="${_conductor_models[2]}"
+fi
 
 # ----- helpers ------------------------------------------------------------
 
@@ -228,7 +275,8 @@ backup_if_exists() {
 #
 # Format identical to Claude adapter's manifest. POSIX shell + sed only — no jq.
 
-MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+LEGACY_MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+MANIFEST_PATH="$TARGET_ABS/.conductor/manifests/cursor.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
@@ -236,15 +284,24 @@ MANIFEST_LAST_BACKUP=""
 # shellcheck source=../../tools/manifest-safety.sh
 . "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
 
+# The CLI supplies project-saved Tier choices. Direct transform.sh use keeps
+# Cursor's native inheritance for backward compatibility.
+CURSOR_TIER_1_MODEL="${CONDUCTOR_CURSOR_MODEL_TIER_1:-inherit}"
+CURSOR_TIER_2_MODEL="${CONDUCTOR_CURSOR_MODEL_TIER_2:-inherit}"
+CURSOR_TIER_3_MODEL="${CONDUCTOR_CURSOR_MODEL_TIER_3:-inherit}"
+conductor_validate_cursor_model "$CURSOR_TIER_1_MODEL" "Cursor Tier 1 model" || exit 1
+conductor_validate_cursor_model "$CURSOR_TIER_2_MODEL" "Cursor Tier 2 model" || exit 1
+conductor_validate_cursor_model "$CURSOR_TIER_3_MODEL" "Cursor Tier 3 model" || exit 1
+conductor_manifest_prepare "cursor"
+
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
     log "would init manifest staging at $MANIFEST_PATH.staging"
     return
   fi
   MANIFEST_TS="$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)"
-  MANIFEST_STAGE_PATH="$TARGET_ABS/.conductor-manifest.json.staging"
-  /bin/rm -f "$MANIFEST_STAGE_PATH"
-  : > "$MANIFEST_STAGE_PATH"
+  MANIFEST_STAGE_PATH="$MANIFEST_PATH.staging"
+  conductor_manifest_init_stage
 }
 
 record_emit() {
@@ -255,6 +312,7 @@ record_emit() {
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
   local esc_path esc_src esc_backup emitted_sha
+  conductor_manifest_stage_drop_path "$relpath"
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -304,6 +362,8 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
+  "schema_version": 2,
+  "manifest_scope": "adapter",
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "cursor",
   "mode": "$MODE",
@@ -318,6 +378,7 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+  conductor_manifest_publish_projection
 }
 
 backup_and_remember() {
@@ -391,6 +452,12 @@ do_uninstall() {
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
 
+    if conductor_manifest_path_needed_elsewhere "$rel_path"; then
+      log "  preserve shared $rel_path (required by another active adapter)"
+      preserved=$((preserved + 1))
+      continue
+    fi
+
     if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
       if [ -z "$expected_sha" ]; then
         log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
@@ -446,6 +513,7 @@ do_uninstall() {
     done
     log "  deleted $MANIFEST_PATH"
   fi
+  conductor_manifest_refresh_projection
 
   # Try to clean up empty .cursor/rules and .cursor dirs left behind.
   # (children before parents so nested empties collapse in one pass)
@@ -580,6 +648,7 @@ fi
 # ----- step 1: universal rules -> .cursor/rules/*.mdc --------------------
 
 init_manifest
+conductor_install_project_profile
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
@@ -688,6 +757,38 @@ if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_
   exit 1
 fi
 
+# Native Cursor role profiles. These are emitted only with the complete runtime;
+# minimal and à-la-carte modes remain intentionally text-only.
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  log "Step 2.5/4: native roles → .cursor/agents/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.cursor/agents"
+    for role in planner reviewer code-reviewer builder helper designer scribe utility; do
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      case "$tier" in
+        1) model="$CURSOR_TIER_1_MODEL" ;;
+        2) model="$CURSOR_TIER_2_MODEL" ;;
+        3) model="$CURSOR_TIER_3_MODEL" ;;
+      esac
+      case "$role" in
+        planner) desc="Architecture, gap analysis, and trade-off planning without implementation."; readonly=true ;;
+        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks."; readonly=true ;;
+        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests."; readonly=true ;;
+        builder) desc="Primary implementation owner for cross-cutting or high-risk changes."; readonly=false ;;
+        helper) desc="Focused implementation owner for bounded, independent changes."; readonly=false ;;
+        designer) desc="UI and interaction implementation owner with design-system discipline."; readonly=false ;;
+        scribe) desc="Documentation, changelog, index, and session-state maintenance."; readonly=false ;;
+        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows."; readonly=false ;;
+      esac
+      ag="$TARGET_ABS/.cursor/agents/$role.md"
+      backup_and_remember "$ag"
+      { printf -- '---\nname: %s\ndescription: %s\nmodel: %s\nreadonly: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved Cursor translation. Cursor may still apply account, plan, or administrator fallback.\n\n' "$role" "$desc" "$model" "$readonly" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$ag"
+      record_emit ".cursor/agents/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
+    done
+  fi
+fi
+
 if [ "$MODE" = "minimal" ]; then
   RECIPES_FOR_RUNTIME=""
   log "Step 2.6/4: self-improvement runtime — skipped (--mode=minimal ships text only)"
@@ -699,8 +800,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     log "Step 2.6/4: self-improvement (Reflector) → hooks/skills/agents"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.cursor/skills/reflect" "$TARGET_ABS/.cursor/agents"
-      gi="$TARGET_ABS/.gitignore"
-      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      conductor_install_trajectory_ignore
       # portable scripts
       for s in trajectory-log prune-lessons run-weekly; do
         d="$TARGET_ABS/.conductor/reflect/$s.sh"
@@ -715,19 +815,20 @@ case ",$RECIPES_FOR_RUNTIME," in
       done
       # hook config — write only if absent (never clobber a user's hooks.json)
       hc="$TARGET_ABS/.cursor/hooks.json"
-      if [ ! -f "$hc" ]; then
+      hc_entry="$(conductor_manifest_entry_for_path ".cursor/hooks.json" 2>/dev/null || true)"
+      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
         backup_and_remember "$hc"
         /bin/cat > "$hc" <<'HOOK'
 {
   "version": 1,
   "hooks": {
-    "stop": [ { "command": "./.conductor/reflect/trajectory-log.sh" } ]
+    "stop": [ { "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"" } ]
   }
 }
 HOOK
         record_emit ".cursor/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
       else
-        log "  .cursor/hooks.json exists — add a stop entry calling ./.conductor/reflect/trajectory-log.sh manually"
+        log "  WARNING: .cursor/hooks.json is user-owned — preserved; merge the CONDUCTOR stop hook manually"
       fi
       # /reflect skill (self-contained brief)
       sk="$TARGET_ABS/.cursor/skills/reflect/SKILL.md"
@@ -737,7 +838,10 @@ HOOK
       # reflector agent (native persona) — strip core frontmatter, add Cursor frontmatter
       ag="$TARGET_ABS/.cursor/agents/reflector.md"
       backup_and_remember "$ag"
-      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: inherit\nreadonly: true\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      case "$tier" in 1) model="$CURSOR_TIER_1_MODEL" ;; 2) model="$CURSOR_TIER_2_MODEL" ;; 3) model="$CURSOR_TIER_3_MODEL" ;; esac
+      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: %s\nreadonly: true\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved Cursor translation. Cursor may still apply account, plan, or administrator fallback.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
       record_emit ".cursor/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;
@@ -805,9 +909,13 @@ if [ "$LEGACY_CURSORRULES" = "true" ]; then
   echo "  Legacy .cursorrules bundle: emitted"
 fi
 echo ""
-echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: not yet emitted for Cursor (tool supports sub-agents natively — ADR-031; Phase 2)."
+echo " Runtime / capability boundary:"
+echo "  - Hooks: only verified Cursor contracts are emitted; the Reflector hook is opt-in (ADR-032/045)."
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+echo "  - Native roles: 8 profiles in .cursor/agents/."
+else
+  echo "  - Native roles: omitted by --mode=$MODE."
+fi
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""
 echo " Activation: reload Cursor window (Cmd/Ctrl+Shift+P → 'Developer: Reload Window')."

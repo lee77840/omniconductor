@@ -1,6 +1,6 @@
 # Gemini CLI adapter — transform.sh specification
 
-What `adapters/gemini/transform.sh` MUST do when implemented in P3.
+Normative behavior for the implemented `adapters/gemini/transform.sh`.
 
 ## Invocation
 
@@ -40,8 +40,8 @@ adapters/gemini/_native/GEMINI.md.tpl              # Header template (orchestrat
 
 ## `GEMINI.md` composition (in order)
 
-1. **Header from `_native/GEMINI.md.tpl`** — bilingual (한/영) "you are the orchestrator" intro adapted for Gemini single-session model.
-2. **ABSOLUTE rules section** — R1-R8 minus Claude-only sub-agent enforcement. R-prefix renumbered for Gemini reality.
+1. **Header from `_native/GEMINI.md.tpl`** — bilingual (한/영) "you are the orchestrator" intro adapted for Gemini and its native agent profiles.
+2. **ABSOLUTE rules section** — R1-R8 plus the native eight-role surface; omit only unverified guard contracts.
 3. **Universal rules section** — for each `core/universal-rules/<rule>.md`:
    - Heading: `## <rule title>`
    - Body: rule content sans front-matter.
@@ -60,10 +60,9 @@ For each `core/universal-rules/<rule>.md`:
 
 1. Strip front-matter (Gemini doesn't use front-matter).
 2. Concatenate body into `GEMINI.md` as documented above.
-3. Tool-specific callouts:
-   - `> **Gemini-only mechanism**`: keep as-is (rare).
-   - `> **Claude-only mechanism**`: REPLACE with `> **Note (Gemini)**: enforced by hook on Claude Code; on Gemini CLI, follow self-policed.`
-   - Other tool callouts: STRIP.
+3. Preserve capability-aware callouts from the universal source. Never rewrite a
+   Claude + Codex shared guard as Claude-only, and never claim that Gemini emits
+   a local guard that the adapter does not install.
 
 ## Edge cases
 

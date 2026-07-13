@@ -6,7 +6,7 @@ Gemini CLI is a T2 target because:
 - It supports a coding-style guide convention (`.gemini/styleguide.md`).
 - It excels at large-context exploration — the always-loaded rule bundle fits its strengths.
 
-**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Gemini CLI ships hooks, sub-agent dispatch, custom agents, per-task model routing, and commands natively. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). That is a CONDUCTOR gap, not a Gemini limitation. Real tool-side caveats: the adapter's rule bundle is a single always-loaded `GEMINI.md` (nested-file hierarchy, not glob scoping) and Gemini has no native scheduler (use OS cron / an external Action for the weekly Reflector).
+**Tool capability vs CONDUCTOR emission (ADR-031/048/049):** CONDUCTOR emits eight Gemini agents, including Tier 3 utility, plus the opt-in Reflector agent. Every profile carries the portable Tier and the project-saved model; the recommended semantic aliases are `pro`, `flash`, and `flash-lite`. The rule bundle remains a single always-loaded `GEMINI.md`, and weekly Reflector scheduling remains external.
 
 **Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md`).
 
@@ -22,11 +22,15 @@ bash adapters/gemini/transform.sh <target-project>
 # With opt-in recipes (coding-conventions also emits .gemini/styleguide.md):
 bash adapters/gemini/transform.sh <target-project> --recipes=coding-conventions,i18n
 
-# CI-safe (no interactive prompts) / preview / revert:
-bash adapters/gemini/transform.sh <target-project> --no-prompt
+# CI-safe first setup / preview / revert:
+bash adapters/gemini/transform.sh <target-project> --no-prompt --accept-model-defaults
 bash adapters/gemini/transform.sh <target-project> --dry-run
 bash adapters/gemini/transform.sh <target-project> --uninstall
 ```
+
+The local `transform.sh` command requires Node.js and delegates to the same CLI,
+including the one-time project-saved Tier-model setup. It is not a model-routing
+bypass.
 
 ## What gets installed
 
@@ -52,16 +56,17 @@ bash adapters/gemini/transform.sh <target-project> --uninstall
 - ✅ Style guide convention (`.gemini/styleguide.md`).
 - ✅ All universal rule TEXT (concatenated).
 - ✅ All doc templates.
+- ✅ Eight native `.gemini/agents/*.md` role profiles, including code-reviewer and Tier 3 utility.
 - ✅ Strong large-context capability — the bundled rule file is fine to load every session.
 
-## Not emitted yet (Phase 2 — Gemini supports these natively, ADR-031/034)
+## Capability boundary
 
 | Feature | Interim workaround |
 |---|---|
 | Per-pattern rule scoping | The adapter bundles all rules into one always-loaded `GEMINI.md` (Gemini scopes by nested-file hierarchy, not globs). Rule TEXT is the same; you just see all of it always. |
 | Enforcement guard hooks | Self-police, or pair with project pre-commit git hooks. Only the Reflector session-end hook is emitted today (`--recipes=self-improvement`). |
-| The 6 role agents (sub-agent dispatch) | Gemini has native sub-agents; CONDUCTOR doesn't emit its role definitions for Gemini yet. Human plays orchestrator. |
-| Per-call model-routing config | Pick the model per task via Gemini's own model selection. |
+| Claude's exact agent schema | Eight equivalent Gemini-native role profiles are emitted. |
+| Difficulty/model translation | Role Tier is immutable; first setup recommends and saves `pro` / `flash` / `flash-lite`. |
 | 4-type memory pattern | Self-managed at `.memory/` (gitignored). |
 
 ## After install — first steps
@@ -78,15 +83,14 @@ bash adapters/gemini/transform.sh <target-project> --uninstall
 - One-off scripts where the orchestrator pattern is overkill.
 - Cheap second-opinion when the primary tool is Claude or Cursor.
 
-## Quirks / known issues (P3 will fill)
+## Quirks / known issues
 
-- TBD: Gemini CLI's exact file-discovery behavior (does it walk parent directories looking for `GEMINI.md`?).
+- Treat the installed project root as the `GEMINI.md` discovery boundary; do not rely on undocumented parent-directory traversal.
 - TBD: `.gemini/styleguide.md` priority vs `GEMINI.md` when both contain conflicting rules.
 
-## Status (P0 foundation)
+## Status
 
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
 - ✅ `transform.sh` (implemented)
-- ⏳ `notes.md` (P3)

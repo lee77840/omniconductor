@@ -30,6 +30,44 @@
 
 set -eu
 
+# Direct adapter calls enter through the CLI so one-time Tier-model setup runs
+# before role emission. Array forwarding preserves exact shell argument
+# boundaries; the CLI marks its adapter child to prevent wrapper recursion.
+ORIGINAL_ARGS=("$@")
+CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDUCTOR_DELEGATE_TO_CLI="true"
+[ "${#ORIGINAL_ARGS[@]}" -gt 0 ] || CONDUCTOR_DELEGATE_TO_CLI="false"
+if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    case "$_conductor_arg" in --help|-h) CONDUCTOR_DELEGATE_TO_CLI="false" ;; esac
+  done
+fi
+CONDUCTOR_CLI_CHILD="false"
+conductor_file_identity() {
+  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
+    stat -f '%i:%z' "$1"
+  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
+    stat -c '%i:%s' "$1"
+  else
+    return 1
+  fi
+}
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
+  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
+    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
+    && [ -n "$_conductor_dispatch_identity" ] \
+    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+    CONDUCTOR_CLI_CHILD="true"
+  fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required for one-time CONDUCTOR model setup." >&2
+    exit 127
+  }
+  exec node "$CONDUCTOR_ROOT/bin/omniconductor.js" init --target=claude "${ORIGINAL_ARGS[@]}"
+fi
+
 # ----- arg parsing --------------------------------------------------------
 
 TARGET=""
@@ -114,8 +152,7 @@ if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true"
   exit 1
 fi
 
-# Resolve CONDUCTOR root (where this script lives: adapters/claude/).
-CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Resolve CONDUCTOR assets (root was resolved by the invocation wrapper).
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 TOOLS_ROOT="$CONDUCTOR_ROOT/tools"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
@@ -129,6 +166,16 @@ if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
 TARGET_ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "Error: target directory does not exist or is not a directory: $TARGET" >&2; exit 1; }
+
+if [ "$UNINSTALL" != "true" ] && [ "$DRY_RUN" != "true" ] && [ "$MODE" != "recipes-only" ]; then
+  _conductor_models=()
+  while IFS= read -r _conductor_model; do _conductor_models+=("$_conductor_model"); done \
+    < <(node "$CONDUCTOR_ROOT/bin/model-routing.js" resolve "$TARGET_ABS" claude)
+  [ "${#_conductor_models[@]}" -eq 3 ] || { echo "Error: valid Claude Tier routing is required before installation." >&2; exit 2; }
+  export CONDUCTOR_CLAUDE_MODEL_TIER_1="${_conductor_models[0]}"
+  export CONDUCTOR_CLAUDE_MODEL_TIER_2="${_conductor_models[1]}"
+  export CONDUCTOR_CLAUDE_MODEL_TIER_3="${_conductor_models[2]}"
+fi
 
 # ----- helpers ------------------------------------------------------------
 
@@ -289,13 +336,15 @@ backup_if_exists() {
 #   - Manifest itself is backed up on re-install (the helper calls backup_if_exists
 #     on the manifest path before writing fresh).
 
-MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+LEGACY_MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+MANIFEST_PATH="$TARGET_ABS/.conductor/manifests/claude.json"
 MANIFEST_STAGE_PATH=""   # set by init_manifest()
 MANIFEST_TS=""           # ISO-8601 install timestamp (set by init_manifest)
 MANIFEST_LAST_BACKUP=""  # backup_if_exists writes the backup path here; emit helpers read it
 
 # shellcheck source=../../tools/manifest-safety.sh
 . "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
+conductor_manifest_prepare "claude"
 
 init_manifest() {
   # Called once at install start (after wizard, before any emit).
@@ -304,9 +353,8 @@ init_manifest() {
     return
   fi
   MANIFEST_TS="$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)"
-  MANIFEST_STAGE_PATH="$TARGET_ABS/.conductor-manifest.json.staging"
-  /bin/rm -f "$MANIFEST_STAGE_PATH"
-  : > "$MANIFEST_STAGE_PATH"
+  MANIFEST_STAGE_PATH="$MANIFEST_PATH.staging"
+  conductor_manifest_init_stage
 }
 
 # record_emit <relative-path> <source-relative-to-conductor-root> [<backup-path-or-empty>]
@@ -320,6 +368,7 @@ record_emit() {
   [ -n "$backup" ] && had_backup="true"
   # Escape backslashes and double quotes for JSON.
   local esc_path esc_src esc_backup emitted_sha
+  conductor_manifest_stage_drop_path "$relpath"
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -374,6 +423,8 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
+  "schema_version": 2,
+  "manifest_scope": "adapter",
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "claude",
   "mode": "$MODE",
@@ -387,6 +438,7 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+  conductor_manifest_publish_projection
 }
 
 # Wrappers around backup_if_exists / cp / write that also remember the backup path so the
@@ -476,6 +528,12 @@ do_uninstall() {
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
 
+    if conductor_manifest_path_needed_elsewhere "$rel_path"; then
+      log "  preserve shared $rel_path (required by another active adapter)"
+      preserved=$((preserved + 1))
+      continue
+    fi
+
     if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
       if [ -z "$expected_sha" ]; then
         log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
@@ -532,6 +590,7 @@ do_uninstall() {
     done
     log "  deleted $MANIFEST_PATH"
   fi
+  conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (children before parents). Includes the
   # self-improvement gate dir .conductor/reflect/ — leaving it would keep the
@@ -582,7 +641,7 @@ uninstall_legacy_scan() {
   log "legacy scan: $found backup file(s)"
   log "WARNING: legacy mode does not delete Conductor-emitted source files (no manifest to identify them)."
   log "         Delete .claude/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md"
-  log "         and .claude/agents/{planner,builder,reviewer,helper,designer,scribe}.md manually if desired."
+  log "         and .claude/agents/{planner,builder,reviewer,code-reviewer,helper,designer,scribe,utility}.md manually if desired."
 }
 
 # Dispatch uninstall path before the install steps.
@@ -694,8 +753,18 @@ fi
 
 # ----- step 1: universal rules -------------------------------------------
 
+# Validate all advertised model translations before any managed file is emitted.
+# Uninstall returned above, so a stale/invalid install override cannot block cleanup.
+CLAUDE_TIER_1_MODEL="${CONDUCTOR_CLAUDE_MODEL_TIER_1:-opus}"
+CLAUDE_TIER_2_MODEL="${CONDUCTOR_CLAUDE_MODEL_TIER_2:-sonnet}"
+CLAUDE_TIER_3_MODEL="${CONDUCTOR_CLAUDE_MODEL_TIER_3:-haiku}"
+conductor_validate_model_slug "$CLAUDE_TIER_1_MODEL" "Claude Tier 1 model" || exit 1
+conductor_validate_model_slug "$CLAUDE_TIER_2_MODEL" "Claude Tier 2 model" || exit 1
+conductor_validate_model_slug "$CLAUDE_TIER_3_MODEL" "Claude Tier 3 model" || exit 1
+
 # Initialize manifest before any emit happens.
 init_manifest
+conductor_install_project_profile
 
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/6: universal-rules — skipped (--mode=$MODE is à la carte)"
@@ -731,13 +800,22 @@ elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
     case ",$RECIPES," in *",self-improvement,"*) mkdir_if_real "$TARGET_ABS/.claude/agents" ;; esac
   fi
 
-  # Map each universal role to Claude-native agent frontmatter.
+  # Claude family aliases intentionally track the provider's current model in
+  # each family. Exact version pins remain opt-in and never alter difficulty.
+  # Map each universal role's portable difficulty to Claude-native frontmatter.
   declare_agent() {
-    # declare_agent <role> <description> <model>
-    local role="$1" desc="$2" model="$3"
+    # declare_agent <role> <description>
+    local role="$1" desc="$2" tier model tier_label
     local src="$CORE_ROOT/roles/$role.md"
     local dest="$TARGET_ABS/.claude/agents/$role.md"
     [ -f "$src" ] || { echo "Warning: $src not found; skipping" >&2; return; }
+    tier="$(conductor_role_difficulty_tier "$src")" || exit 1
+    tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+    case "$tier" in
+      1) model="$CLAUDE_TIER_1_MODEL" ;;
+      2) model="$CLAUDE_TIER_2_MODEL" ;;
+      3) model="$CLAUDE_TIER_3_MODEL" ;;
+    esac
     backup_and_remember "$dest"
     if [ "$DRY_RUN" = "true" ]; then
       log "would write Claude agent $dest (model=$model)"
@@ -750,6 +828,10 @@ description: $desc
 model: $model
 ---
 
+> CONDUCTOR difficulty contract: **$tier_label**. The task triggers in
+> meta-discipline.md section 6 are authoritative; the model alias is only this
+> adapter's current translation.
+
 EOF
     # Strip the universal CONDUCTOR frontmatter from src body, append the rest.
     /usr/bin/awk 'BEGIN{f=0} /^---$/{c++; if(c==2){f=1; next}} f==1' "$src" >> "$dest"
@@ -757,17 +839,19 @@ EOF
   }
 
   if [ "$MODE" != "recipes-only" ] && [ "$MODE" != "reflector-only" ]; then
-  declare_agent planner  "Architecture, gap analysis, ADRs, trade-off decisions. No implementation code."  opus
-  declare_agent builder  "Multi-file or cross-cutting code implementation (3+ files)."                       opus
-  declare_agent reviewer "Plan validation before implementation. Read-only gatekeeper."                      opus
-  declare_agent helper   "Single-file or 1-2-file work where the pattern is established."                    sonnet
-  declare_agent designer "UI / UX implementation. Visual components, design tokens, accessibility."          sonnet
-  declare_agent scribe   "Documentation sync after implementation. No code edits."                           sonnet
+  declare_agent planner  "Architecture, gap analysis, ADRs, trade-off decisions. No implementation code."
+  declare_agent builder  "Multi-file or cross-cutting code implementation (3+ files)."
+  declare_agent reviewer "Plan validation before implementation. Read-only gatekeeper."
+  declare_agent code-reviewer "Post-implementation correctness, security, regression, and test review. Read-only."
+  declare_agent helper   "Single-file or 1-2-file work where the pattern is established."
+  declare_agent designer "UI / UX implementation. Visual components, design tokens, accessibility."
+  declare_agent scribe   "Documentation sync after implementation. No code edits."
+  declare_agent utility  "Bounded Tier 3 lookups, one-file renames, and trivial text edits."
   else
-    log "  (à la carte — the 6 universal role agents skipped)"
+    log "  (à la carte — the 8 universal role agents skipped)"
   fi
   case ",$RECIPES," in *",self-improvement,"*)
-    declare_agent reflector "Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply." opus ;;
+    declare_agent reflector "Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply." ;;
   esac
 else
   log "Step 2/6: roles — skipped (user opted out)"
@@ -1038,8 +1122,7 @@ case ",$RECIPES_FOR_RUNTIME," in
       log "  would emit .conductor/reflect/{run-weekly.sh,reflect-brief.md,SCHEDULING.md}"
     else
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect"
-      gi="$TARGET_ABS/.gitignore"
-      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      conductor_install_trajectory_ignore
       for f in run-weekly.sh reflect-brief.md SCHEDULING.md; do
         [ -f "$CORE_ROOT/reflector/$f" ] || continue
         dest="$TARGET_ABS/.conductor/reflect/$f"
@@ -1137,16 +1220,22 @@ If you catch yourself about to break one, STOP and fix course. Silent recovery i
 
 ## Roles available for dispatch
 
-| Role | Model | When to use |
-|---|---|---|
-| `@planner` | Opus | Architecture, ADRs, gap analysis (no code) |
-| `@builder` | Opus | Multi-file (3+) cross-cutting code |
-| `@reviewer` | Opus | Plan validation (read-only) |
-| `@helper` | Sonnet | Single-file work, established patterns |
-| `@designer` | Sonnet | UI / UX, design tokens, accessibility |
-| `@scribe` | Sonnet | Documentation sync (no code) |
+| Role | Difficulty | Claude translation | When to use |
+|---|---|---|---|
+| `@planner` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Architecture, ADRs, gap analysis (no code) |
+| `@builder` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Multi-file (3+) cross-cutting code |
+| `@reviewer` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Plan validation (read-only) |
+| `@code-reviewer` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Post-implementation code review (read-only) |
+| `@helper` | Tier 2 | `{{CLAUDE_TIER_2_MODEL}}` | Single-file work, established patterns |
+| `@designer` | Tier 2 | `{{CLAUDE_TIER_2_MODEL}}` | UI / UX, design tokens, accessibility |
+| `@scribe` | Tier 2 | `{{CLAUDE_TIER_2_MODEL}}` | Documentation sync (no code) |
+| `@utility` | Tier 3 | `{{CLAUDE_TIER_3_MODEL}}` | Direct lookup or trivial one-file edit; escalate if scope grows |
 
-Per `meta-discipline.md` section 6, the orchestrator classifies every task and passes `model: "opus" | "sonnet" | "haiku"` explicitly. The PreToolUse hook (`.claude/hooks/pretool-agent-routing.sh`) enforces this.
+Per `meta-discipline.md` section 6, the orchestrator classifies every task first,
+then passes the matching Claude model explicitly. Family aliases follow current
+Claude releases; exact model IDs are saved with
+`omniconductor models configure --target=claude`. The PreToolUse hook
+(`.claude/hooks/pretool-agent-routing.sh`) enforces explicit selection.
 
 ## Topology — flat-with-leader
 
@@ -1187,6 +1276,10 @@ Lazy-load on demand:
 When using the Anthropic SDK directly, place this orchestrator manual + the universal-rules + recipes in the cacheable prefix. See the CONDUCTOR repo's `docs/PROMPT-CACHING-GUIDE.md` for the recommended structure.
 EOF
 )
+CLAUDE_MD_CONTENT="$(printf '%s' "$CLAUDE_MD_CONTENT" | /usr/bin/sed \
+  -e "s/{{CLAUDE_TIER_1_MODEL}}/$CLAUDE_TIER_1_MODEL/g" \
+  -e "s/{{CLAUDE_TIER_2_MODEL}}/$CLAUDE_TIER_2_MODEL/g" \
+  -e "s/{{CLAUDE_TIER_3_MODEL}}/$CLAUDE_TIER_3_MODEL/g")"
 
 backup_and_remember "$CLAUDE_MD"
 if [ "$DRY_RUN" = "true" ]; then
@@ -1319,8 +1412,8 @@ else
     echo "  Roles: 0 (--mode=minimal)"
   else
     case ",$RECIPES," in
-      *",self-improvement,"*) echo "  Roles: 7 (incl. reflector)" ;;
-      *)                      echo "  Roles: 6" ;;
+      *",self-improvement,"*) echo "  Roles: 8 (incl. reflector)" ;;
+      *)                      echo "  Roles: 7" ;;
     esac
   fi
 fi

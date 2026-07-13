@@ -29,8 +29,8 @@
 #                                 →  <target>/.github/copilot-instructions.md  (concatenated, body only)
 #   core/recipes/<r>.md (selected) →  <target>/.github/instructions/<r>.instructions.md (applyTo: from paths)
 #   core/docs-templates/*.md       →  <target>/docs/*.md
-#   core/hooks/*                   →  SKIP (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*                   →  SKIP (role emission is Claude-only today; Copilot supports sub-agents natively — ADR-031)
+#   core/hooks/*                   →  Copilot-verified lifecycle/recipe subset only; Claude/Codex have additional verified guards
+#   core/roles/*                   →  <target>/.github/agents/*.agent.md (native roles; saved Tier model — ADR-049)
 #
 # Layer 2 transformation (--per-rule alternative):
 #   core/universal-rules/<r>.md   →  <target>/.github/instructions/<r>.instructions.md (applyTo: '**')
@@ -51,6 +51,44 @@
 #   comma-separated. If always_loaded:true (or no paths), output applyTo: '**'.
 
 set -eu
+
+# Direct adapter calls enter through the CLI so one-time Tier-model setup runs
+# before role emission. Array forwarding preserves exact shell argument
+# boundaries; the CLI marks its adapter child to prevent wrapper recursion.
+ORIGINAL_ARGS=("$@")
+CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDUCTOR_DELEGATE_TO_CLI="true"
+[ "${#ORIGINAL_ARGS[@]}" -gt 0 ] || CONDUCTOR_DELEGATE_TO_CLI="false"
+if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    case "$_conductor_arg" in --help|-h) CONDUCTOR_DELEGATE_TO_CLI="false" ;; esac
+  done
+fi
+CONDUCTOR_CLI_CHILD="false"
+conductor_file_identity() {
+  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
+    stat -f '%i:%z' "$1"
+  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
+    stat -c '%i:%s' "$1"
+  else
+    return 1
+  fi
+}
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
+  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
+    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
+    && [ -n "$_conductor_dispatch_identity" ] \
+    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+    CONDUCTOR_CLI_CHILD="true"
+  fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required for one-time CONDUCTOR model setup." >&2
+    exit 127
+  }
+  exec node "$CONDUCTOR_ROOT/bin/omniconductor.js" init --target=copilot "${ORIGINAL_ARGS[@]}"
+fi
 
 # ----- arg parsing --------------------------------------------------------
 
@@ -101,9 +139,9 @@ Output (default):
   <target>/.github/instructions/<recipe>.instructions.md  (per recipe, applyTo: from paths)
   <target>/docs/{CURRENT_WORK,REMAINING_TASKS,PLANS,TASKS,INDEX}.md
 
-Skipped (not yet emitted for Copilot — the tool supports these natively, ADR-031):
-  Sub-agent dispatch (roles)  — full agent emission is Phase 2
-  PreToolUse / Stop hooks     — full hook emission is Phase 2 (Reflector hook ships via --recipes=self-improvement)
+Skipped for Copilot:
+  Claude-only Agent/Read hook contracts and Hookify rules
+  Guard hooks whose Copilot lifecycle contract is not verified by this adapter
 
 IDE coverage: VS Code, Cursor (Copilot ext), Windsurf (Copilot adapter), JetBrains
               (Copilot plugin), Neovim (copilot.vim) all read .github/instructions/.
@@ -143,7 +181,7 @@ if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true"
   exit 1
 fi
 
-CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Resolve CONDUCTOR assets (root was resolved by the invocation wrapper).
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
 
@@ -156,6 +194,16 @@ if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
 TARGET_ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "Error: target directory does not exist: $TARGET" >&2; exit 1; }
+
+if [ "$UNINSTALL" != "true" ] && [ "$DRY_RUN" != "true" ] && [ "$MODE" != "recipes-only" ]; then
+  _conductor_models=()
+  while IFS= read -r _conductor_model; do _conductor_models+=("$_conductor_model"); done \
+    < <(node "$CONDUCTOR_ROOT/bin/model-routing.js" resolve "$TARGET_ABS" copilot)
+  [ "${#_conductor_models[@]}" -eq 3 ] || { echo "Error: valid Copilot Tier routing is required before installation." >&2; exit 2; }
+  export CONDUCTOR_COPILOT_MODEL_TIER_1="${_conductor_models[0]}"
+  export CONDUCTOR_COPILOT_MODEL_TIER_2="${_conductor_models[1]}"
+  export CONDUCTOR_COPILOT_MODEL_TIER_3="${_conductor_models[2]}"
+fi
 
 # ----- helpers ------------------------------------------------------------
 
@@ -278,7 +326,8 @@ backup_if_exists() {
 
 # ----- manifest tracking (mirrors claude adapter ADR-020) ----------------
 
-MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+LEGACY_MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+MANIFEST_PATH="$TARGET_ABS/.conductor/manifests/copilot.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
@@ -286,15 +335,24 @@ MANIFEST_LAST_BACKUP=""
 # shellcheck source=../../tools/manifest-safety.sh
 . "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
 
+# The CLI supplies project-saved Tier choices. Direct transform.sh use keeps
+# Copilot's default/Auto model behavior for backward compatibility.
+COPILOT_TIER_1_MODEL="${CONDUCTOR_COPILOT_MODEL_TIER_1:-}"
+COPILOT_TIER_2_MODEL="${CONDUCTOR_COPILOT_MODEL_TIER_2:-}"
+COPILOT_TIER_3_MODEL="${CONDUCTOR_COPILOT_MODEL_TIER_3:-}"
+[ -z "$COPILOT_TIER_1_MODEL" ] || conductor_validate_model_slug "$COPILOT_TIER_1_MODEL" "Copilot Tier 1 model" || exit 1
+[ -z "$COPILOT_TIER_2_MODEL" ] || conductor_validate_model_slug "$COPILOT_TIER_2_MODEL" "Copilot Tier 2 model" || exit 1
+[ -z "$COPILOT_TIER_3_MODEL" ] || conductor_validate_model_slug "$COPILOT_TIER_3_MODEL" "Copilot Tier 3 model" || exit 1
+conductor_manifest_prepare "copilot"
+
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
     log "would init manifest staging at $MANIFEST_PATH.staging"
     return
   fi
   MANIFEST_TS="$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)"
-  MANIFEST_STAGE_PATH="$TARGET_ABS/.conductor-manifest.json.staging"
-  /bin/rm -f "$MANIFEST_STAGE_PATH"
-  : > "$MANIFEST_STAGE_PATH"
+  MANIFEST_STAGE_PATH="$MANIFEST_PATH.staging"
+  conductor_manifest_init_stage
 }
 
 record_emit() {
@@ -305,6 +363,7 @@ record_emit() {
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
   local esc_path esc_src esc_backup emitted_sha
+  conductor_manifest_stage_drop_path "$relpath"
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -354,6 +413,8 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
+  "schema_version": 2,
+  "manifest_scope": "adapter",
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "copilot",
   "mode": "$MODE",
@@ -368,6 +429,7 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+  conductor_manifest_publish_projection
 }
 
 # ----- framework detection (ADR-044 — suggest, NEVER auto-switch) ----------
@@ -433,6 +495,12 @@ do_uninstall() {
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
 
+    if conductor_manifest_path_needed_elsewhere "$rel_path"; then
+      log "  preserve shared $rel_path (required by another active adapter)"
+      preserved=$((preserved + 1))
+      continue
+    fi
+
     if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
       if [ -z "$expected_sha" ]; then
         log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
@@ -488,6 +556,7 @@ do_uninstall() {
     done
     log "  deleted $MANIFEST_PATH"
   fi
+  conductor_manifest_refresh_projection
 
   for d in .github/instructions .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor; do
     local abs_d="$TARGET_ABS/$d"
@@ -611,6 +680,7 @@ fi
 # ----- step 1: universal rules → .github/copilot-instructions.md ---------
 
 init_manifest
+conductor_install_project_profile
 
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
@@ -647,10 +717,9 @@ elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
 
 ## Topology note (Copilot)
 
-GitHub Copilot supports sub-agent dispatch and hooks natively (ADR-031), but
-CONDUCTOR's Copilot adapter currently emits rule text (plus the Reflector loop)
-only — full hook/agent emission is Phase 2. The 5
-universal rules below are therefore self-policed: the human (and Copilot Chat) must follow
+GitHub Copilot supports repository custom agents and hooks natively. CONDUCTOR emits
+eight role profiles in `.github/agents/` for a full/strict install. The 5
+universal rules below still require the human and Copilot Chat to follow
 the same Plan → Architecture → Tasks → Implementation → Review → Spec workflow
 that Claude Code enforces with CONDUCTOR-emitted hooks. Two-stage code review degrades to the
 Copilot PR review feature for Stage B (configure separately at the repo level).
@@ -714,6 +783,46 @@ if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_
   exit 1
 fi
 
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  log "Step 2.5/4: native roles → .github/agents/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.github/agents"
+    for role in planner reviewer code-reviewer builder helper designer scribe utility; do
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      case "$tier" in
+        1) model="$COPILOT_TIER_1_MODEL" ;;
+        2) model="$COPILOT_TIER_2_MODEL" ;;
+        3) model="$COPILOT_TIER_3_MODEL" ;;
+      esac
+      case "$role" in
+        planner) desc="Architecture, gap analysis, and trade-off planning without implementation." ;;
+        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks." ;;
+        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests." ;;
+        builder) desc="Primary implementation owner for cross-cutting or high-risk changes." ;;
+        helper) desc="Focused implementation owner for bounded, independent changes." ;;
+        designer) desc="UI and interaction implementation owner with design-system discipline." ;;
+        scribe) desc="Documentation, changelog, index, and session-state maintenance." ;;
+        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." ;;
+      esac
+      ag="$TARGET_ABS/.github/agents/$role.agent.md"
+      backup_if_exists "$ag"
+      {
+        printf -- '---\nname: %s\ndescription: "%s"\n' "$role" "$desc"
+        [ -z "$model" ] || printf 'model: %s\n' "$model"
+        printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; ' "$tier_label"
+        if [ -n "$model" ]; then
+          printf 'the saved Copilot translation is `model: %s`. Account, plan, and administrator policy remain authoritative.\n\n' "$model"
+        else
+          printf 'the omitted model inherits Copilot default/Auto selection.\n\n'
+        fi
+        strip_frontmatter "$CORE_ROOT/roles/$role.md"
+      } > "$ag"
+      record_emit ".github/agents/$role.agent.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
+    done
+  fi
+fi
+
 if [ "$MODE" = "minimal" ]; then
   RECIPES_FOR_RUNTIME=""
   log "Step 2.6/4: self-improvement runtime — skipped (--mode=minimal ships text only)"
@@ -725,8 +834,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     log "Step 2.6/4: self-improvement (Reflector) → hooks/prompt/agent"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.github/hooks" "$TARGET_ABS/.github/prompts" "$TARGET_ABS/.github/agents"
-      gi="$TARGET_ABS/.gitignore"
-      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      conductor_install_trajectory_ignore
       for s in trajectory-log prune-lessons run-weekly; do
         d="$TARGET_ABS/.conductor/reflect/$s.sh"
         backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
@@ -739,19 +847,20 @@ case ",$RECIPES_FOR_RUNTIME," in
         record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
       done
       hc="$TARGET_ABS/.github/hooks/conductor-reflect.json"
-      if [ ! -f "$hc" ]; then
+      hc_entry="$(conductor_manifest_entry_for_path ".github/hooks/conductor-reflect.json" 2>/dev/null || true)"
+      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
         backup_if_exists "$hc"
         /bin/cat > "$hc" <<'HOOK'
 {
   "version": 1,
   "hooks": {
-    "agentStop": [ { "type": "command", "bash": "./.conductor/reflect/trajectory-log.sh", "timeoutSec": 10 } ]
+    "agentStop": [ { "type": "command", "bash": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "timeoutSec": 10 } ]
   }
 }
 HOOK
         record_emit ".github/hooks/conductor-reflect.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
       else
-        log "  .github/hooks/conductor-reflect.json exists — add an agentStop hook calling ./.conductor/reflect/trajectory-log.sh manually"
+        log "  WARNING: .github/hooks/conductor-reflect.json is user-owned — preserved; merge the CONDUCTOR hook manually"
       fi
       pr="$TARGET_ABS/.github/prompts/reflect.prompt.md"
       backup_if_exists "$pr"
@@ -759,7 +868,16 @@ HOOK
       record_emit ".github/prompts/reflect.prompt.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
       ag="$TARGET_ABS/.github/agents/reflector.agent.md"
       backup_if_exists "$ag"
-      { printf -- '---\nname: reflector\ndescription: "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies."\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      case "$tier" in 1) model="$COPILOT_TIER_1_MODEL" ;; 2) model="$COPILOT_TIER_2_MODEL" ;; 3) model="$COPILOT_TIER_3_MODEL" ;; esac
+      {
+        printf -- '---\nname: reflector\ndescription: "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies."\n'
+        [ -z "$model" ] || printf 'model: %s\n' "$model"
+        printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; ' "$tier_label"
+        [ -n "$model" ] && printf 'the saved Copilot translation is `model: %s`. Account, plan, and administrator policy remain authoritative.\n\n' "$model" || printf 'the omitted model inherits Copilot default/Auto selection.\n\n'
+        strip_frontmatter "$CORE_ROOT/roles/reflector.md"
+      } > "$ag"
       record_emit ".github/agents/reflector.agent.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;
@@ -805,9 +923,9 @@ fi
 
 # ----- step 4: skip notice -----------------------------------------------
 
-log "Step 4/4: skipped layers (not yet emitted for Copilot — tool supports them natively, ADR-031)"
-log "  - core/roles/         → SKIP (agent emission is Phase 2; Copilot supports sub-agents natively — ADR-031)"
-log "  - core/hooks/         → SKIP except Reflector hook (--recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)"
+log "Step 4/4: capability boundary"
+log "  - core/roles/         → native .github/agents profiles in full/strict mode"
+log "  - core/hooks/         → Copilot-verified lifecycle/recipe subset; additional Claude/Codex guards are not emitted here"
 log "  - hookify-templates/  → SKIP (Claude Code plugin only)"
 
 fi
@@ -829,7 +947,7 @@ else
 fi
 echo "  Recipes installed: ${RECIPES:-(none)}"
 echo "  Mode: $MODE"
-echo "  Not emitted (Phase 2 — Copilot supports these natively, ADR-031/034): roles, guard hooks, hookify"
+echo "  Not emitted: unverified guard hooks and Claude-only Hookify contracts"
 echo ""
 echo " Activation:"
 echo "   GitHub Copilot reads .github/copilot-instructions.md and .github/instructions/"

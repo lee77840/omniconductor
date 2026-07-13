@@ -30,3 +30,15 @@ Single model per Codex invocation	Codex supports per-task model selection (ADR-0
 Codex (T3)	Codex tier corrected T3 → T2 in v0.7.0 (matrix is the tier source, ADR-040 M8)	write Codex (T2)
 Codex adapter (T3)	Codex tier corrected T3 → T2 in v0.7.0	write T2
 pre-1.0 (active	v1.0.0 shipped 2026-07-09 — the pre-1.0 framing is falsified	reference CHANGELOG for current version
+7 roles	full/strict installs emit 8 base roles since v1.1.0	write 8 roles, including Tier 3 utility	historical|previous|grew from 7 to 8
+seven roles	full/strict installs emit 8 base roles since v1.1.0	write eight roles, including Tier 3 utility	historical|previous|grew from seven to eight
+7 agents	full/strict installs emit 8 base roles since v1.1.0	write 8 agents/roles	historical|previous
+6 roles	code-reviewer and utility make the base topology 8 roles	write 8 roles	historical|previous
+6 agents listed	Claude full/strict emits 8 base roles	write 8 agents listed	historical|previous
+6 에이전트	Claude full/strict emits 8 base roles	write 8개 기본 역할	historical|previous
+7 universal-roles	the universal catalog contains 8 base roles	write 8 universal roles	historical|previous
+Stop-hook (Claude only)	Codex receives the verified Stop guard subset since ADR-045	write Claude/Codex, or name the genuinely Claude-only hook	historical|previous|Hookify
+native directory on Claude only	managed memory is also verified for Copilot, Codex, and Windsurf	use the current per-tool memory table	historical|previous
+Required v1.0.1 release order	release policy must derive the version from package.json	use a version-neutral required release order	historical|previous
+cannot provide the cross-tool setup transaction	public transform wrappers now delegate through the same Node CLI transaction	describe the Node requirement and identical saved-model setup	historical|previous
+compatibility path and triggers the documented first-use	public transform wrappers now delegate through the same Node CLI transaction	describe the Node requirement and identical saved-model setup	historical|previous

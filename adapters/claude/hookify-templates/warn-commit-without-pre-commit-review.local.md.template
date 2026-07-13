@@ -16,8 +16,8 @@ A `git commit` is about to run. Per `core/universal-rules/quality-gates.md` Q1 (
 
 | Diff size / nature | Reviewer model |
 |---|---|
-| Multi-file (3+ files cross-cutting) | Opus-tier |
-| Single-file change | Sonnet-tier |
+| Multi-file (3+ files cross-cutting) | Tier 1 — conceptual / complex |
+| Single-file change | Tier 2 — routine |
 | Type-design heavy diff | Specialized type-design reviewer if available |
 | Error-handling heavy diff | Specialized silent-failure-hunter if available |
 

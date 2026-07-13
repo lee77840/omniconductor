@@ -199,7 +199,11 @@ Claude / Cursor / Copilot / Gemini adapters produce installable output and the v
 
 ### Stop condition
 
-All 6 tool adapters ship a `transform.sh` and pass `tools/validate-adapter-output.sh` (Done; CI in `.github/workflows/validate.yml` runs all 6). `docs/COMPATIBILITY-MATRIX.md` finalized. Per-tool live-verification status is single-sourced in the generated table in `docs/ADAPTER-LIVE-VERIFICATION.md` (auto-updated by `tools/live-verify.sh`).
+All 6 tool adapters ship a `transform.sh` and pass `tools/validate-adapter-output.sh`
+(Done; the local integrated release gate covers all six). The retained GitHub
+workflow is disabled and manual-only. `docs/COMPATIBILITY-MATRIX.md` finalized.
+Per-tool live-verification status is single-sourced in the generated table in
+`docs/ADAPTER-LIVE-VERIFICATION.md` (auto-updated by `tools/live-verify.sh`).
 
 ---
 

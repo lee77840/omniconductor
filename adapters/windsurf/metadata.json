@@ -6,6 +6,7 @@
   "outputs": [
     { "path": ".windsurfrules", "kind": "always_loaded", "validated": true },
     { "path": ".devin/rules", "kind": "rules", "validated": true },
+    { "path": ".windsurf/workflows", "kind": "role_workflows", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [
@@ -17,7 +18,7 @@
   "capabilities": {
     "tool_native": {
       "hooks": "partial-no-session-stop",
-      "sub_agents": "yes",
+      "sub_agents": "internal-only",
       "model_routing": "yes",
       "commands": "yes",
       "glob_scoping": "no",
@@ -27,8 +28,8 @@
       "rules": "full",
       "guard_hooks": "none",
       "reflector_loop": "recipe",
-      "role_agents": "none",
-      "model_routing": "none"
+      "role_agents": "workflow-fallback",
+      "model_routing": "advisory-adaptive-session"
     }
   },
   "live_verification": { "status": "pending", "date": null, "cli": null, "note": "not yet run" },

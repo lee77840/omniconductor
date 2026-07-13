@@ -2,7 +2,7 @@
 description: Run the CONDUCTOR Reflector — read recent trajectories and propose lesson deltas (propose-only).
 ---
 
-Dispatch the `reflector` role (Opus) with this brief:
+Dispatch the `reflector` role (Tier 1 — conceptual / complex) with this brief:
 
 - **Objective**: read the recent session trajectories and propose atomic lesson deltas. Apply nothing.
 - **Files to read**: `.conductor/trajectories/index.jsonl` (follow its `transcript` pointers), `git log --oneline -30` and diffs of referenced commits, `docs/CURRENT_WORK.md`.

@@ -25,13 +25,12 @@ CONDUCTOR is a 3-layer system. Each layer has a single, sharp responsibility.
 │                                                                           │
 │   adapters/claude/transform.sh   → .claude/agents/*  + .claude/rules/*    │
 │                                    + .claude/hooks/*  + CLAUDE.md          │
-│   adapters/cursor/transform.sh   → .cursor/rules/*.mdc                    │
+│   adapters/cursor/transform.sh   → .cursor/rules/* + .cursor/agents/*    │
 │                                    (+ opt-in legacy .cursorrules)          │
-│   adapters/copilot/transform.sh  → .github/copilot-instructions.md        │
-│                                    + .github/instructions/*.instructions.md│
-│   adapters/gemini/transform.sh   → GEMINI.md + .gemini/styleguide.md      │
-│   adapters/codex/transform.sh    → AGENTS.md                              │
-│   adapters/windsurf/transform.sh → .windsurfrules + .devin/rules/*.md     │
+│   adapters/copilot/transform.sh  → .github/instructions/* + agents/*      │
+│   adapters/gemini/transform.sh   → GEMINI.md + .gemini/agents/*           │
+│   adapters/codex/transform.sh    → AGENTS.md + .codex/{agents,hooks}/*    │
+│   adapters/windsurf/transform.sh → rules + .windsurf/workflows/*           │
 └────────────────┬─────────────────────────────────────────────────────────┘
                  │
                  │  (run by user via CLI)
@@ -40,14 +39,13 @@ CONDUCTOR is a 3-layer system. Each layer has a single, sharp responsibility.
 │ LAYER 3 — TOOL-NATIVE FEATURES  (per tool, NOT polyfilled)                │
 │ Things only one tool can do. Documented honestly; never faked.            │
 │                                                                           │
-│   Sub-agent dispatch         Claude Code only                              │
-│   Hooks (PreToolUse / Stop)  Claude Code only                              │
-│   Slash commands             Claude Code (and Cursor partial)              │
-│   Native model routing       Claude Code only                              │
-│   In-cache memory directory  Claude Code (`~/.claude/projects/.../memory/`)│
+│   Role profiles              Claude / Cursor / Copilot / Gemini / Codex     │
+│   Role workflows             Windsurf (verified project-local fallback)    │
+│   Guard hooks                Full on Claude; verified subset on Codex       │
+│   Reflector lifecycle hook   All six, recipe-gated                         │
+│   Model routing              Saved Tier models; Windsurf advisory session  │
 │                                                                           │
-│   On non-Claude tools, the equivalent rule TEXT is installed (so the user │
-│   knows what discipline to follow), but the tool cannot enforce it.       │
+│   Unsupported tool contracts are documented, never copied by name.        │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -69,7 +67,7 @@ We could try to fake Claude sub-agents on Cursor by spawning a shell with Cursor
 - It would be slow (process startup overhead per delegation).
 - It would mislead users into thinking the workflow is the same.
 
-Instead, on non-Claude tools, the orchestrator role is documented but executed by the human. The user reads the rule, follows the discipline manually. CONDUCTOR's value on those tools is the *content* of the discipline, not the mechanism.
+Instead, every adapter compiles to the strongest verified project-local mechanism. Most tools receive native role profiles; Windsurf receives native invocable workflows. Guard hooks are emitted only where the event, input, output, and trust contracts are verified.
 
 ## File-pattern-driven rule loading per adapter
 
@@ -77,23 +75,23 @@ Different tools have different mechanisms for "load this rule when this kind of 
 
 | Universal pattern intent | Claude output | Cursor output | Copilot output | Gemini output | Codex output | Windsurf output |
 |---|---|---|---|---|---|---|
-| Always loaded | `CLAUDE.md` | `.cursor/rules/*.mdc` (`alwaysApply: true`) | `.github/copilot-instructions.md` | `GEMINI.md` (top section) | `AGENTS.md` | `.windsurfrules` |
-| `<web-app>/**` only | `.claude/rules/web.md` (paths front-matter) | `.cursor/rules/web.mdc` (`globs: <web-app>/**`) | `web.instructions.md` (`applyTo: '<web-app>/**'`) | merged into `GEMINI.md` (no scoping) | merged | `.devin/rules/web.md` |
-| Manual / agent-only | `.claude/agents/*.md` | (not emitted yet — Phase 2; the tool supports custom agents, ADR-031) | (same) | (same) | (same) | (same) |
+| Always loaded | `CLAUDE.md` | `.cursor/rules/*.mdc` (`alwaysApply: true`) | `.github/copilot-instructions.md` | `GEMINI.md` (top section) | bounded `AGENTS.md` kernel | `.windsurfrules` |
+| `<web-app>/**` only | `.claude/rules/web.md` (paths front-matter) | `.cursor/rules/web.mdc` (`globs: <web-app>/**`) | `web.instructions.md` (`applyTo: '<web-app>/**`) | merged into `GEMINI.md` (no scoping) | kernel-routed `.codex/conductor/` reference | `.devin/rules/web.md` |
+| Manual / agent-only | `.claude/agents/*.md` | `.cursor/agents/*.md` | `.github/agents/*.agent.md` | `.gemini/agents/*.md` | `.codex/agents/*.toml` | `.windsurf/workflows/*.md` |
 
 ## In-repo docs vs external memory
 
 Two persistence kinds, intentionally separated:
 
 - **In-repo (`docs/`)** — travels with code. Anyone cloning gets the full project context. Spec docs, current work, plans, task tracker.
-- **External memory (`~/.claude/projects/<path>/memory/`)** — per-user, accumulated taste and feedback. NOT in git. Survives sessions for the same user on the same machine.
+- **Tool-managed or external memory** — per-user, accumulated taste and feedback. NOT in git. Survives sessions for the same user on the same machine.
 
-This separation is universal in `core/memory-pattern/` and is honored by every adapter — but only Claude Code has a built-in directory for it. Other tools document the pattern; the user creates the directory wherever they want.
+This separation is universal in `core/memory-pattern/` and is honored by every adapter. Claude, Copilot preview, Codex opt-in, and Windsurf expose verified managed-memory locations; Cursor and Gemini use the documented project-local fallback until a stable native contract is verified. The exact current paths and caveats live in `core/memory-pattern/README.md`.
 
 ## What the orchestrator is
 
 In Claude Code, "orchestrator" = the main session reading `CLAUDE.md`, dispatching sub-agents via the Agent tool, blocked by hooks. The system enforces it.
 
-In Cursor / Copilot / Gemini / Codex / Windsurf, "orchestrator" = the human + the chat session, **today**. The chat reads the equivalent rule text and the human follows the discipline manually — not because those tools lack sub-agents or hooks (as of 2026 they all ship them natively, ADR-031), but because CONDUCTOR's adapters don't emit its agents/guard-hooks for them yet (Phase 2, ADR-034; the opt-in Reflector loop is already emitted on all six, ADR-032).
+In Cursor, Copilot, Gemini, and Codex, the main session can select the emitted project role profiles. Windsurf uses emitted role workflows. Mechanical enforcement remains platform-specific: Claude has the full hook set, Codex has the verified guard subset, and the remaining products retain explicit workflow obligations plus their verified Reflector lifecycle hook.
 
 Both modes are first-class CONDUCTOR users. We document both flows in `docs/HOW-IT-WORKS-PER-TOOL.md`.

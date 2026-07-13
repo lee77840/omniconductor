@@ -41,7 +41,8 @@ Not every change goes through all 6 phases. Scale the workflow to scope:
 The workflow itself is tool-agnostic. Enforcement varies:
 
 - **Claude Code**: Stop hook can verify a `.plan.md` exists for medium+ scope tasks before allowing commits.
-- **Cursor / Copilot / Gemini / Codex / Windsurf**: rule text reminds the user; enforcement is self-policed.
+- **Codex**: native Stop/PreToolUse guards verify the supported commit, session/spec, and review checks.
+- **Cursor / Copilot / Gemini / Windsurf**: emitted role entries preserve responsibility boundaries; checks without a verified native guard remain explicit workflow obligations.
 
 Adapter outputs all reference these phase definitions but the *mechanism* of enforcement is per-tool (see `docs/COMPATIBILITY-MATRIX.md`).
 
@@ -51,6 +52,7 @@ Adapter outputs all reference these phase definitions but the *mechanism* of enf
 - More than 6 (separate Verification phase, etc.) adds ceremony users will skip.
 - The 6 phases match the natural rhythm of a feature, refactor, or bug fix at solo / small-team scale.
 
-## Status (P0 foundation)
+## Status
 
-`PHASES.md` is a placeholder. P1 fills it with detailed entry/exit criteria, examples, and anti-patterns to avoid per phase.
+`PHASES.md` is the production six-phase lifecycle used by all adapters, including
+entry/exit criteria and capability-aware enforcement notes.

@@ -6,7 +6,7 @@ GitHub Copilot is a T2 target because:
 - Instructions live IN the repo, so all collaborators automatically share them.
 - Copilot's PR review feature provides a partial Stage B code-review analog tied to GitHub.
 
-**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Copilot ships hooks (CLI + cloud + VS Code), sub-agent dispatch, custom agents, per-task model routing, commands, and built-in managed memory. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). That is a CONDUCTOR gap, not a Copilot limitation.
+**Tool capability vs CONDUCTOR emission (ADR-031/048/049):** CONDUCTOR emits eight repository agents, including Tier 3 utility, plus the opt-in Reflector agent. Every profile carries the portable Tier and the project-saved exact model. Account, client, plan, and organization policy remain authoritative. Guard-hook emission remains limited to verified contracts.
 
 **Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md` — hooks + sub-agents + per-task model + commands all present; caveats: `applyTo:` glob scoping works, but the coding agent has no transcript API).
 
@@ -22,6 +22,10 @@ npx omniconductor init --target=copilot <target-dir>
 # Or from a local clone:
 bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run] [--per-rule]
 ```
+
+The local `transform.sh` command requires Node.js and delegates to the same CLI,
+including the one-time project-saved Tier-model setup. It is not a model-routing
+bypass.
 
 ## What gets installed
 
@@ -50,18 +54,19 @@ bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run
 - ✅ Instructions IN the repo (collaborator-shared) — one install covers VS Code, Cursor (Copilot ext), Windsurf (Copilot adapter), JetBrains, Neovim.
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
+- ✅ Eight repository custom agents in `.github/agents/`, including code-reviewer and Tier 3 utility.
 - ✅ Reflector loop (opt-in recipe).
 - ⚠️ Copilot PR review feature for Stage B (partial).
 
-## Not emitted yet (Phase 2 — Copilot supports these natively, ADR-031/034)
+## Capability boundary
 
 | Feature | Interim workaround |
 |---|---|
 | Enforcement guard hooks | Self-police, or pair with project-level pre-commit git hooks. Only the Reflector session-end hook is emitted today. |
-| The 6 role agents (sub-agent dispatch) | Copilot has native agents; CONDUCTOR doesn't emit its role definitions for Copilot yet. Human plays orchestrator. |
-| Per-call model-routing config | Pick the model in Copilot Chat UI per task (Copilot supports per-task model selection). |
+| Claude's exact agent schema | Eight equivalent Copilot repository agents are emitted. |
+| Difficulty/model translation | Role Tier is immutable; first setup writes the saved Tier model into every repository agent. Provider policy can still reject or replace it. |
 | 4-type memory pattern | Self-managed at `.memory/` (gitignored); Copilot's built-in managed memory is separate. |
-| Specialized review agents (Stage A) | Run review prompts manually in Copilot Chat. Use Copilot PR review for Stage B (best-effort). |
+| Full mechanical guard set | Use emitted reviewer/code-reviewer agents and Copilot PR review; only verified lifecycle hooks are installed. |
 
 ## After install — first steps
 
@@ -71,15 +76,14 @@ bash /path/to/conductor/adapters/copilot/transform.sh /path/to/target [--dry-run
 4. Rename `docs/specs/_example.md` → `docs/specs/<your-area>.md`.
 5. Add `.memory/` to `.gitignore`. Create your first memory entry.
 
-## Quirks / known issues (P3 will fill)
+## Quirks / known issues
 
-- TBD: Copilot's `applyTo:` glob syntax differs slightly from Cursor's `globs:`. P3 verifies the exact dialect.
+- Copilot's `applyTo:` glob syntax differs from Cursor's `globs:`; keep adapter-specific fixtures when changing rule scoping.
 - TBD: Copilot Chat's instruction-loading order when multiple files match.
 
-## Status (P0 foundation)
+## Status
 
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
 - ✅ `transform.sh` (implemented)
-- ⏳ `notes.md` (P3)

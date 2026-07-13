@@ -26,11 +26,12 @@ Unlike `core/universal-rules/*` (which adapters re-emit with tool-specific front
 
 The adapter's job is just to COPY them into the target project's `docs/` directory if they don't already exist (idempotent — never overwrite).
 
-## Status (P0 foundation)
+## Status
 
-All template files are PLACEHOLDERS. P1 fills them with starter content sanitized from the reference adopter.
+All template files are production starter documents copied idempotently by the
+six adapters.
 
-## Authoring guidance for P1
+## Authoring guidance
 
 Each template should:
 - Have a clear "What this is" header at the top.

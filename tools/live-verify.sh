@@ -6,7 +6,8 @@
 #   1. read adapters/<tool>/metadata.json → headless CLI command/invocation
 #   2. if the CLI is not on PATH → SKIP (honest — never fake a ✅)
 #   3. install the adapter into a throwaway temp dir (base install, no recipes)
-#   4. run the tool headlessly with the probe prompt from docs/ADAPTER-LIVE-VERIFICATION.md
+#   4. run the tool headlessly with the probe prompt; Codex uses its native local
+#      `debug prompt-input` renderer so loading is verified without a model call
 #   5. grade DETERMINISTICALLY (no LLM judge): the answer must name ≥3 of the 5
 #      universal rules AND mention CURRENT_WORK
 #   6. on PASS: write live_verification {status:verified, date, cli} into the tool's
@@ -108,7 +109,7 @@ for tool in $TOOLS; do
   out="$tmp/.probe-output.txt"
 
   echo "RUN   $tool — installing into $tmp"
-  if ! bash "adapters/$tool/transform.sh" "$tmp" --no-prompt >/dev/null 2>&1; then
+  if ! node bin/omniconductor.js init --target="$tool" "$tmp" --no-prompt --accept-model-defaults >/dev/null 2>&1; then
     echo "FAIL  $tool — adapter install failed (pre-probe)"; FAILED=1; rm -rf "$tmp"; continue
   fi
   ( cd "$tmp" && git init -q ) 2>/dev/null || true
@@ -120,7 +121,10 @@ for tool in $TOOLS; do
     # minus write permissions — the probe only asks a question.
     case "$cmd" in
       claude)       run_with_timeout "$TIMEOUT_S" claude -p "$PROBE" ;;
-      codex)        run_with_timeout "$TIMEOUT_S" codex exec --sandbox read-only "$PROBE" ;;
+      codex)
+        mkdir -p "$tmp/.codex-home"
+        run_with_timeout "$TIMEOUT_S" env CODEX_HOME="$tmp/.codex-home" codex debug prompt-input "$PROBE"
+        ;;
       gemini)       run_with_timeout "$TIMEOUT_S" gemini -p "$PROBE" ;;
       cursor-agent) run_with_timeout "$TIMEOUT_S" cursor-agent -p "$PROBE" ;;
       copilot)      run_with_timeout "$TIMEOUT_S" copilot -p "$PROBE" ;;
@@ -144,24 +148,33 @@ $(grade "$out")
 EOF_GRADE
   echo "      $tool — graded: $hits/5 rule names, CURRENT_WORK=$cw (probe exit $probe_rc)"
 
-  if [ "$hits" -ge 3 ] && [ "$cw" -eq 1 ]; then
+  kernel_visible=1
+  if [ "$tool" = "codex" ] && ! grep -qF 'CONDUCTOR_KERNEL_END' "$out"; then
+    kernel_visible=0
+  fi
+
+  if [ "$hits" -ge 3 ] && [ "$cw" -eq 1 ] && [ "$kernel_visible" -eq 1 ]; then
     PASSED=$((PASSED + 1))
     today="$(date +%F)"
     cliver="$("$cmd" --version 2>/dev/null | head -n 1 | tr -d '\n' | cut -c1-60)"
     [ -n "$cliver" ] || cliver="$cmd"
     echo "PASS  $tool — live-verified $today ($cliver)"
+    if [ "$tool" = "codex" ]; then
+      verification_note="native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand"
+    else
+      verification_note="headless probe listed ${hits}/5 rules + read-CURRENT_WORK-first"
+    fi
     node -e '
       const fs = require("fs");
-      const p = process.argv[1], date = process.argv[2], cli = process.argv[3], hits = process.argv[4];
+      const p = process.argv[1], date = process.argv[2], cli = process.argv[3], note = process.argv[4];
       const raw = fs.readFileSync(p, "utf8");
       const m = JSON.parse(raw);
-      m.live_verification = { status: "verified", date, cli,
-        note: `headless probe listed ${hits}/5 rules + read-CURRENT_WORK-first` };
+      m.live_verification = { status: "verified", date, cli, note };
       // Preserve the file style: compact one-line live_verification object.
       const updated = raw.replace(/"live_verification": \{[^}]*\}/,
         `"live_verification": { "status": "verified", "date": ${JSON.stringify(date)}, "cli": ${JSON.stringify(cli)}, "note": ${JSON.stringify(m.live_verification.note)} }`);
       fs.writeFileSync(p, updated);
-    ' "adapters/$tool/metadata.json" "$today" "$cliver" "$hits"
+    ' "adapters/$tool/metadata.json" "$today" "$cliver" "$verification_note"
     node tools/generate-adapter-docs.js >/dev/null
     echo "      $tool — metadata.json updated + doc tables regenerated"
   else

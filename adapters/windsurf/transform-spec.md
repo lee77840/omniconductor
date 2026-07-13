@@ -1,6 +1,6 @@
 # Windsurf adapter — transform.sh specification
 
-What `adapters/windsurf/transform.sh` MUST do when implemented in P3.5.
+Normative behavior for the implemented `adapters/windsurf/transform.sh`.
 
 ## Invocation
 
@@ -46,7 +46,7 @@ adapters/windsurf/_native/windsurfrules.tpl       # Header template (Windsurf-fl
 ## `.windsurfrules` composition (in order)
 
 1. **Header from `_native/windsurfrules.tpl`** — bilingual (한/영) intro adapted for Windsurf.
-2. **ABSOLUTE rules section** — R1-R8 minus Claude-only sub-agent enforcement. R-prefix renumbered.
+2. **ABSOLUTE rules section** — R1-R8 plus the native eight-role workflow surface; omit only unverified guard contracts.
 3. **Always-loaded universal rules** — content from rules with `always_loaded: true` in `core/`.
 4. **Pointer to docs** — `Read docs/CURRENT_WORK.md first every session.`
 5. **Pointer to `.devin/rules/`** — informational ("additional rules load from .devin/rules/ (preferred; legacy .windsurf/rules/ still read)").

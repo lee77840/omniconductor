@@ -1,6 +1,6 @@
 # Codex adapter — transform.sh specification
 
-What `adapters/codex/transform.sh` MUST do when implemented in P3.5.
+Normative behavior for the implemented `adapters/codex/transform.sh`.
 
 ## Invocation
 
@@ -19,7 +19,7 @@ core/universal-rules/workflow.md
 core/docs-templates/*.md
 core/docs-templates/specs/_example.md
 core/memory-pattern/README.md
-adapters/codex/_native/codex.md.tpl              # Header template (Codex-flavored intro)
+adapters/codex/AGENTS-kernel.md                  # Bounded always-loaded contract
 ```
 
 ## Outputs
@@ -31,7 +31,13 @@ adapters/codex/_native/codex.md.tpl              # Header template (Codex-flavor
 
 ```
 <target-dir>/
-├── AGENTS.md                                   # Bundled all-rules + workflow + intro (project root)
+├── AGENTS.md                                   # Bounded always-loaded runtime kernel
+├── .codex/
+│   ├── conductor/rules/*.md                    # Complete universal rules
+│   ├── conductor/recipes/*.md                  # Complete selected recipes
+│   ├── agents/*.toml                           # Eight native role profiles
+│   ├── hooks/*.sh
+│   └── hooks.json
 └── docs/
     ├── CURRENT_WORK.md                         # Verbatim
     ├── REMAINING_TASKS.md
@@ -41,27 +47,32 @@ adapters/codex/_native/codex.md.tpl              # Header template (Codex-flavor
     └── specs/_example.md
 ```
 
-## `AGENTS.md` composition (in order)
+## `AGENTS.md` composition
 
-1. **Header from `_native/codex.md.tpl`** — bilingual (한/영) intro adapted for Codex (one-shot model, shell-task strength).
-2. **ABSOLUTE rules section** — R1-R8 minus Claude-only sub-agent enforcement. R-prefix renumbered.
-3. **Universal rules section** — for each `core/universal-rules/<rule>.md`:
-   - Heading: `## <rule title>`
-   - Body: rule content sans front-matter.
-4. **Workflow section** — compressed version of `core/workflow/PHASES.md` (Codex's typical use cases skip Plan/Architecture more often than other tools).
-5. **Pointer to docs** — `Read docs/CURRENT_WORK.md before any non-trivial task.`
-6. **Note on memory** — explain DIY `.memory/`.
+1. Runtime and hook trust boundary.
+2. Compact non-negotiable execution contract.
+3. Activity-to-reference routing table.
+4. Compressed workflow phases and native role routing.
+5. Selected recipe pointers and an explicit end marker.
 
-## Universal-rules → Codex bundle translation
+The generated kernel MUST remain at or below 24 KiB. The explicit end marker lets
+the validator distinguish a complete kernel from an old oversized bundle.
 
-Same as Gemini adapter — strip front-matter, concatenate, replace tool-specific callouts.
+## Universal-rules → Codex reference translation
+
+Strip front-matter and write each complete rule to
+`.codex/conductor/rules/<rule>.md`. Selected recipes use
+`.codex/conductor/recipes/<recipe>.md`. These files are manifest-owned, checksum
+verified, and explicitly routed from the always-loaded kernel; they are not claimed
+to auto-load.
 
 ## Edge cases
 
 | Case | Adapter behavior |
 |---|---|
 | Existing `AGENTS.md` | Back up, then write (manifest-tracked; `--uninstall` restores). |
-| `AGENTS.md` exceeds Codex context budget | Warn; document trim strategy in `notes.md`. |
+| Generated `AGENTS.md` exceeds 24 KiB | Validator fails; release cannot proceed. |
+| Installed `AGENTS.md` exceeds the default 32 KiB budget | Doctor fails because Codex may truncate trailing instructions. |
 
 ## Idempotency check
 
@@ -70,7 +81,10 @@ Re-run reports "SKIP (exists)" for everything.
 ## Verification commands (P3.5 will fill)
 
 ```bash
-test -f "<target>/AGENTS.md"                           || echo "MISSING AGENTS.md"
+test -f "<target>/AGENTS.md"                                      || echo "MISSING AGENTS.md"
+test "$(wc -c < "<target>/AGENTS.md")" -le 24576                 || echo "OVERSIZED AGENTS.md"
+test -f "<target>/.codex/conductor/rules/quality-gates.md"        || echo "MISSING detailed rules"
+codex -C "<target>" debug prompt-input "probe" | grep CONDUCTOR_KERNEL_END
 
 # Run Codex in <target>; verify it follows ABSOLUTE rules + universal conventions.
 ```
@@ -79,7 +93,8 @@ test -f "<target>/AGENTS.md"                           || echo "MISSING AGENTS.m
 
 - Confirm `AGENTS.md` IS the canonical project-rules location. (Confirmed — live-verified; current status in `docs/ADAPTER-LIVE-VERIFICATION.md`.)
 - Confirm Codex auto-loads it on session start.
-- Confirm Codex follows the rule TEXT in its inline code generation.
+- Confirm the native prompt-input renderer includes the kernel end marker.
+- Confirm detailed rule references remain present and checksum-tracked.
 
 If Codex has changed conventions by P3.5, document in `notes.md`.
 

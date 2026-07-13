@@ -5,7 +5,7 @@
 #
 # Verifies, per tool:
 #   full           — installs + validator passes + manifest stamps "mode": "full"
-#   minimal        — rule text + docs present; NO reflector runtime (.conductor/) even
+#   minimal        — rule text + docs/profile present; NO reflector runtime even
 #                    with --recipes=self-improvement; tool-specific extras absent
 #   strict         — fresh target installs; pre-seeded baseline ABORTS (exit 3, no writes)
 #   recipes-only   — ONLY recipe content lands (file or marked block); --recipes required
@@ -25,6 +25,13 @@ esac
 cd "$(dirname "$0")/.." || exit 2
 BASE="${2:-$(mktemp -d "${TMPDIR:-/tmp}/conductor-modes-$TOOL.XXXXXX")}"
 T="adapters/$TOOL/transform.sh"
+
+# Exercise the public entry point so every write also crosses the mandatory
+# persisted-model-routing gate. Recommended defaults make the fixture
+# deterministic while preserving the same adapter mode coverage.
+run_adapter() {
+  node bin/omniconductor.js init --target="$TOOL" "$@" --accept-model-defaults
+}
 
 FAIL=0
 ok()   { echo "OK   [$TOOL] $1"; }
@@ -57,9 +64,9 @@ recipe_artifact() { # path proving the tdd recipe landed, per tool + mode-kind (
 
 # ---- full ------------------------------------------------------------------
 d="$BASE/full"; mkdir -p "$d"
-if bash "$T" "$d" --no-prompt --recipes=tdd,self-improvement >/dev/null 2>&1 \
+if run_adapter "$d" --no-prompt --recipes=tdd,self-improvement >/dev/null 2>&1 \
    && bash tools/validate-adapter-output.sh "$d" "$TOOL" >/dev/null 2>&1 \
-   && grep -q '"mode": "full"' "$d/.conductor-manifest.json"; then
+   && grep -q '"mode": "full"' "$d/.conductor/manifests/$TOOL.json"; then
   ok "full: install + validator + manifest mode stamp"
 else bad "full mode"; fi
 
@@ -69,42 +76,46 @@ else bad "full mode"; fi
 d="$BASE/full-reinstall"; mkdir -p "$d/$(dirname "$BASELINE")"
 printf 'ORIGINAL-USER-BASELINE-%s\n' "$TOOL" > "$d/$BASELINE"
 before="$(/usr/bin/cksum < "$d/$BASELINE")"
-bash "$T" "$d" --no-prompt >/dev/null 2>&1 \
-  && bash "$T" "$d" --no-prompt >/dev/null 2>&1 \
-  && bash "$T" "$d" --uninstall >/dev/null 2>&1
+run_adapter "$d" --no-prompt >/dev/null 2>&1 \
+  && run_adapter "$d" --no-prompt >/dev/null 2>&1 \
+  && run_adapter "$d" --uninstall >/dev/null 2>&1
 after="MISSING"; [ -f "$d/$BASELINE" ] && after="$(/usr/bin/cksum < "$d/$BASELINE")"
 [ "$before" = "$after" ] && ok "full: re-install + uninstall restores original baseline" || bad "full re-install lost original baseline"
 
 d="$BASE/full-customized"; mkdir -p "$d"
-bash "$T" "$d" --no-prompt >/dev/null 2>&1
+run_adapter "$d" --no-prompt >/dev/null 2>&1
 printf '\nUSER-CUSTOMIZATION-MUST-SURVIVE\n' >> "$d/$BASELINE"
-bash "$T" "$d" --uninstall >/dev/null 2>&1
+run_adapter "$d" --uninstall >/dev/null 2>&1
 grep -q 'USER-CUSTOMIZATION-MUST-SURVIVE' "$d/$BASELINE" 2>/dev/null \
   && ok "full: uninstall preserves user-modified emitted file" \
   || bad "full uninstall deleted user customization"
 
 d="$BASE/full-edit-then-update"; mkdir -p "$d"
-bash "$T" "$d" --no-prompt >/dev/null 2>&1
+run_adapter "$d" --no-prompt >/dev/null 2>&1
 printf '\nUSER-EDIT-BEFORE-UPDATE\n' >> "$d/$BASELINE"
-bash "$T" "$d" --no-prompt >/dev/null 2>&1
-bash "$T" "$d" --uninstall >/dev/null 2>&1
+run_adapter "$d" --no-prompt >/dev/null 2>&1
+run_adapter "$d" --uninstall >/dev/null 2>&1
 grep -q 'USER-EDIT-BEFORE-UPDATE' "$d/$BASELINE" 2>/dev/null \
   && ok "full: update snapshots a user edit before replacement" \
   || bad "full update lost user edit"
 
 # ---- minimal ---------------------------------------------------------------
 d="$BASE/minimal"; mkdir -p "$d"
-bash "$T" "$d" --mode=minimal --recipes=tdd,self-improvement >/dev/null 2>&1
-if have "$d/$RULE" && have "$d/docs/CURRENT_WORK.md" && [ ! -d "$d/.conductor" ]; then
+minimal_install_ok=false
+run_adapter "$d" --mode=minimal --recipes=tdd,self-improvement >/dev/null 2>&1 && minimal_install_ok=true
+if $minimal_install_ok && have "$d/$RULE" && have "$d/docs/CURRENT_WORK.md" && have "$d/.conductor/project.json" && [ ! -d "$d/.conductor/reflect" ]; then
   ok "minimal: rule text + docs, no Reflector runtime"
 else bad "minimal mode"; fi
 if [ "$TOOL" = "claude" ]; then
-  { [ ! -d "$d/.claude/agents" ] && [ ! -d "$d/.claude/hooks" ]; } && ok "minimal: no agents/hooks (claude)" || bad "minimal leaked agents/hooks (claude)"
+  { $minimal_install_ok && [ ! -d "$d/.claude/agents" ] && [ ! -d "$d/.claude/hooks" ] \
+    && have "$d/CLAUDE.md" && ! /usr/bin/grep -q '{{CLAUDE_TIER_' "$d/CLAUDE.md"; } \
+    && ok "minimal: no agents/hooks and dynamic model aliases resolved (claude)" \
+    || bad "minimal leaked agents/hooks or unresolved model aliases (claude)"
 fi
 
 # ---- strict ----------------------------------------------------------------
 d="$BASE/strict-fresh"; mkdir -p "$d"
-bash "$T" "$d" --mode=strict --no-prompt >/dev/null 2>&1 && have "$d/$RULE" \
+run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1 && have "$d/$RULE" \
   && ok "strict: fresh target installs" || bad "strict fresh install"
 d="$BASE/strict-seeded"; mkdir -p "$d"
 case "$TOOL" in
@@ -112,7 +123,7 @@ case "$TOOL" in
   copilot) mkdir -p "$d/.github"; echo MINE > "$d/.github/copilot-instructions.md" ;;
   *)       mkdir -p "$d/$(dirname "$BASELINE")" 2>/dev/null; echo MINE > "$d/$BASELINE" ;;
 esac
-bash "$T" "$d" --mode=strict --no-prompt >/dev/null 2>&1
+run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1
 rc=$?
 if [ "$rc" -eq 3 ] && [ ! -f "$d/.conductor-manifest.json" ]; then
   ok "strict: seeded baseline aborts (exit 3, no manifest)"
@@ -128,7 +139,7 @@ case "$TOOL" in
       gemini)   mkdir -p "$d/.gemini";              echo x > "$d/.gemini/styleguide.md" ;;
       windsurf) mkdir -p "$d/.devin/rules";         echo x > "$d/.devin/rules/mine.md" ;;
     esac
-    bash "$T" "$d" --mode=strict --no-prompt >/dev/null 2>&1
+    run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1
     rc=$?
     if [ "$rc" -eq 3 ] && [ ! -f "$d/.conductor-manifest.json" ]; then
       ok "strict: seeded secondary rules surface also aborts"
@@ -138,7 +149,7 @@ esac
 
 # ---- recipes-only ----------------------------------------------------------
 d="$BASE/ro-noargs"; mkdir -p "$d"
-bash "$T" "$d" --mode=recipes-only >/dev/null 2>&1
+run_adapter "$d" --mode=recipes-only >/dev/null 2>&1
 [ $? -eq 1 ] && ok "recipes-only: requires --recipes (errors without)" || bad "recipes-only missing-recipes guard"
 
 d="$BASE/ro"; mkdir -p "$d"
@@ -147,7 +158,7 @@ if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   PRE="MY EXISTING RULES"
   echo "$PRE" > "$d/$BASELINE"
 fi
-bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
 art="$(recipe_artifact "$d")"
 okay=true
 have "$art" || okay=false
@@ -155,17 +166,23 @@ have "$art" || okay=false
 if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   grep -q 'conductor:block recipes' "$art" || okay=false
   grep -q "$PRE" "$art" || okay=false
+  if [ "$TOOL" = "codex" ]; then
+    have "$d/.codex/conductor/recipes/tdd.md" || okay=false
+  fi
 else
   # per-file tools must NOT have emitted universal rules
   have "$d/$RULE" && okay=false
 fi
 $okay && ok "recipes-only: only recipe content landed" || bad "recipes-only emission"
 
-bash "$T" "$d" --uninstall >/dev/null 2>&1
+run_adapter "$d" --uninstall >/dev/null 2>&1
 okay=true
 if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   grep -q 'conductor:block' "$art" 2>/dev/null && okay=false
   grep -q "$PRE" "$art" 2>/dev/null || okay=false
+  if [ "$TOOL" = "codex" ]; then
+    have "$d/.codex/conductor/recipes/tdd.md" && okay=false
+  fi
 else
   have "$art" && okay=false
 fi
@@ -173,7 +190,7 @@ $okay && ok "recipes-only: uninstall lossless" || bad "recipes-only uninstall"
 
 # ---- reflector-only --------------------------------------------------------
 d="$BASE/reflonly"; mkdir -p "$d"
-bash "$T" "$d" --mode=reflector-only >/dev/null 2>&1
+run_adapter "$d" --mode=reflector-only >/dev/null 2>&1
 okay=true
 if [ "$TOOL" = "claude" ]; then
   # Claude's trajectory logger is the Stop hook, not the portable stdin logger.
@@ -192,13 +209,17 @@ case "$TOOL" in
   windsurf) { have "$d/.devin/rules/self-improvement.md" && have "$d/.windsurf/hooks.json" && [ ! -f "$d/.windsurfrules" ]; } || okay=false ;;
 esac
 $okay && ok "reflector-only: loop artifacts only" || bad "reflector-only emission"
-bash "$T" "$d" --uninstall >/dev/null 2>&1
-[ ! -d "$d/.conductor" ] && ok "reflector-only: uninstall clean" || bad "reflector-only uninstall"
+run_adapter "$d" --uninstall >/dev/null 2>&1
+if [ ! -d "$d/.conductor" ] || [ -z "$(find "$d/.conductor" -type f ! -path "$d/.conductor/model-routing.json" -print -quit 2>/dev/null)" ]; then
+  ok "reflector-only: uninstall clean"
+else
+  bad "reflector-only uninstall"
+fi
 
 # ---- zero valid recipes must fail (all tools) -------------------------------
 d="$BASE/ro-badname"; mkdir -p "$d"
-bash "$T" "$d" --mode=recipes-only --recipes=notarealrecipe >/dev/null 2>&1
-if [ $? -eq 1 ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+run_adapter "$d" --mode=recipes-only --recipes=notarealrecipe >/dev/null 2>&1
+if [ $? -eq 1 ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json.staging" ]; then
   ok "recipes-only: zero valid recipes → exit 1, no manifest/staging litter"
 else bad "recipes-only zero-valid-recipes guard"; fi
 
@@ -209,47 +230,52 @@ if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   d="$BASE/marker-collision"; mkdir -p "$d"
   printf 'USER PREFIX\n<!-- conductor:block recipes -->\nUSER CONTENT AFTER MARKER\n' > "$d/$BASELINE"
   before="$(/usr/bin/cksum < "$d/$BASELINE")"
-  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
   rc=$?
   after="$(/usr/bin/cksum < "$d/$BASELINE")"
-  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json.staging" ]; then
     ok "block: foreign/unpaired marker aborts without data loss"
   else bad "block: foreign marker collision (rc=$rc)"; fi
 
   d="$BASE/marker-foreign-paired"; mkdir -p "$d"
   printf 'USER PREFIX\n<!-- conductor:block recipes -->\nUSER BLOCK\n<!-- /conductor:block recipes -->\nUSER SUFFIX\n' > "$d/$BASELINE"
   before="$(/usr/bin/cksum < "$d/$BASELINE")"
-  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
   rc=$?
   after="$(/usr/bin/cksum < "$d/$BASELINE")"
-  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json.staging" ]; then
     ok "block: foreign paired marker aborts without data loss"
   else bad "block: foreign paired-marker collision (rc=$rc)"; fi
 
   d="$BASE/marker-custom-reinstall"; mkdir -p "$d"
-  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
-  /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE" && rm -f "$d/$BASELINE.bak"
+  run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  if [ "$TOOL" = "codex" ]; then
+    /usr/bin/sed -i.bak 's/`tdd`/`tdd-CUSTOMIZED`/' "$d/$BASELINE"
+  else
+    /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE"
+  fi
+  rm -f "$d/$BASELINE.bak"
   before="$(/usr/bin/cksum < "$d/$BASELINE")"
-  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
   rc=$?
   after="$(/usr/bin/cksum < "$d/$BASELINE")"
-  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor-manifest.json.staging" ]; then
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && [ ! -f "$d/.conductor/manifests/$TOOL.json.staging" ]; then
     ok "block: customized managed block is not overwritten on re-install"
   else bad "block: customized managed block overwritten (rc=$rc)"; fi
 
   d="$BASE/lossless"; mkdir -p "$d"
   printf 'MY EXISTING RULES\n' > "$d/$BASELINE"
   before="$(/usr/bin/cksum < "$d/$BASELINE")"
-  for _i in 1 2 3; do bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1; done
-  bash "$T" "$d" --uninstall >/dev/null 2>&1
+  for _i in 1 2 3; do run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1; done
+  run_adapter "$d" --uninstall >/dev/null 2>&1
   after="$(/usr/bin/cksum < "$d/$BASELINE")"
   [ "$before" = "$after" ] && ok "block: 3x reinstall + uninstall is byte-lossless" || bad "block: reinstall/uninstall not byte-lossless"
 
   d="$BASE/crossmode"; mkdir -p "$d"
   printf 'BASE\n' > "$d/$BASELINE"
-  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
-  bash "$T" "$d" --mode=reflector-only >/dev/null 2>&1
-  bash "$T" "$d" --uninstall >/dev/null 2>&1
+  run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  run_adapter "$d" --mode=reflector-only >/dev/null 2>&1
+  run_adapter "$d" --uninstall >/dev/null 2>&1
   if [ "$(grep -c 'conductor:block' "$d/$BASELINE" 2>/dev/null)" -eq 0 ] && grep -q 'BASE' "$d/$BASELINE"; then
     ok "block: cross-mode (recipes-only → reflector-only) uninstall strips BOTH blocks"
   else bad "block: cross-mode uninstall left an orphaned block"; fi
@@ -259,10 +285,15 @@ fi
 if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   d="$BASE/custom"; mkdir -p "$d"
   echo "BASE" > "$d/$BASELINE"
-  bash "$T" "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
+  run_adapter "$d" --mode=recipes-only --recipes=tdd >/dev/null 2>&1
   # mutate INSIDE the block
-  /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE" && rm -f "$d/$BASELINE.bak"
-  bash "$T" "$d" --uninstall >/dev/null 2>&1
+  if [ "$TOOL" = "codex" ]; then
+    /usr/bin/sed -i.bak 's/`tdd`/`tdd-CUSTOMIZED`/' "$d/$BASELINE"
+  else
+    /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE"
+  fi
+  rm -f "$d/$BASELINE.bak"
+  run_adapter "$d" --uninstall >/dev/null 2>&1
   if grep -q 'CUSTOMIZED' "$d/$BASELINE"; then
     ok "block: customized block left in place on uninstall"
   else bad "block: customized block was destroyed"; fi

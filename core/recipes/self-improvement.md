@@ -18,7 +18,8 @@ linked_rules:
 Observe → Reflect → Propose → (human GO) → Apply
 ```
 
-- **Observe** — a stop-hook logs a trajectory pointer each session (Claude adapter); git history and `docs/CURRENT_WORK.md` are always-available fallbacks.
+- **Observe** — each adapter's verified lifecycle hook logs a trajectory pointer;
+  git history and `docs/CURRENT_WORK.md` are always-available fallbacks.
 - **Reflect** — the `reflector` role reads the period's trajectories (success AND failure) and distils atomic lessons.
 - **Propose** — the reflector appends `ADD/UPDATE/STALE` deltas to `docs/REFLECTION-PROPOSALS.md`. This is the ONLY output. Nothing is written to memory or rules.
 - **Apply** — a human reviews the proposals like a diff and accepts/edits/rejects. On acceptance, the lesson becomes a `feedback_lesson-*.md` memory entry (see `core/memory-pattern/README.md`).
@@ -41,8 +42,13 @@ Run weekly (batch), or on demand via `/reflect`. To automate the weekly run, reg
 
 ## Per-tool automation
 
-- **Claude**: the `stop-trajectory-log` hook records pointers; a scheduled run (Routines / Desktop Scheduled Task / cron → `claude -p`) invokes the reflector weekly; `.conductor/reflect/prune-lessons.sh` keeps the store bounded; `/reflect` runs it on demand.
-- **Other tools**: the WHAT above is identical. Each adapter emits the trajectory hook, the native `/reflect` command, the reflector agent/rule, `.conductor/reflect/prune-lessons.sh`, and `.conductor/reflect/run-weekly.sh` + `reflect-brief.md` + `SCHEDULING.md`. Register `run-weekly.sh` with OS cron/launchd (or a native local scheduler where available) per `SCHEDULING.md`; the universal floor is running `/reflect` manually.
+- **All six adapters**: emit the nearest verified lifecycle hook, native `/reflect`
+  entry point, reflector agent/workflow, deterministic pruning utility, runner,
+  brief, and scheduling guide. Event names differ by product and Windsurf lacks a
+  session/Stop event, so its response hook is not represented as identical.
+- **Scheduling**: register `run-weekly.sh` with OS cron/launchd, or a verified native
+  local scheduler where available, per `SCHEDULING.md`. Manual `/reflect` is the
+  universal floor.
 
 ## Bounded store (deterministic prune)
 

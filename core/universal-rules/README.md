@@ -12,7 +12,7 @@ Per ADR-009 (`docs/DESIGN-DECISIONS.md`), the 17+ ABSOLUTE rules from production
 | `spec-as-you-go.md` | W3 same-turn spec, O1 real-time docs sync | ABSOLUTE | YES |
 | `quality-gates.md` | Q1 pre-commit review, Q2 pre-merge review, Q3 test sync, Q4 verify-after-changes | ABSOLUTE | YES |
 | `operations.md` | O2 session continuity, O3 completed-task delete, P3 dev/prod sync | ABSOLUTE | YES |
-| `meta-discipline.md` | M1 originality, ambiguity (AMB-1..7), M2 token economy, M3 model routing, M5 flat-with-leader | ABSOLUTE | YES |
+| `meta-discipline.md` | M1 originality, ambiguity (AMB-1..7), M2 token economy, M3 vendor-neutral difficulty routing, M5 flat-with-leader | ABSOLUTE | YES |
 
 The 5 bundles together are the universal floor. Project-specific concerns (web↔mobile parity, i18n, monorepo, branch-strategy specifics, auto-mock-data, coding-conventions specifics) live in `core/recipes/` as opt-in.
 
@@ -34,15 +34,20 @@ linked_rules:
 ---
 ```
 
-The `enforcement` list is informational — the actual hook installation happens in `core/hooks/*.template`, compiled by `adapters/<tool>/transform.sh` only on tools that natively support hooks (Claude Code as of v0.2). On other tools, `llm-self-discipline` is the only enforcement.
+The `enforcement` list is informational. Hook installation happens in
+`core/hooks/*.template` and is compiled only where CONDUCTOR has verified the
+tool's event/input/output contract: Claude receives the full guard set, Codex a
+verified `PreToolUse`/`Stop` subset, and the remaining adapters only their verified
+lifecycle/recipe hooks. Rule text remains the universal floor.
 
 ## Tool-specific callouts inside rule bodies
 
 When a rule cites a tool-only mechanism, fence it explicitly:
 
 ```markdown
-> **Claude-only mechanism**: `stop-session-log-check` Stop hook blocks session-end if CURRENT_WORK.md is stale.
-> Other tools: this rule's text serves as the reminder. Operator self-checks at session end.
+> **Claude/Codex mechanism**: `stop-session-log-check` uses the tool's verified
+> Stop-hook dialect when CURRENT_WORK.md is stale.
+> Cursor/Copilot/Gemini/Windsurf: this rule's completion checklist is the guard.
 ```
 
 Adapters do not strip these callouts. The honest acknowledgment of degraded enforcement is part of the framework promise.

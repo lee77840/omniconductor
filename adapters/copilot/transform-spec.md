@@ -1,6 +1,6 @@
 # GitHub Copilot adapter — transform.sh specification
 
-What `adapters/copilot/transform.sh` MUST do when implemented in P3.
+Normative behavior for the implemented `adapters/copilot/transform.sh`.
 
 ## Invocation
 
@@ -51,17 +51,16 @@ For each `core/universal-rules/<rule>.md`:
 2. Translate `applies_to:` array → CSV string for `applyTo:` (Copilot uses CSV glob syntax).
 3. If `always_loaded: true` → emit with `applyTo: '**'`.
 4. Else → emit with `applyTo: '<csv>'`.
-5. Body content preserved verbatim, except:
-   - `> **Copilot-only mechanism**` callouts: keep as-is.
-   - `> **Claude-only mechanism**` callouts: REPLACE with degraded callout: `> **Note (Copilot)**: enforced by hook on Claude Code; on Copilot, follow self-policed.`
-   - Other tool-specific callouts: STRIP.
+5. Preserve capability-aware callouts from the universal source. Never rewrite a
+   Claude + Codex shared guard as Claude-only, and never claim that Copilot emits
+   a local guard that the adapter does not install.
 
 ## Repo-wide baseline (`.github/copilot-instructions.md`)
 
 In the default mode, the 5 universal rules are concatenated (body only) into `.github/copilot-instructions.md`. Body composition (in order):
 
-1. Header: orchestrator manual intro adapted for Copilot Chat (single-session, no sub-agents).
-2. ABSOLUTE rules (R1-R8 minus sub-agent-specific R1, plus a Copilot-specific note about PR review for Stage B).
+1. Header: orchestrator manual intro adapted for Copilot Chat and its native custom-agent surface.
+2. ABSOLUTE rules plus the native eight-role topology and a Copilot-specific note about PR review for Stage B; omit only contracts the adapter cannot verify.
 3. All universal-rule content where `always_loaded: true`.
 4. Pointer to `docs/CURRENT_WORK.md` as session-start read.
 

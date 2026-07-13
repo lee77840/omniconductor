@@ -106,7 +106,8 @@ hooks:
 
 Per-tool transformations:
 
-- **Claude Code**: keep as-is in `docs/specs/<area>.md`. Stop-hook checks for stale frontmatter when source files in that area are touched.
+- **Claude Code / Codex**: keep as-is in `docs/specs/<area>.md`. The verified
+  Stop-hook contract checks the same session/spec completion conditions.
 - **Cursor / Copilot / Windsurf**: same file path, frontmatter preserved. Tool-specific scoping (`globs:` / `applyTo:`) added by the relevant adapter when the file lives under `.cursor/rules/` or `.github/instructions/`.
 - **Gemini / Codex**: file is referenced by path inside the single GEMINI.md / AGENTS.md.
 
@@ -116,11 +117,11 @@ Per-tool transformations:
 
 | Mechanism | Trigger | Action |
 |---|---|---|
-| `stop-session-log-check` (Claude hook) | Recent commit + stale CURRENT_WORK.md | Block stop, inject reminder |
-| `stop-session-log-check` (Claude hook) | Source files changed > 3 + zero spec files touched | Block stop, inject "spec-as-you-go" reminder |
-| Rule text (other tools) | Same as above | Manual reminder; user catches |
+| `stop-session-log-check` (Claude/Codex hook) | Recent commit + stale CURRENT_WORK.md | Block or reject completion with a reminder in the tool's verified hook dialect |
+| `stop-session-log-check` (Claude/Codex hook) | Source files changed > 3 + zero spec files touched | Reject completion with a spec-as-you-go reminder |
+| Rule text (Cursor/Copilot/Gemini/Windsurf) | Same as above | Completion checklist; operator verifies |
 
-For tools without hook support, the orchestrator MUST self-check before declaring a turn complete:
+When this specific guard is not emitted, the orchestrator MUST self-check before declaring a turn complete:
 
 1. Did this turn write to source files? → spec update done?
 2. Did this turn produce a commit? → CURRENT_WORK.md updated?

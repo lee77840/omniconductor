@@ -18,12 +18,12 @@ bash adapters/claude/transform.sh <target>
 CLAUDE.md                                  # Slim orchestrator manual (~200 lines)
 .claude/
 ├── agents/
-│   ├── planner.md                         # Architecture / ADR / gap analysis (Opus)
-│   ├── builder.md                         # Multi-file implementation (Opus)
-│   ├── reviewer.md                        # Plan validation (Opus)
-│   ├── helper.md                          # Single-file routine work (Sonnet)
-│   ├── designer.md                        # UI / visual / theming (Sonnet)
-│   └── scribe.md                          # Docs sync (Sonnet)
+│   ├── planner.md                         # Architecture / ADR / gap analysis (Tier 1)
+│   ├── builder.md                         # Multi-file implementation (Tier 1)
+│   ├── reviewer.md                        # Plan validation (Tier 1)
+│   ├── helper.md                          # Single-file routine work (Tier 2)
+│   ├── designer.md                        # UI / visual / theming (Tier 2)
+│   └── scribe.md                          # Docs sync (Tier 2)
 ├── rules/
 │   ├── workflow.md                        # Plan→Arch→Tasks→Impl→Review→Spec phases
 │   ├── spec-as-you-go.md                  # Spec discipline enforcement
@@ -96,15 +96,14 @@ docs/
 - All universal rule TEXT (workflow, spec-as-you-go, quality-gates, operations, meta-discipline).
 - All doc templates.
 
-### What is LOST vs Claude
+### Capability boundary vs Claude
 
-| Lost feature | Workaround |
+| Boundary | CONDUCTOR behavior |
 |---|---|
-| Sub-agent dispatch | Human plays orchestrator role manually. Use the orchestrator manual section of `.cursorrules` as the prompt template when starting a complex task. |
-| Stop hook spec enforcement | Rule text reminds the user. Self-policed. |
-| PreToolUse hooks | Not available. |
-| Per-call model routing | Cursor uses one model per session; switch sessions to switch model. |
-| Custom agent slash commands | Cursor project commands cover SOME of this; documented in `adapters/cursor/notes.md` (P2). |
+| Native agents | Eight `.cursor/agents` profiles are emitted, including separate plan/code reviewers and Tier 3 utility. |
+| Stop/PreTool guard coverage | Cursor supports hooks, but CONDUCTOR emits only contracts verified by this adapter; remaining obligations stay in rule text or Git/CI. |
+| Per-role model routing | First setup saves Tier models into native `.cursor/agents` profiles; account/plan/admin fallback remains possible. |
+| Commands/skills | The Reflector skill is emitted when selected; ordinary roles use native agent dispatch. |
 | Built-in memory directory | User creates `.memory/` at project root (gitignored). Same 4-type pattern. |
 
 ---
@@ -137,14 +136,13 @@ docs/                                       # (same as above)
 - All doc templates.
 - Copilot's PR review feature can take Stage B prompts manually.
 
-### What is LOST vs Claude
+### Capability boundary vs Claude
 
-| Lost feature | Workaround |
+| Boundary | CONDUCTOR behavior |
 |---|---|
-| Sub-agent dispatch | Manual orchestrator role. |
-| Hooks / Stop enforcement | Rule reminder only; rely on Copilot PR review for Stage B. |
-| Custom agents | Manual prompts. |
-| Per-call model routing | Copilot Chat lets the user choose model in the UI; no programmatic routing. |
+| Native agents | Eight `.github/agents` profiles are emitted, including separate plan/code reviewers and Tier 3 utility. |
+| Hook coverage | Only verified Copilot lifecycle contracts are emitted; use rule text, Git/CI, and Copilot PR review for remaining gates. |
+| Per-role model routing | First setup saves Tier models in `.github/agents`; plan/client/organization policy remains authoritative. |
 | Memory directory | DIY (`.memory/`). |
 
 ---
@@ -179,11 +177,11 @@ docs/                                       # (same as above)
 
 | Lost feature (vs Claude emission) | Workaround |
 |---|---|
-| Sub-agent dispatch (role agents not emitted — Gemini has native sub-agents, ADR-031) | Manual orchestrator role. |
+| Claude's exact agent schema | Eight equivalent native profiles are emitted in `.gemini/agents/`. |
 | Per-pattern rule scoping | All rules always-loaded; no per-file routing (Gemini scopes by nested-file hierarchy, not glob). |
 | Guard hooks (not emitted — Gemini has native hooks, ADR-031) | Self-police; the Reflector session-end hook IS emitted via `--recipes=self-improvement`. |
-| Custom agents | Manual prompts (reflector agent emitted via the recipe). |
-| Per-call model-routing config | Pick the model per task via Gemini's own model selection. |
+| Full mechanical guard set | Only verified Gemini lifecycle hooks are emitted; remaining guards are workflow obligations. |
+| Per-role model-routing config | First setup recommends `pro` / `flash` / `flash-lite` and writes the saved mapping into Gemini agents. |
 | Memory directory | DIY at `.memory/`. |
 
 Gemini's strength is large-context exploration (its rule bundle being always-loaded is fine for that use case).
@@ -199,24 +197,34 @@ bash adapters/codex/transform.sh <target>
 # or: node bin/omniconductor.js init --target=codex <target>
 ```
 
-Produces `AGENTS.md` (all 5 universal rules + compressed workflow concatenated; role personas are not emitted — Phase 2, ADR-034). Output is emit-verified (`validate-adapter-output.sh codex` PASS); Codex is additionally live-verified via the automated headless probe (`tools/live-verify.sh`) — current status in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 4 — Codex (OpenAI)" remains as a fallback.
+Produces a bounded `AGENTS.md` kernel, complete `.codex/conductor/` rule/recipe references,
+eight native `.codex/agents/*.toml` roles, and a verified Codex-native hook subset. Output is
+emit-verified and its actual model input is locally inspectable with `codex debug prompt-input`.
 
 ### Files produced
 
 ```
-AGENTS.md                                   # All 5 universal rules + compressed workflow concatenated
+AGENTS.md                                   # bounded always-loaded execution kernel
+.codex/conductor/rules/*.md                 # complete universal-rule references
+.codex/conductor/recipes/*.md               # selected complete recipes
+.codex/agents/*.toml                        # 8 role profiles, including code-reviewer and utility
+.codex/hooks.json                           # native PreToolUse / Stop registry
+.codex/hooks/*.sh                           # commit, session, review, and recipe guards
 docs/                                       # (same as above)
 ```
 
 ### What works
 
-- Single-file always-loaded rule bundle (`AGENTS.md`).
-- All universal rule TEXT.
+- Bounded always-loaded execution contract (`AGENTS.md`).
+- Complete universal-rule text routed on demand under `.codex/conductor/rules/`.
+- Native role separation, including a distinct post-implementation code-reviewer.
+- Saved Sol/Terra/Luna recommendations with independent high/medium/low effort.
+- Commit/current-work/test, session/spec, and pre-merge review guards.
 - All doc templates.
 
-### What is LOST vs Claude
+### Capability boundary vs Claude
 
-Same as Gemini (single-bundle rule file, guard hooks and role agents not emitted — the tool supports hooks/sub-agents natively, ADR-031; emission is Phase 2). Codex shines at shell-driven scripting and headless automation (`codex exec`); the rule text serves as the working discipline for the session.
+Codex does not receive Claude-only `Agent`/`Read` hook matchers or Hookify rules. Codex `PreToolUse` soft warnings use `additionalContext`; the unsupported `permissionDecision: "ask"` shape is never active. Because Codex hook interception is not a complete enforcement boundary, workflow text and human review still matter. Run `/hooks` after install or hook changes to review and trust project hooks.
 
 ---
 
@@ -256,11 +264,11 @@ docs/                                       # (same as above)
 
 | Lost feature (vs Claude emission) | Workaround |
 |---|---|
-| Sub-agent dispatch (role agents not emitted — Devin Local has native sub-agents, ADR-031) | Manual orchestrator. |
+| Project custom-agent profiles | Eight native `.windsurf/workflows/*.md` role entry points; no unverified profile path is claimed. |
 | Per-pattern rule scoping | All rules loaded together; no glob-based routing (tool-side). |
 | Guard hooks | Windsurf has hooks but **no session/stop events** (the one real tool-side gap, ADR-031) — Stop-style enforcement isn't possible; the Reflector trajectory hook IS emitted via `--recipes=self-improvement`. |
-| Custom agents | Manual prompts (`/reflect` manual rule emitted via the recipe). |
-| Per-call model-routing config | Pick the model per task via the tool's own model selection. |
+| Role entry points | Eight native workflows are emitted; `/reflect` is added by the self-improvement recipe. Windsurf does not expose a verified workflow-local model field. |
+| Model-routing config | Setup saves Adaptive and workflows require the user to select it in Cascade; there is no enforceable workflow model field. |
 | Memory directory | DIY at `.memory/`. |
 
 ---

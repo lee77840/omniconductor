@@ -6,23 +6,23 @@ The beliefs CONDUCTOR is built on. If you disagree with any of these, you will f
 
 ### 1. Discipline is portable. Enforcement is not.
 
-You can write down "always update the spec when you change the code" and it will read the same in any tool. But ONLY Claude Code can block your commit when you skip it. CONDUCTOR's job is to make the discipline portable across every tool — and to be honest that the *enforcement* degrades on tools that lack hooks.
+You can write down "always update the spec when you change the code" and it will read the same in any tool. CONDUCTOR's job is to make that discipline portable across every tool while describing the verified enforcement precisely: Claude Code receives the full guard set, Codex receives the verified native subset, and the other four adapters receive their verified lifecycle/recipe hooks plus explicit workflow obligations.
 
-The wrong move would be to fake enforcement (e.g., shell out from Cursor to run a check). That breaks fragile, surprises users, and lies about the model. Better: install the rule text on every tool and tell the user explicitly "your tool cannot block this; police it yourself."
+The wrong move would be to fake unsupported enforcement. That is fragile, surprises users, and lies about the platform contract. Better: emit the strongest verified native mechanism for each tool and state the remaining manual obligation explicitly.
 
 ### 2. Sub-agent isolation is a feature, not a bug.
 
-In Claude Code, sub-agents do NOT inherit `CLAUDE.md`. Every dispatch must be self-contained. People complain this is verbose; it is — on purpose. Verbose dispatches are documentation of intent. Read 10 of your own old dispatches and you'll learn what you actually meant six months ago.
+Every adapter exposes the same eight base roles through its native role surface: Claude agents, Cursor agents, Copilot custom agents, Gemini agents, Codex agent profiles, or Windsurf workflows. A dispatch must still be self-contained because role context and project instruction inheritance differ by product. Verbose dispatches are documentation of intent. Read 10 of your own old dispatches and you'll learn what you actually meant six months ago.
 
-On non-Claude tools, there are no sub-agents. The orchestrator pattern still applies, but the human plays the orchestrator role manually: classify the task, choose the right "agent persona" mentally, write a self-contained prompt. Less automated, same discipline.
+The orchestrator pattern is therefore portable: classify the task, choose the matching native role entry point, and supply the complete scope and acceptance criteria. The invocation syntax differs; the role topology and responsibility split do not.
 
 ### 3. Spec drift is the silent killer.
 
-Every team starts with great docs. Six months later, the docs lie. New contributors trust the lie. Bugs ship. CONDUCTOR makes spec updates ABSOLUTE — Claude blocks the push via Stop hook; on other tools, the rule text reminds the user every session. The reminder is annoying on purpose. The alternative is months-old docs misleading the next agent (or the next human, or future-you).
+Every team starts with great docs. Six months later, the docs lie. New contributors trust the lie. Bugs ship. CONDUCTOR makes spec updates ABSOLUTE — Claude and Codex receive verified completion guards, while the other adapters carry the same mandatory completion checklist through their native instruction surfaces. The reminder is annoying on purpose. The alternative is months-old docs misleading the next agent (or the next human, or future-you).
 
 ### 4. Two-stage review is cheap insurance.
 
-Stage A (local pre-commit) catches the obvious mistakes before history records it. Stage B (PR pre-merge) provides an audit trail. Both run in seconds via specialized review agents (Claude) or rule reminders (other tools). Skip them once and you'll merge a regression you knew about.
+Stage A (local pre-commit) catches the obvious mistakes before history records it. Stage B (PR pre-merge) provides an audit trail. Both use the same independent `code-reviewer` role exposed by all six adapters; guard automation remains capability-specific. Skip them once and you'll merge a regression you knew about.
 
 ### 5. Token economy isn't optional.
 

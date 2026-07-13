@@ -1,6 +1,6 @@
 # Claude Code adapter — transform.sh specification
 
-What `adapters/claude/transform.sh` MUST do when implemented in P1.
+Normative behavior for the implemented `adapters/claude/transform.sh`.
 
 ## Invocation
 
@@ -30,7 +30,7 @@ core/docs-templates/INDEX.md
 core/docs-templates/specs/_example.md
 core/memory-pattern/README.md
 core/memory-pattern/EXAMPLES.md
-core/roles/*.md                                        # 6 role personas → .claude/agents/ (planner/builder/reviewer/helper/designer/scribe)
+core/roles/*.md                                        # 8 base roles → .claude/agents/ (including code-reviewer + utility)
 core/hooks/*.sh.template                               # 10 hook templates
 adapters/claude/_native/CLAUDE.md.tpl                  # Claude-specific orchestrator manual template
 ```
@@ -78,9 +78,9 @@ For each `core/universal-rules/<rule>.md`:
    ---
    ```
    (where `<globN>` are the values from `applies_to:`).
-4. Body content is preserved verbatim, except:
-   - Tool-specific callout markers (`> **Claude-only mechanism**: ...`) — keep as-is (they describe Claude's mechanism, accurate here).
-   - Tool-specific callout markers for OTHER tools (`> **Cursor / Copilot / Gemini / Codex / Windsurf**: ...`) — STRIP (not relevant to Claude users).
+4. Preserve capability-aware callouts from the universal source. Claude receives
+   its full verified hooks, but a behavior shared with Codex must not be relabeled
+   as Claude-only.
 
 ## Memory pattern handling
 
@@ -120,7 +120,7 @@ test -d "<target>/docs/specs"                          || echo "MISSING docs/spe
 test -x "<target>/.claude/hooks/stop-session-log-check.sh" || echo "HOOK NOT EXECUTABLE"
 
 # Open Claude Code in <target> and run /help
-# Verify: 6 agents listed; rules load on file-pattern match; hooks fire on Stop.
+# Verify: 8 universal agents listed; rules load on file-pattern match; hooks fire on Stop.
 ```
 
 ## Diff parity vs v0.1

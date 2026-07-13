@@ -6,9 +6,9 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v1.0.1 — 2026-07-09)**: All 6 adapters ship a working `transform.sh` — **Claude Code** (full: rules + hooks + sub-agents + per-call model routing), **Cursor**, **GitHub Copilot** (one install covers 5 IDEs), **Gemini CLI** (`GEMINI.md` + `.gemini/styleguide.md`), **Codex** (`AGENTS.md`), **Windsurf / Devin Desktop** (`.windsurfrules` + `.devin/rules/*.md`). This release is ready for npm publication as [`omniconductor`](https://www.npmjs.com/package/omniconductor). Output is emit-verified (format-validator + CI on all 6); **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), the rest are live-pending — current per-tool status in the generated table in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.1.0 — 2026-07-13)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status remains in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.0.1**: manifest-backed install/uninstall is now checksum-safe: user-modified emitted files are retained, original baselines survive re-installs, and Gemini/Codex only replace manifest-owned, unmodified marked blocks. 1.0 introduced install modes, anti-drift guards, `doctor`, generated doc tables, and live verification. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.1.0**: the first CLI install now asks once for Tier 1/2/3 models, saves a revisioned project mapping, regenerates native roles on explicit reconfiguration, fails closed in unconfigured CI, and distinguishes configured, provider-controlled, and advisory routing. It also includes the six-adapter runtime/ownership and bounded Codex-kernel hardening. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -43,15 +43,23 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 - **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 문서 템플릿, 4-type 메모리 패턴
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules`)
-- **Layer 3 — Tool-native (정직한 한계)**: 2026년 기준 6개 도구 모두 hooks·sub-agent·per-call model routing 을 **지원**한다 (ADR-031). 다만 CONDUCTOR 어댑터가 이를 실제로 **emit 하는 건 현재 Claude 뿐** (나머지는 Phase 2). "도구가 못 함"이 아니라 "CONDUCTOR emission gap" 임을 정직하게 문서화 — ADR-004 / ADR-031. (Windsurf 는 session/stop hook 이벤트가 없는 유일한 실제 예외.)
+- **Layer 3 — Tool-native (정직한 한계)**: full/strict 설치는 Claude·Cursor·Copilot·Gemini·Codex의 8개 네이티브 역할 파일을 생성하고, Windsurf에는 확인된 커스텀 에이전트 파일 계약 대신 8개 역할 워크플로를 설치한다. Claude는 전체 가드 훅, Codex는 검증된 `PreToolUse`/`Stop` 부분집합, 나머지는 검증된 Reflector 훅만 생성한다. 지원되지 않는 계약은 가짜로 폴리필하지 않는다 (ADR-004 / ADR-045/049).
 
 ### 강제하는 워크플로
 
 1. **Plan → Architecture → Tasks → Implementation → Review → Spec** (skip 금지)
-2. **Spec-as-you-go** — 코드 변경 시 `docs/specs/*.md` 동시 업데이트 (Claude 는 Stop hook 으로 강제, 다른 도구는 룰 reminder)
+2. **Spec-as-you-go** — 코드 변경 시 `docs/specs/*.md` 동시 업데이트 (Claude/Codex는 Stop hook 검증, 나머지는 룰 reminder)
 3. **2-stage 코드 리뷰** — pre-commit + pre-merge
 4. **Token economy** — large-file Read 금지 / Grep first / range read
-5. **Model routing** — Opus / Sonnet / Haiku 자동 분류 (Claude 전용 자동 enforcement, 다른 도구는 룰 텍스트 reminder)
+5. **Difficulty routing** — 기존 Tier 1/2/3 난이도를 고정하고, 최초 설치에서 승인한 도구별 모델과 reasoning effort로 변환
+
+최초 `npx omniconductor init`은 설치된 도구들의 추천 Tier 매핑을 한 번에
+보여주고 “추천 그대로 / 사용자 지정”을 묻습니다. 선택은
+`.conductor/model-routing.json`에 저장되어 재설치부터는 다시 묻지 않으며,
+`omniconductor models configure`로 변경합니다. 새 모델이 출시되어도 Tier
+판정은 바뀌지 않고, 사용할 수 없어진 정확한 ID는 자동 하향하지 않고
+재설정을 요구합니다. 세부 정책은
+[`docs/MODEL-ROUTING.md`](docs/MODEL-ROUTING.md)를 참고하세요.
 
 ### 빠른 시작 — 5분
 
@@ -73,13 +81,13 @@ bash ~/conductor/adapters/claude/transform.sh . \
 bash ~/conductor/adapters/claude/transform.sh . \
   --recipes=monorepo,coding-conventions
 
-# 5. Claude Code 재시작 → /agents 로 6 에이전트 확인
+# 5. Claude Code 재시작 → /agents 로 8개 기본 역할 확인
 ```
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — `<tool>` = `claude` / `cursor` / `copilot` / `gemini` / `codex` / `windsurf`. `list` · `doctor` (설치 상태 진단, 읽기 전용) · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` (v1.0: `full`/`minimal`/`strict`/`recipes-only`/`reflector-only` — Spec Kit·BMAD 와 공존용 à-la-carte 포함) · `--uninstall` 지원.
-- **Path B — bash 어댑터**: CONDUCTOR 클론 후 `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
+- **Path B — 로컬 bash 래퍼**: CONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
 
@@ -124,7 +132,7 @@ Three layers:
 
 - **Layer 1 (`core/`) — Universal**: tool-agnostic workflow definitions, rule text, doc templates, 4-type memory pattern.
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: per-tool transform script that reads `core/` and writes tool-native files.
-- **Layer 3 — Tool-native (honest limits)**: as of 2026 **all six tools ship hooks, sub-agents, and per-call model routing** (ADR-031) — but CONDUCTOR's adapters currently *emit* them for **Claude only** (the rest is Phase 2). The honest limit is CONDUCTOR's emission gap, not a tool limitation, and nothing is fake-polyfilled. See ADR-004 / ADR-031. (Windsurf / Devin Desktop is the one real exception — no session/stop hook events.)
+- **Layer 3 — Tool-native (honest limits)**: full/strict installs emit eight native role files for Claude, Cursor, Copilot, Gemini, and Codex. Windsurf receives eight native role workflows because no project-local custom-agent profile contract has been verified. Claude gets the full guard set; Codex gets the verified `PreToolUse`/`Stop` subset; other adapters emit only hooks whose native contract is verified. Unsupported contracts are never fake-polyfilled (ADR-004 / ADR-045/049).
 
 ### Why this exists
 
@@ -135,14 +143,23 @@ Three layers:
 ### Workflow enforced
 
 1. **Plan → Architecture → Tasks → Implementation → Review → Spec** (no skipping)
-2. **Spec-as-you-go**: code change touches matching `docs/specs/*.md` (auto-blocked by Stop hook on Claude; rule-text reminder elsewhere)
+2. **Spec-as-you-go**: code change touches matching `docs/specs/*.md` (checked by Stop hooks on Claude/Codex; rule-text reminder elsewhere)
 3. **Two-stage code review**: pre-commit + pre-merge PR
 4. **Token economy**: no large-file reads, Grep first, range reads
-5. **Model routing**: Opus / Sonnet / Haiku triage (Claude auto-enforced; rule text only elsewhere)
+5. **Difficulty routing**: preserve Tier 1/2/3, then compile the one-time saved per-tool model mapping and reasoning effort
+
+The first `npx omniconductor init` shows all selected adapters and asks once whether
+to accept the recommended Tier mappings or customize them. The project saves the
+choice in `.conductor/model-routing.json`; reinstall reuses it and
+`omniconductor models configure` changes it. Provider releases never change Tier
+classification, and an unavailable exact model is never silently downgraded. See
+[`docs/MODEL-ROUTING.md`](docs/MODEL-ROUTING.md).
 
 ### Quick Start (5 minutes, Claude)
 
-> Simplest (no clone): `npx omniconductor init --target=claude .` — the clone+bash steps below are equivalent.
+> Simplest (no clone): `npx omniconductor init --target=claude .` — recommended
+> because it needs no clone. The clone+bash path below requires Node.js and
+> delegates to the same CLI, so it performs the identical one-time saved model setup.
 
 ```bash
 git clone https://github.com/lee77840/omniconductor ~/conductor
@@ -152,7 +169,7 @@ bash ~/conductor/adapters/claude/transform.sh . \
   --dry-run                      # preview
 bash ~/conductor/adapters/claude/transform.sh . \
   --recipes=monorepo,coding-conventions
-# Restart Claude Code → /agents → confirm 6 agents loaded
+# Restart Claude Code → /agents → confirm 8 base roles loaded
 ```
 
 Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](#cross-platform-mac-and-windows).
@@ -163,25 +180,25 @@ Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](
 
 Separate two things (per [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md), re-verified against first-party sources 2026-07-04, ADR-031):
 
-- **Tool capability** — as of 2026, **all six tools ship hooks, sub-agents, custom named agents, per-task model routing, and commands.** The old "these are Claude-only" view is out of date. (Windsurf / Devin Desktop is the one partial: it has hooks but no session/stop events.)
-- **CONDUCTOR emission** — what an adapter actually *compiles to today*. Claude emits the full set; every tool also emits the opt-in Reflector loop (ADR-032/033). Emitting the rest of the hook / agent set on the five non-Claude adapters is **Phase 2**.
+- **Tool capability** — capability varies by product and version; the matrix records only verified native surfaces.
+- **CONDUCTOR emission** — every full/strict adapter now emits a role entry in the strongest verified native form. Hook coverage remains capability-specific: full on Claude, a verified guard subset on Codex, and verified recipe/runtime hooks elsewhere.
 
-The columns below show **CONDUCTOR emission today** (⚠️ = the tool supports it, adapter emission is Phase 2 — a CONDUCTOR gap, not a tool limitation):
+The columns below show **CONDUCTOR emission today**:
 
-| Tool | Adapter (rules) | Hooks | Sub-agents | Model routing | Recommended install |
+| Tool | Adapter (rules) | Hooks | Sub-agents | Difficulty/model translation | Recommended install |
 |---|---|---|---|---|---|
-| **Claude Code** | ✅ Full, lazy load | ✅ emitted (Stop / PreToolUse) | ✅ emitted (6 named agents; 7 with `self-improvement`) | ✅ emitted (per-call `model:`) | `bash adapters/claude/transform.sh <target>` |
-| **Cursor** | ✅ Full, lazy load (`.mdc` globs) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design (ADR-004) | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/cursor/transform.sh <target>` |
-| **GitHub Copilot** | ✅ Full (`applyTo:` scoping) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/copilot/transform.sh <target>` — 1 install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
-| **Gemini CLI** | ✅ Full (`GEMINI.md`) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/gemini/transform.sh <target>` (+ `.gemini/styleguide.md` opt-in) |
-| **Codex (OpenAI)** | ✅ Full (`AGENTS.md`) | ⚠️ tool ✅ · emit Phase 2 | ⚠️ tool ✅ · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/codex/transform.sh <target>` |
-| **Windsurf / Devin Desktop** | ✅ Full (`.windsurfrules` + `.devin/rules/*`) | ⚠️ partial (no session/stop events) · emit Phase 2 | ⚠️ tool ✅ (Devin Local) · Claude-only by design | ⚠️ tool ✅ · emit Phase 2 | `bash adapters/windsurf/transform.sh <target>` |
+| **Claude Code** | ✅ Full, lazy load | ✅ full Stop / PreToolUse set | ✅ 8 roles (+ reflector recipe) | Saved Opus / Sonnet / Haiku | `bash adapters/claude/transform.sh <target>` |
+| **Cursor** | ✅ Full, lazy load (`.mdc` globs) | Reflector hook when selected | ✅ 8 `.cursor/agents` profiles | Saved exact Tier models; provider fallback disclosed | `bash adapters/cursor/transform.sh <target>` |
+| **GitHub Copilot** | ✅ Full (`applyTo:` scoping) | Reflector hook when selected | ✅ 8 `.github/agents` profiles | Saved exact Tier models; policy risk disclosed | `bash adapters/copilot/transform.sh <target>` |
+| **Gemini CLI** | ✅ Full (`GEMINI.md`) | Reflector hook when selected | ✅ 8 `.gemini/agents` profiles | Saved `pro` / `flash` / `flash-lite` recommendation | `bash adapters/gemini/transform.sh <target>` |
+| **Codex (OpenAI)** | ✅ Bounded `AGENTS.md` kernel + complete `.codex/conductor/` references | ✅ verified commit/session/review guards | ✅ 8 `.codex/agents` profiles | Saved Sol / Terra / Luna + Tier effort | `bash adapters/codex/transform.sh <target>` |
+| **Windsurf** | ✅ Full (`.windsurfrules` + `.devin/rules/*`) | Reflector response hook when selected | ✅ 8 invocable role workflows | Adaptive advisory-session | `bash adapters/windsurf/transform.sh <target>` |
 
 Full per-feature matrix + first-party footnotes: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` (published to npm) — or `node bin/omniconductor.js init --target=<tool> <dir>` from a local clone — dispatches to these same adapter scripts, with `list`, `--dry-run`, `--recipes=`, and `--uninstall`. **`npx omniconductor doctor <dir>`** (v0.8+) health-checks an existing install read-only — manifest validity, version drift, file integrity, stale legacy paths, hook validity, doc links, stale claims — exit 0/1/2 (`--json` for machines).
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` performs the one-time model setup, then dispatches to the adapter scripts. `models configure/show`, `list`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing.
 
-> **What you keep going Claude → other tools**: all rule text, doc templates, the 4-type memory pattern, the workflow phases, and the opt-in Reflector loop (emitted on all six). **What is still Claude-only in CONDUCTOR's *emission* today**: auto-blocking hooks, per-call model routing, sub-agent dispatch — a Phase-2 emission gap, **not** a tool limitation (the tools support them; Windsurf is the one real exception, for Stop-style hooks). The discipline is portable; the enforcement is becoming portable as adapter emission catches up.
+> **What you keep going Claude → other tools**: rule text, docs, workflow phases, the eight-role topology including Tier 3 utility, and the opt-in Reflector loop. Mechanical guard coverage is intentionally not claimed as identical: each adapter emits only contracts verified for that product.
 
 ---
 
@@ -199,15 +216,21 @@ npx omniconductor init --target=claude ~/your-project --recipes=coding-conventio
 # targets: claude | cursor | copilot | gemini | codex | windsurf
 
 npx omniconductor list                                # list the 6 adapters
+npx omniconductor models show .                       # inspect saved Tier mappings
+npx omniconductor models configure --target=all .     # change mappings
 npx omniconductor init --target=claude . --dry-run --no-prompt   # preview, writes nothing
+npx omniconductor init --target=all . --no-prompt --accept-model-defaults  # explicit noninteractive setup
 npx omniconductor init --target=claude . --uninstall             # revert
 ```
 
-> **VSCode Marketplace extension** — a Cmd/Ctrl+Shift+P "install" launcher — is **NOT yet published**. It is optional future work (Phase 2 / v0.3; scaffold under [`phase-2/vscode-extension/`](./phase-2/vscode-extension/), procedure in [`docs/PUBLISH-GUIDE.md`](./docs/PUBLISH-GUIDE.md)). `npx omniconductor` and the bash adapter (Path B) already cover every install — the extension would only add a GUI button, and (per ADR-025) it still needs a local clone to run, so `npx` is the better path. Searching the Marketplace today will **not** find it.
+> **VSCode Marketplace extension** — a Cmd/Ctrl+Shift+P "install" launcher — is **NOT yet published**. It is optional future work (Phase 2 / v0.3; the source-repository scaffold is under `phase-2/vscode-extension/`, and the procedure is in [`docs/PUBLISH-GUIDE.md`](./docs/PUBLISH-GUIDE.md)). `npx omniconductor` and the bash adapter (Path B) already cover every install — the extension would only add a GUI button, and (per ADR-025) it still needs a local clone to run, so `npx` is the better path. Searching the Marketplace today will **not** find it.
 
-### Path B — bash adapter (Phase 1 — recommended today)
+### Path B — local bash wrapper (Node.js required)
 
-Single command per tool. Adapter detects the target's existing state, runs an interactive wizard for adopter cases, and writes idempotent output with timestamped backups.
+Single command per tool after cloning the repository. Each wrapper requires
+Node.js and delegates to the same CLI used by Path A, including the one-time
+project-saved Tier setup, then runs the adapter with exact argument boundaries.
+Output remains idempotent with timestamped backups.
 
 #### Mac / Linux
 
@@ -263,7 +286,7 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 | Platform | Status | Shell | Notes |
 |---|---|---|---|
 | **macOS** (zsh, bash) | ✅ Reference platform | zsh / bash | Native bash 3.2 works; bash 5.x via Homebrew also supported. |
-| **Linux** (Ubuntu, Debian, Fedora, Arch) | ✅ Supported | bash | Primary dev + validation environment (`tools/validate-adapter-output.sh`; automated CI is a roadmap item). |
+| **Linux** (Ubuntu, Debian, Fedora, Arch) | ✅ Supported | bash | Supported by the local validation suite and manual-only GitHub release workflows. |
 | **Windows / Git Bash** | ✅ Supported | bash from MSYS2 | Bundled with Git for Windows. |
 | **Windows / WSL2 (Ubuntu)** | ✅ Supported | bash | Treat as Linux. |
 | **Windows / PowerShell** | ❌ Phase 3+ (ADR-023) | — | Use Git Bash or WSL2. |
@@ -299,8 +322,8 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 | `database-discipline` | Relational store + migrations + dev/prod split | Migration-first schema changes, access-control on new tables, dev/prod parity |
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
 | `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads recent session trajectories + git and **proposes** lessons-learned to `docs/REFLECTION-PROPOSALS.md` (propose-only; you apply). Emits a session-end trajectory hook, a `/reflect` command, a reflector agent, a deterministic prune, and a weekly runner + scheduling guide — on all six tools. See ADR-030/032/033. |
-| `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7): no unrequested worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (verify by real code), no reckless force/rebase on shared repos, bundle PRs for CI, session-end hygiene check. Claude adds a non-blocking Stop-hook reminder; other tools use the rule text. See ADR-037. |
-| `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Grounded in the research that self-correction without an external check is unreliable. Claude adds a non-blocking PreToolUse loop-guard (repeat/runaway detection); other tools use the rule text. See ADR-038. |
+| `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7): no unrequested worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (verify by real code), no reckless force/rebase on shared repos, bundle PRs for CI, session-end hygiene check. Claude and Codex add verified non-blocking Stop reminders; other adapters install the checklist. See ADR-037/045. |
+| `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Claude and Codex add verified `PreToolUse` reminders in their own hook dialects; other adapters install the rule text. See ADR-038/045. |
 
 #### Decision tree
 
@@ -343,12 +366,13 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 |---|---|
 | `<target-project>` | Project directory to install into (required). `.` for current dir. |
 | `--recipes=A,B,C` | Comma-separated recipes from the 13 in `core/recipes/`. |
-| `--mode=<m>` | Install preset (v1.0, ADR-044): `full` (default) · `minimal` (rule text + docs only — no agents/hooks/Reflector runtime) · `strict` (abort with exit 3 instead of touching an existing baseline) · `recipes-only` (à la carte: ONLY the selected recipes; single-file tools get a hash-tracked marked block appended, stripped losslessly on uninstall) · `reflector-only` (the self-improvement loop standalone — least-conflicting when coexisting with Spec Kit / BMAD, which the installer detects and suggests, never auto-switches). |
+| `--mode=<m>` | Install preset (v1.0, ADR-044): `full` (default) · `minimal` (rule text + docs only — no agents/hooks/Reflector runtime) · `strict` (abort with exit 3 instead of touching an existing baseline) · `recipes-only` (à la carte: ONLY selected recipes; Gemini appends a hash-tracked block, while Codex appends compact pointers to full `.codex/conductor/recipes/` references; uninstall is lossless) · `reflector-only` (the self-improvement loop standalone — least-conflicting when coexisting with Spec Kit / BMAD, which the installer detects and suggests, never auto-switches). |
 | `--dry-run` | Preview only — no files written. |
 | `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if cache hit < 95%. |
-| `--no-prompt` | Skip wizard, apply defaults (CI-safe). Combine with `--recipes` and `--measure-baseline` as needed. |
+| `--no-prompt` | Skip interactive prompts. Reuses an existing saved model map; a first role-emitting install must also pass `--accept-model-defaults` or provide a reviewed config. |
+| `--accept-model-defaults` | Explicitly accept the recommended Tier mappings during an unconfigured non-interactive install. Required with `--no-prompt` when role-emitting output has no saved model routing yet. |
 | `--check-anti-patterns` | Print `core/anti-patterns/README.md` inline and pause 5 seconds. |
-| `--uninstall` (alias `--rollback`) | Manifest-based revert (see [Update](#update--maintenance--uninstall)). Available on Claude adapter (Cursor / Copilot adapters: per-adapter spec). |
+| `--uninstall` (alias `--rollback`) | Manifest-based revert on all six adapters (see [Update](#update--maintenance--uninstall)). |
 | `--force` | Bypass uninstall safety gates (active rebase/merge, missing manifest). |
 | `-h` `--help` | Print usage. |
 
@@ -359,9 +383,9 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | File | Already exists |
 |---|---|
 | `CLAUDE.md` / `GEMINI.md` / `AGENTS.md` / `.github/copilot-instructions.md` | Backed up to `.conductor-backup-YYYYMMDD-HHMMSS`, then overwritten (`--mode=strict`: aborts instead) |
-| `.claude/rules/*.md` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` | Backed up + overwritten |
-| `.claude/agents/*.md` | Backed up + overwritten |
-| `.claude/hooks/*.sh` | Overwritten |
+| Tool-native rule files | Backed up + overwritten when CONDUCTOR owns the path |
+| Tool-native agent/workflow files | Backed up + overwritten when CONDUCTOR owns the path |
+| Verified hook scripts/config | Manifest-managed; user-owned hook config is preserved when safe merge is unavailable |
 | `.claude/hookify.*.local.md` | **Preserved** (adopter customizations win) |
 | `docs/CURRENT_WORK.md` etc. | **Preserved** (never overwritten) |
 
@@ -377,6 +401,29 @@ cd ~/conductor && git pull
 
 Then re-run `transform.sh` on each target — installs are idempotent. An unchanged CONDUCTOR file retains its original pre-install backup; a user-edited emitted file is backed up before replacement. Manifest entries record the emitted SHA-256 to make uninstall non-destructive.
 
+### Maintainer release verification
+
+Routine validation is local; GitHub Actions do not run on pushes or pull requests.
+The integrated command tests the exact npm tarball as both a fresh six-tool install
+and an in-place upgrade from the published previous release, then performs an npm
+publish dry run. It never pushes, dispatches CI, or publishes:
+
+```bash
+npm run release:verify:local
+```
+
+After committing the release candidate, the strict form additionally requires a
+clean tree and verifies the exact committed public snapshot:
+
+```bash
+CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 npm run release:verify:local
+```
+
+The two GitHub workflows remain disabled and manual-only. A maintainer may dispatch
+them immediately before a necessary release as an optional extra check; no automatic
+reactivation is scheduled. See
+[`docs/PUBLICATION-POLICY.md`](docs/PUBLICATION-POLICY.md).
+
 ### Re-measure cache hit (1 week after install)
 
 ```bash
@@ -387,7 +434,9 @@ Compare against the `.conductor/baseline-YYYYMMDD.csv` from `--measure-baseline`
 
 ### Uninstall (revert install)
 
-The Claude adapter ships with `--uninstall` (manifest-based revert, ADR-020). Cursor / Copilot adapters: see their respective `SUPPORTED-FEATURES.md`.
+All six adapters ship `--uninstall` with adapter-scoped manifest ownership
+(ADR-020/047). Use the adapter that owns the surface you want to remove, or
+`omniconductor init --target=all . --uninstall` for the aggregate teardown.
 
 ```bash
 # Preview
@@ -458,7 +507,7 @@ Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, 
 
 Restart the IDE / CLI completely. Rule files are read at session start; live reload is rare.
 
-#### "Hooks not firing" (Claude only)
+#### "Hooks not firing"
 
 ```bash
 ls -la .claude/hooks/        # verify executable bit (-rwxr-xr-x)
@@ -466,7 +515,7 @@ chmod +x .claude/hooks/*.sh  # grant if missing
 # Restart Claude Code
 ```
 
-All six tools now ship hooks (Windsurf / Devin Desktop is partial — no session/stop events; ADR-031). CONDUCTOR *emits* hook configs for **Claude only** today (non-Claude hook emission is Phase 2), so the files under `.claude/hooks/` are Claude-specific — but hooks as a capability are not.
+Run `npx omniconductor doctor .` first. For Codex, also run `/hooks` and trust the exact project hook definitions after every install or change. Other tools use their own native hook registries; see the adapter README rather than copying Claude hook JSON or tool names.
 
 #### "Disable one hook"
 
@@ -490,14 +539,20 @@ git checkout -- .       # re-checkout with LF
 
 #### 4-type memory pattern (`core/memory-pattern/`)
 
-CONDUCTOR uses a 4-type memory directory structure that tools without built-in memory directories (Cursor, Copilot, Gemini, Codex, Windsurf) can adopt as a docs convention:
+CONDUCTOR uses one 4-type memory taxonomy across all tools. Claude, Copilot
+preview, Codex opt-in, and Windsurf map it to verified managed-memory locations;
+Cursor and Gemini use the documented project-local fallback until a stable native
+contract is verified. See `core/memory-pattern/README.md` for current paths and
+caveats.
 
 - **project_** — facts about the project (stack, structure, env vars).
 - **user_** — facts about the user (preferences, defaults).
 - **feedback_** — corrections from past mistakes (rule reminders).
 - **reference_** — external IDs, credentials pointers, runbooks.
 
-Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/` or equivalent — see `core/memory-pattern/README.md`.
+Memory persistence is tool-specific: Claude, Copilot, Codex, and Windsurf have
+verified managed mechanisms, while Cursor/Gemini use the documented portable
+fallback when a native equivalent is unavailable. See `core/memory-pattern/README.md`.
 
 #### Architecture Decision Records (`docs/DESIGN-DECISIONS.md`)
 
@@ -506,7 +561,7 @@ Claude Code uses `~/.claude/projects/.../memory/`; other tools use `docs/memory/
 | ADR | Topic | Why it matters |
 |---|---|---|
 | **ADR-001** | 3-layer architecture (Universal / Adapter / Tool-native) | Why Conductor is multi-tool from day 1 |
-| **ADR-004** | Sub-agents stay Claude-only — no fake polyfill | Honesty principle |
+| **ADR-004** | Historical no-fake-polyfill boundary; native role emission later superseded by ADR-045 | Honesty principle preserved |
 | **ADR-006** | Bilingual (한/영) rule support | Conductor's korean-first roots |
 | **ADR-014** | Cache hit rate ≥ 95% SLA | The measurable success criterion |
 | **ADR-016** | Reference-adopter ↔ Conductor bidirectional sync | Where production patterns come from |
@@ -555,11 +610,14 @@ A: Re-running `transform.sh` is safe. An unchanged emitted file keeps its first 
 
 **Q: Use Conductor before all 6 adapters ship?**
 
-A: Yes — all 6 adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) now ship a `transform.sh`. Install any of them with `bash adapters/<tool>/transform.sh <target>` (or `node bin/omniconductor.js init --target=<tool> <target>`). `docs/MANUAL-INSTALL.md` (copy-paste commands) remains as a fallback only.
+A: Yes — all 6 adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) now ship a `transform.sh`. Install any of them with `bash adapters/<tool>/transform.sh <target>` or `node bin/omniconductor.js init --target=<tool> <target>`; both require Node.js and run the same one-time model-routing transaction. `docs/MANUAL-INSTALL.md` (copy-paste commands) remains the no-Node fallback.
 
 **Q: Telemetry?**
 
-A: None. `tools/measure-tokens.sh` reads local Claude Code session JSONL only and writes local CSV. No external network calls anywhere in Conductor.
+A: None. Installation and `tools/measure-tokens.sh` send no usage data; the latter
+reads local Claude Code session JSONL and writes local CSV only. Maintainer release
+verification contacts npm solely to fetch the declared previous package (unless a
+local tarball is supplied) and to perform the explicit publish dry run.
 
 ---
 

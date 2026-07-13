@@ -10,9 +10,9 @@ Detailed matrix of which CONDUCTOR features Gemini CLI supports.
 | **Style guide convention** | ✅ Native | `.gemini/styleguide.md` | Coding-style-specific guide; complements GEMINI.md. |
 | **Large-context capability** | ✅ Strength | Up to ~1M-2M tokens depending on Gemini Pro version | Bundled rule loading is no problem. |
 | **Per-pattern rule scoping** | ❌ | — | All rules always-loaded. No per-file routing. |
-| **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.gemini/agents/*.md` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
-| **Hooks (SessionEnd etc.)** | ✅ Native (2026) | `hooks` block in `.gemini/settings.json` | ADR-031. CONDUCTOR currently emits only the Reflector hook (ADR-032); broader hook-set emission is Phase 2. |
-| **Per-task model routing** | ✅ Native (2026) | Per-agent model config | ADR-031. |
+| **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.gemini/agents/*.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
+| **Hooks (SessionEnd etc.)** | ✅ Native (2026) | `hooks` block in `.gemini/settings.json` | CONDUCTOR emits the verified Reflector hook; other guard translations remain excluded until their contracts are verified. |
+| **Per-task model routing** | ✅ Configured native (2026) | Agent `model` from saved Tier mapping | Recommended semantic aliases: `pro` / `flash` / `flash-lite`. |
 | **Custom slash commands** | ✅ Native (2026) | `.gemini/commands/*.toml` | ADR-031. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Gemini reads on demand. |
@@ -25,10 +25,9 @@ For each `core/universal-rules/<rule>.md`:
 
 1. Strip front-matter (Gemini doesn't use it).
 2. Concatenate body content into `GEMINI.md` as a section with heading `## <rule name>`.
-3. Tool-specific callouts:
-   - `> **Gemini-only mechanism**` callouts (rare): keep.
-   - `> **Claude-only mechanism**` callouts: REPLACE with `> **Note (Gemini)**: enforced by hook on Claude Code; on Gemini CLI, follow self-policed.`
-   - Other tool callouts: STRIP.
+3. Preserve capability-aware callouts from the universal source. Never rewrite a
+   Claude + Codex shared guard as Claude-only, and never claim that Gemini emits
+   a local guard that the adapter does not install.
 
 ## `.gemini/styleguide.md` content
 
@@ -43,7 +42,14 @@ Still true:
 - Per-pattern rule scoping (everything is always-loaded — no per-file routing).
 - No built-in memory directory — DIY at `.memory/`.
 - No native scheduler.
-- CONDUCTOR does not yet emit a Claude-parity hook set for Gemini. It currently emits only the self-improvement Reflector hook (ADR-032, opt-in — see below); broader hook-set emission (commit-blocking, spec enforcement) is Phase 2.
+- CONDUCTOR emits eight native role profiles, including Tier 3 utility. Hook emission remains limited to the verified self-improvement Reflector lifecycle hook; unsupported Claude hook contracts are not copied.
+
+## Difficulty translation
+
+Every role carries its unchanged CONDUCTOR Tier and emits the project-saved model.
+Initial setup recommends Gemini's semantic `pro`, `flash`, and `flash-lite` aliases.
+Exact choices are maintained with `omniconductor models configure --target=gemini`;
+inherited environment variables cannot replace the saved mapping.
 
 ## Strengths to lean into
 

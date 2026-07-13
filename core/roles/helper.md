@@ -1,7 +1,7 @@
 ---
 role: helper
 purpose: "Single-file or 1-2-file work where the pattern is already established"
-default_model: sonnet
+difficulty_tier: 2
 must_do:
   - read project rule index (AGENT.md or equivalent)
   - look at existing similar code for the established pattern

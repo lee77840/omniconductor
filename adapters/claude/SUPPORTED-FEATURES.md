@@ -7,7 +7,7 @@ Detailed matrix of which CONDUCTOR features Claude Code supports natively.
 | Feature | Claude support | Mechanism | Notes |
 |---|---|---|---|
 | **Sub-agent dispatch** | ✅ Native | `Agent` tool with `subagent_type` arg | Named personas live in `.claude/agents/*.md`. Each is isolated — does NOT inherit `CLAUDE.md`. |
-| **Per-call model routing** | ✅ Native | `model: "opus" \| "sonnet" \| "haiku"` arg on Agent call | Orchestrator classifies task → picks tier per call. |
+| **Per-call model routing** | ✅ Native | Agent `model` accepts family alias or exact ID | Orchestrator classifies the invariant Tier first, then passes the configured Claude translation. |
 | **Hooks (PreToolUse, Stop, etc.)** | ✅ Native | `.claude/settings.json` `hooks:` block | Stop hooks are CONDUCTOR's spec-as-you-go enforcement. PreToolUse for routing. |
 | **Lazy rule loading** | ✅ Native | `paths:` front-matter on `.claude/rules/*.md` | Rule loads when matching file path is touched. |
 | **Always-loaded baseline** | ✅ Native | `CLAUDE.md` | Auto-read on every session start. Keep slim (~200 lines). |
@@ -22,13 +22,18 @@ Detailed matrix of which CONDUCTOR features Claude Code supports natively.
 
 ## Model tier mapping
 
-CONDUCTOR's universal `meta-discipline.md` rubric (token economy + model routing) maps directly to Claude's three tiers:
+CONDUCTOR's universal `meta-discipline.md` rubric (token economy + difficulty routing) maps the three invariant Tiers to Claude aliases:
 
 | Universal tier | Claude model | Use cases |
 |---|---|---|
-| Opus | `claude-opus-4` (or current Opus equivalent) | Conceptual, multi-file, cross-cutting |
-| Sonnet | `claude-sonnet-4` (or current Sonnet equivalent) | Routine implementation following patterns |
-| Haiku | `claude-haiku-4` (or current Haiku equivalent) | Trivial reads / single-line edits |
+| Tier 1 | `opus` family alias | Conceptual, multi-file, cross-cutting |
+| Tier 2 | `sonnet` family alias | Routine implementation following patterns |
+| Tier 3 | `haiku` family alias | Trivial reads / single-line edits |
+
+Family aliases follow Claude's current model in that family, avoiding dated IDs.
+Exact pins are saved through `omniconductor models configure --target=claude`;
+pins do not change the Tier triggers. Inherited environment variables cannot
+override the saved project mapping during a real install.
 
 ## Hook execution model
 
@@ -58,7 +63,7 @@ The Claude adapter ships a working `transform.sh`. Verified by fresh-target inst
 
 | Feature claim | Verified-by-real-install | Verification command / observation |
 |---|---|---|
-| `transform.sh` emits 6 roles, 5 rules, 10 hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
+| `transform.sh` emits 8 base roles, 5 rules, verified hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
 | Sub-agent dispatch works | ✅ | `.claude/agents/{planner,builder,reviewer,helper,designer,scribe}.md` recognized by `/help` |
 | Lazy / always-loaded rules present | ✅ | `.claude/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md` |
 | Hooks registered in settings.json | ✅ | `.claude/settings.json` `hooks:` block lists 5 PreToolUse + 5 Stop |

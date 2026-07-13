@@ -7,7 +7,7 @@ Cursor is a strong CONDUCTOR target because:
 - Its Skills surface (`.cursor/skills/` — the 2.4+ successor to project commands) gives a native `/reflect` entry point: CONDUCTOR emits `.cursor/skills/reflect/SKILL.md` with `--recipes=self-improvement`.
 - Its rule UI surfaces which rules loaded for the current file, useful for debugging.
 
-**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Cursor ships hooks, sub-agent dispatch, custom named agents, per-task model routing, and commands natively. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). That is a CONDUCTOR gap, not a Cursor limitation.
+**Tool capability vs CONDUCTOR emission (ADR-031/048/049):** CONDUCTOR emits eight project agents, including Tier 3 utility, plus the opt-in Reflector agent. Every profile carries the portable Tier and the project-saved Cursor model. Cursor account, plan, and administrator fallback remains explicitly disclosed. Guard-hook emission remains narrower than Claude/Codex.
 
 **Tier**: T1 (see `docs/COMPATIBILITY-MATRIX.md` — glob rule-scoping + hooks incl. session/stop events + sub-agents + per-task model all present; richest non-Claude target for Phase-2 emission).
 
@@ -23,6 +23,10 @@ npx omniconductor init --target=cursor <target-dir>
 # Or from a local clone:
 bash /path/to/conductor/adapters/cursor/transform.sh /path/to/target [--dry-run] [--legacy-cursorrules]
 ```
+
+The local `transform.sh` command requires Node.js and delegates to the same CLI,
+including the one-time project-saved Tier-model setup. It is not a model-routing
+bypass.
 
 ## What gets installed
 
@@ -54,17 +58,18 @@ bash /path/to/conductor/adapters/cursor/transform.sh /path/to/target [--dry-run]
 - ✅ Per-pattern rule scoping (`globs:` on recipe `.mdc`).
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
+- ✅ Eight native `.cursor/agents/*.md` role profiles, including code-reviewer and Tier 3 utility.
 - ✅ Reflector loop (opt-in recipe) — hook config + `/reflect` Skill + agent.
 
-## Not emitted yet (Phase 2 — Cursor supports these natively, ADR-031/034)
+## Capability boundary
 
 | Feature | Interim workaround |
 |---|---|
 | Enforcement guard hooks (Stop / PreToolUse set) | Self-police, or pair with a project-level pre-commit git hook. Only the Reflector session-end hook is emitted today. |
-| The 6 role agents (sub-agent dispatch) | Cursor has native sub-agents; CONDUCTOR doesn't emit its role definitions for Cursor yet. Use the orchestrator-manual rule text as the prompt template. |
-| Per-call model-routing config | Pick the model in Cursor's UI per task (Cursor supports per-task model selection). |
+| Claude's exact agent schema | Eight equivalent Cursor-native role profiles are emitted. |
+| Difficulty/model translation | Role Tier is immutable; first setup saves exact Tier models and regenerates every profile. Cursor provider fallback remains possible. |
 | 4-type memory pattern | Self-managed at `<target>/.memory/` (gitignored); Cursor's native Memories feature is separate. |
-| Specialized review agents (Stage A / Stage B) | Run review prompts manually in Cursor chat. |
+| Full mechanical guard set | Use the emitted reviewer/code-reviewer roles; only verified Cursor lifecycle hooks are installed. |
 
 ## After install — first steps
 
@@ -75,14 +80,14 @@ bash /path/to/conductor/adapters/cursor/transform.sh /path/to/target [--dry-run]
 5. Add `.memory/` to `.gitignore`. Create your first memory entry.
 6. Add your first entry to `docs/CURRENT_WORK.md`.
 
-## Quirks / known issues (P2 will fill)
+## Quirks / known issues
 
-To be filled in `notes.md` after P2 real-install verification on Cursor.
+Current capability and live-verification caveats are tracked in
+`SUPPORTED-FEATURES.md`, `metadata.json`, and `docs/ADAPTER-LIVE-VERIFICATION.md`.
 
-## Status (P0 foundation)
+## Status
 
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
 - ✅ `transform.sh` (implemented)
-- ⏳ `notes.md` (P2)

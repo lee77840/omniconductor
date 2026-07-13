@@ -116,13 +116,12 @@
 
 When the same Conductor source rule must compile to multiple targets:
 
-| Source feature | Cursor `.mdc` | Copilot `.instructions.md` | Claude `.md` |
-|---|---|---|---|
-| Always-loaded | `alwaysApply: true` + `globs: ["**"]` | `applyTo: '**'` | `paths: ["**"]` |
-| Path-scoped | `globs: ["src/**"]` | `applyTo: 'src/**'` | `paths: ["src/**"]` |
-| Multiple paths | `globs: ["src/**", "docs/**"]` | `applyTo: 'src/**,docs/**'` (CSV string) | `paths: ["src/**", "docs/**"]` |
-| Description | `description: "..."` (frontmatter) | (none — first markdown heading serves) | `rule_name: "..."` (optional) |
-| Tool-specific callouts | Keep `> **Cursor-only mechanism**`, strip others | Keep `> **Copilot-only mechanism**`, degrade Claude-only | Keep `> **Claude-only mechanism**`, degrade others |
+| Source feature | Claude | Cursor | Copilot | Gemini | Codex | Windsurf |
+|---|---|---|---|---|---|---|
+| Always-loaded | `CLAUDE.md` / `paths: ["**"]` | `alwaysApply: true` | repo-wide instructions | `GEMINI.md` bundle | bounded `AGENTS.md` kernel | `.windsurfrules` |
+| Path-scoped | `paths:` | `globs:` | `applyTo:` | bundle; no glob translation | routed `.codex/conductor/` reference | grouped `.devin/rules/` file |
+| Native base roles | `.claude/agents/*.md` | `.cursor/agents/*.md` | `.github/agents/*.agent.md` | `.gemini/agents/*.md` | `.codex/agents/*.toml` | `.windsurf/workflows/*.md` |
+| Tool-specific mechanisms | Preserve exact verified callout | Preserve exact verified callout | Preserve exact verified callout | Preserve exact verified callout | Preserve exact verified callout | Preserve exact verified callout |
 
 The adapter `transform.sh` files implement these mappings. The format validator enforces that each adapter's output conforms to its target IDE's expectations.
 
@@ -132,13 +131,12 @@ The adapter `transform.sh` files implement these mappings. The format validator 
 
 `tools/validate-adapter-output.sh` checks the format-level guarantees an IDE depends on:
 
-| Check | Cursor | Copilot | Claude |
-|---|---|---|---|
-| Frontmatter delimiter present (`^---$` open + close) | Yes | Yes (per-file only; top-level bundle has none) | Yes |
-| Required field present | `description:`, `globs:` | `applyTo:` | `paths:` |
-| Field type correctness | `globs:` array OR string OR block; `alwaysApply:` bool | `applyTo:` MUST be CSV string (NOT array) | `paths:` MUST be array (block or inline) |
-| Body has ≥ 1 markdown heading | Yes | Yes | Yes |
-| Code fences balanced | Yes | Yes | Yes |
+| Check | Claude | Cursor | Copilot | Gemini | Codex | Windsurf |
+|---|---|---|---|---|---|---|
+| Rule/instruction structure | `paths:` rules | `.mdc` frontmatter | `applyTo:` string | bundle sections | bounded kernel + references | baseline + grouped rules |
+| Eight native role entries | Yes | Yes | Yes | Yes | Yes | Yes (workflows) |
+| Model-routing marker/control | Claude model field | saved model field | saved model field | saved family alias | model + effort | advisory preflight |
+| Code fences / unresolved placeholders | Checked | Checked | Checked | Checked | Checked | Checked |
 
 What the validator does NOT cover (intentional — these need a human in an IDE):
 

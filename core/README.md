@@ -7,7 +7,7 @@ Anything in this directory MUST work for every supported tool. No tool-specific 
 | Subdirectory | Purpose |
 |---|---|
 | `workflow/` | The Plan → Architecture → Tasks → Implementation → Review → Spec phase definitions. Tool-agnostic phase boundaries. |
-| `universal-rules/` | The 5 universal rules (operations, coding-conventions, token-economy, spec-as-you-go, model-routing). Each is plain markdown. |
+| `universal-rules/` | The 5 universal rule bundles (workflow, spec-as-you-go, quality-gates, operations, meta-discipline). Each is plain markdown. |
 | `docs-templates/` | The doc skeletons every project gets (`CURRENT_WORK.md`, `REMAINING_TASKS.md`, `PLANS.md`, `TASKS.md`, `INDEX.md`, `specs/_example.md`). |
 | `memory-pattern/` | Documentation of the 4-type memory pattern (user / feedback / project / reference). NOT actual memory data. |
 
@@ -42,16 +42,16 @@ Adapters translate `applies_to:` to:
 
 If you cite an example, make it generic. ❌ "use `Agent` tool to dispatch". ✅ "delegate to a specialized agent persona".
 
-If a rule HAS to reference a Claude-only mechanism, put the example under a clearly-labeled tool-native callout that adapters can show or hide:
+If a rule has to reference a capability-specific mechanism, label the exact verified tools so adapters can preserve the distinction:
 
 ```markdown
-> **Claude-only mechanism**: enforced via Stop hook (`stop-session-log-check.sh`).
-> Other tools: rely on rule reminder + manual discipline.
+> **Claude + Codex mechanism**: enforced via a verified completion guard.
+> Cursor / Copilot / Gemini / Windsurf: mandatory completion checklist; no equivalent guard is emitted.
 ```
 
-## Status (P0 foundation)
+## Status
 
-All files in subdirectories are PLACEHOLDERS describing intent. P1 fills them with real content sanitized from the reference adopter.
+The universal rules, eight base roles, workflow, recipes, memory pattern, and hook templates are production assets consumed by all six adapters.
 
 ## Adapter contract (referenced, not implemented here)
 

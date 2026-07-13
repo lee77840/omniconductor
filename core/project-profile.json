@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "current_work_path": "docs/CURRENT_WORK.md",
+  "spec_paths": ["docs/specs"],
+  "plan_paths": ["docs/plans", "docs/PLANS.md"],
+  "source_extensions": [
+    "c", "cc", "cpp", "cs", "css", "dart", "ex", "exs", "go", "h",
+    "hpp", "html", "java", "js", "jsx", "kt", "kts", "m", "mm", "php",
+    "py", "rb", "rs", "scala", "sh", "sql", "swift", "ts", "tsx", "vue"
+  ],
+  "direct_push_branches": ["develop", "main", "master", "release"],
+  "thresholds": {
+    "current_work_source_files": 3,
+    "spec_source_files": 4,
+    "plan_source_files": 5,
+    "stale_minutes": 30,
+    "large_file_lines": 500
+  }
+}

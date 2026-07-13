@@ -5,6 +5,101 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-13
+
+### Added — one-time six-tool model setup
+
+- **First-install model wizard** — `omniconductor init` now presents one summary
+  for all selected adapters, accepts the recommended Tier 1/2/3 mappings with one
+  confirmation, and asks three values only for adapters the user customizes.
+- **Project-saved routing state** — `.conductor/model-routing.json` records a
+  revisioned, adapter-validated mapping plus configured-vs-enforced metadata.
+  `omniconductor models show/configure` inspects or explicitly changes it;
+  installed native roles are regenerated while preserving immutable Tier triggers.
+- **Strict automation contract** — unconfigured `--no-prompt` role installs fail
+  before managed writes. Non-interactive automation opts in with
+  `--accept-model-defaults`. Dry-run remains
+  zero-write, recipes-only remains model-independent, and all six public
+  `transform.sh` entry points delegate to the same Node setup transaction. Each
+  adapter also reloads the saved mapping immediately before writes, so forged child
+  markers and inherited model environment values cannot bypass setup or replace it.
+- **Provider-native defaults** — Claude recommends Opus/Sonnet/Haiku; Codex
+  Sol/Terra/Luna plus high/medium/low effort; Gemini pro/flash/flash-lite; Cursor
+  and Copilot saved exact native fields with provider-policy caveats; Windsurf
+  Adaptive is explicitly `advisory-session`, never falsely marked enforced.
+- **Routing and path safety suite** — customization, missing-config fail-closed
+  behavior, transactional role/manifest refresh, forced-failure rollback, crash
+  recovery, stale-lock reclamation, installed concurrency, user-edit conflicts,
+  manifest traversal, managed-surface containment, symlink/hardlink rejection,
+  forged dispatch environment/FD attempts, reinstall, and uninstall-choice retention
+  are regression-tested by the local suite and retained in the manual Linux CI
+  definition.
+- **Local release and real npm-upgrade gate** — `npm run release:verify:local`
+  runs the complete regression suite, static checks, exact packed-candidate fresh
+  install, all-six validation/doctor/uninstall, published `1.0.1` → candidate
+  upgrades for six single-tool projects and a legacy six-tool project, and
+  `npm publish --dry-run`. A clean-tree strict mode also verifies the filtered
+  public snapshot. It never pushes, dispatches GitHub Actions, or publishes.
+- **Manual-only GitHub workflows** — both Actions definitions now accept only
+  `workflow_dispatch`; their remote state remains disabled and there is no scheduled
+  reactivation. Local validation is required, with optional manual CI only directly
+  before a necessary release.
+
+### Fixed — multi-tool runtime hardening
+- **Vendor-neutral difficulty routing** — the unchanged Tier 1/2/3 task
+  thresholds now live in universal `difficulty_tier` metadata. Before role emission,
+  the CLI saves each selected adapter's explicit Tier translation: Claude family
+  aliases; Codex Sol/Terra/Luna plus high/medium/low reasoning; Gemini semantic
+  aliases; exact Cursor/Copilot native model fields with provider-policy caveats;
+  and an honest Windsurf Adaptive session advisory. Model selection never changes
+  the immutable task classification.
+- **Independent ownership for all six adapters** — authoritative manifests now live at
+  `.conductor/manifests/<adapter>.json`; the root manifest is an aggregate projection.
+  Sequential installs, repeat installs, scoped uninstall, and `--target=all` no longer
+  overwrite another adapter's ownership or remove shared files still in use.
+- **Order-independent reinstall/uninstall ownership** — an idempotent reinstall now
+  carries forward every still-present owned entry, and every baseline adapter imports
+  the original shared docs/profile ownership record. Manifest ownership remains stable
+  across repeat installs, and removing adapters in either install or reverse order
+  leaves zero managed residue while retaining the original user backup chain.
+- **No untracked `.gitignore` mutation** — Reflector trajectory payloads are ignored by
+  the managed `.conductor/trajectories/.gitignore`; the installer no longer appends an
+  unmanifested block to the adopter's top-level `.gitignore`, preserves a user-owned
+  nested ignore file, and removes the exact legacy CONDUCTOR block during migration.
+- **Native runtime contracts and roles** — all adapters emit eight verified role entry
+  points including a distinct post-implementation `code-reviewer` and Tier 3 `utility`. Codex emits native
+  agent TOML plus its verified `PreToolUse`/`Stop` subset and never activates Claude's
+  unsupported `permissionDecision: "ask"` contract.
+- **Fail-closed managed paths and atomic model refresh** — installers reject
+  symlinked/hard-linked managed roots and leaves plus untrusted manifest paths before
+  mutation. Model changes verify manifest ownership/checksums, journal the old config,
+  role files, and manifests under one lock, commit config last, and recover the last
+  complete state after failure or process death. Installation holds the same lock
+  through every real adapter write, including cross-mode recipes-only updates,
+  preventing a concurrent reconfiguration from leaving saved routing and emitted
+  roles on different revisions. Doctor derives routing requirements from actual role
+  ownership rather than the latest manifest mode label.
+- **Bounded Codex project instructions** — native `codex debug prompt-input` inspection
+  proved the former 68 KiB `AGENTS.md` was truncated. Codex now gets a 6.7 KiB
+  always-loaded kernel and complete manifest-owned rule/recipe references under
+  `.codex/conductor/`; validator and doctor enforce 24 KiB/32 KiB safety budgets.
+- **Semantic doctor and portable hooks** — doctor now audits every manifest, checksums,
+  footprints, hook dialects, agent TOML contracts, Git tracking, project profile, and
+  structured CURRENT_WORK drift. Shared hooks are BSD/GNU awk compatible and normalize
+  zero counters deterministically.
+- **Release-candidate regressions** — five modes across six adapters, 24 multi-tool
+  runtime contracts, local native Codex prompt-input verification, and a freshly packed
+  npm artifact install/validate/doctor/reinstall/forward-and-reverse-uninstall lifecycle
+  are covered.
+- **Offline validation latency** — the advisory npm-registry check is retry-free,
+  capped at three seconds, and explicitly skippable for deterministic offline runs.
+- **Published-version migration compatibility** — upgrading the actual npm `1.0.1`
+  package now preserves and snapshots user edits, ignores historical backup files
+  during current-output isolation checks, replaces Windsurf files only when legacy
+  ownership proves they are managed, and converts the old shared root manifest to
+  six authoritative adapter manifests before an all-target upgrade. Previewing that
+  legacy migration with `--dry-run` remains byte- and path-zero-write.
+
 ## [1.0.1] — 2026-07-09
 
 ### Fixed — manifest safety follow-up

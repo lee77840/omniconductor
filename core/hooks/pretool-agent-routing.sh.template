@@ -16,7 +16,7 @@
 # Validations:
 #   V1. Agent tool MUST NOT use a forbidden subagent_type (e.g., "general-purpose"
 #       which defaults to a generic model and ignores project rules).
-#       Route to one of the 6 universal roles + project-specific roles instead.
+#       Route to one of the 8 universal roles + project-specific roles instead.
 #   V2. Agent tool calls MUST include an explicit `model` parameter. The
 #       orchestrator is responsible for sizing tasks per
 #       universal-rules/meta-discipline.md section 6.
@@ -67,12 +67,12 @@ REASONS=""
 # Default forbidden list: general-purpose. Override at compile time.
 FORBIDDEN_RE="${CONDUCTOR_FORBIDDEN_SUBAGENT_TYPES:-general-purpose}"
 if [ -n "${SUB:-}" ] && echo "${SUB}" | /usr/bin/grep -qE "^(${FORBIDDEN_RE})$"; then
-  REASONS="[ROUTING VIOLATION] subagent_type='${SUB}' is FORBIDDEN. Route to one of the registered roles in core/roles/ (planner, builder, reviewer, helper, designer, scribe) or a project-specific role. If no role fits, do the work in the orchestrator thread."
+  REASONS="[ROUTING VIOLATION] subagent_type='${SUB}' is FORBIDDEN. Route to one of the registered roles in core/roles/ (planner, builder, reviewer, code-reviewer, helper, designer, scribe, utility) or a project-specific role. If no role fits, do the work in the orchestrator thread."
 fi
 
 # V2 — require explicit model parameter.
 if [ -z "${MODEL:-}" ]; then
-  MSG="[ROUTING VIOLATION] Agent tool call is missing the 'model' parameter. Orchestrator must classify the task and pass model='opus' | 'sonnet' | 'haiku' explicitly per universal-rules/meta-discipline.md section 6."
+  MSG="[ROUTING VIOLATION] Agent tool call is missing the 'model' parameter. Orchestrator must classify the task as CONDUCTOR Tier 1, 2, or 3, then pass the Claude adapter's configured model alias or exact model ID per universal-rules/meta-discipline.md section 6."
   if [ -n "$REASONS" ]; then
     REASONS="$REASONS $MSG"
   else

@@ -5,6 +5,7 @@
   "tier": "T1",
   "outputs": [
     { "path": ".cursor/rules", "kind": "rules", "validated": true },
+    { "path": ".cursor/agents", "kind": "agents", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [
@@ -26,8 +27,8 @@
       "rules": "full",
       "guard_hooks": "none",
       "reflector_loop": "recipe",
-      "role_agents": "none",
-      "model_routing": "none"
+      "role_agents": "full",
+      "model_routing": "saved-tier-native-with-provider-fallback"
     }
   },
   "live_verification": { "status": "pending", "date": null, "cli": null, "note": "not yet run" },

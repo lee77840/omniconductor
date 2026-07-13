@@ -69,9 +69,11 @@ fi
 
 # A3 (advisory, never fails the check): npm registry lag. The docs say "published to
 # npm"; if the registry is behind package.json, `npm publish` is the missing R7 step.
-# Skipped silently when npm/network is unavailable (CI-safe).
-if command -v npm >/dev/null 2>&1; then
-  REG_VERSION="$(npm view omniconductor version 2>/dev/null || true)"
+# Skipped silently when npm/network is unavailable (CI-safe). Keep this advisory
+# bounded: a restricted/offline network must not stall the deterministic checks.
+# Set CONDUCTOR_SKIP_REGISTRY_CHECK=1 for fully offline runs.
+if command -v npm >/dev/null 2>&1 && [ "${CONDUCTOR_SKIP_REGISTRY_CHECK:-0}" != "1" ]; then
+  REG_VERSION="$(npm view omniconductor version --fetch-retries=0 --fetch-timeout=3000 2>/dev/null || true)"
   if [ -n "$REG_VERSION" ] && [ "$REG_VERSION" != "$PKG_VERSION" ]; then
     echo "WARN[A3] npm registry serves omniconductor@${REG_VERSION} but package.json is ${PKG_VERSION} — run \`npm publish\` (advisory only)"
   fi
@@ -118,6 +120,27 @@ while IFS=$'\t' read -r pattern reason hint allow_regex || [ -n "${pattern:-}" ]
     TOTAL_HITS=$((TOTAL_HITS + count))
   fi
 done < "$TOKENS_FILE"
+
+# --------------------------------------------------------------------------
+# Class C — packaged-document closure and release-policy currency
+# --------------------------------------------------------------------------
+# Packaged READMEs and MANUAL-INSTALL link to these documents. Keep the assertion
+# explicit so an allowlist cleanup cannot silently publish broken local links.
+if grep -qF '"docs/HOW-IT-WORKS-PER-TOOL.md"' package.json &&
+   grep -qF '"docs/CONTRIBUTING.md"' package.json; then
+  echo "OK  [C1] package allowlist includes linked HOW-IT-WORKS-PER-TOOL.md and CONTRIBUTING.md"
+else
+  echo "FAIL[C1] package.json omits a document linked from packaged README/manual surfaces"
+  FAIL=1
+fi
+
+if grep -Eq 'Required v[0-9]+\.|--release v[0-9]+\.' docs/PUBLICATION-POLICY.md; then
+  echo "FAIL[C2] publication policy hard-codes an old release version; derive it from package.json"
+  grep -nE 'Required v[0-9]+\.|--release v[0-9]+\.' docs/PUBLICATION-POLICY.md | head -4
+  FAIL=1
+else
+  echo "OK  [C2] publication policy is version-neutral"
+fi
 
 if [ "$FAIL" -eq 0 ]; then
   echo "OK — no stale claims on living surfaces; version stamps consistent (v${PKG_VERSION})."

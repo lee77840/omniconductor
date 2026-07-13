@@ -5,6 +5,10 @@
   "tier": "T2",
   "outputs": [
     { "path": "AGENTS.md", "kind": "always_loaded", "validated": true },
+    { "path": ".codex/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".codex/agents", "kind": "agents", "validated": true },
+    { "path": ".codex/hooks", "kind": "hooks", "validated": true },
+    { "path": ".codex/hooks.json", "kind": "config", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [
@@ -23,13 +27,13 @@
       "scheduler": "local"
     },
     "conductor_emitted": {
-      "rules": "full",
-      "guard_hooks": "none",
+      "rules": "bounded-kernel+full-references",
+      "guard_hooks": "supported-native",
       "reflector_loop": "recipe",
-      "role_agents": "none",
-      "model_routing": "none"
+      "role_agents": "full",
+      "model_routing": "saved-tier-native+effort"
     }
   },
-  "live_verification": { "status": "verified", "date": "2026-07-09", "cli": "codex-cli 0.144.0", "note": "headless probe listed 4/5 rules + read-CURRENT_WORK-first" },
+  "live_verification": { "status": "verified", "date": "2026-07-13", "cli": "codex-cli 0.144.0", "note": "native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand" },
   "headless_cli": { "command": "codex", "invocation": "codex exec" }
 }

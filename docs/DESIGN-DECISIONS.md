@@ -68,9 +68,11 @@ ADR-style decision records. Each entry: Status / Context / Decision / Consequenc
 
 ---
 
-## ADR-004 — Sub-agents stay Claude-only (don't fake on Cursor)
+## ADR-004 — Historical: do not fake unavailable sub-agents
 
-**Status**: Accepted.
+**Status**: Superseded by ADR-031 and ADR-045 (2026-07-13). All six current
+adapters emit verified native agent/workflow role surfaces; the retained
+principle is to avoid simulating unsupported runtime contracts.
 
 **Context**: Sub-agent dispatch (orchestrator → specialized agents) is a Claude-Code-only feature. Other tools have a single chat session. We could try to simulate sub-agents on Cursor by spawning Cursor CLI processes from a parent script.
 
@@ -88,9 +90,12 @@ ADR-style decision records. Each entry: Status / Context / Decision / Consequenc
 
 ---
 
-## ADR-005 — Memory pattern is documentation-only for non-Claude tools
+## ADR-005 — Historical: memory pattern documentation fallback
 
-**Status**: Accepted.
+**Status**: Amended by the 2026 capability re-verification. Claude, Copilot
+preview, Codex opt-in, and Windsurf now have documented managed-memory paths;
+Cursor and Gemini retain the project-local fallback. Current behavior is
+single-sourced in `core/memory-pattern/README.md`.
 
 **Context**: Claude Code has a built-in per-project memory directory at `~/.claude/projects/<encoded-path>/memory/`. Other tools have nothing equivalent.
 
@@ -274,9 +279,11 @@ ASK responses use a multiple-choice template (option A / B / C + free-text + rec
 
 ---
 
-## ADR-013 — 6 universal roles + 6 project-specific recipes
+## ADR-013 — Historical universal-role and recipe boundary
 
-**Status**: Accepted.
+**Status**: Amended through v1.1.0. The boundary remains, but the current shipped
+catalog is eight base roles and thirteen opt-in recipes; this record preserves
+the original six-role/six-recipe decision.
 
 **Context**: The originating project had 8 specialized agents; 2 of them (mailer, translator) were domain-specific. We needed to draw a clear line between universal (every adopter inherits) and project-specific (opt-in via recipe).
 
@@ -1060,7 +1067,9 @@ This couples the SQL hookify rules to the `database-discipline` recipe: select t
 
 ## ADR-034 — Workflow guards stay Claude-only pending a hook-config-merge redesign
 
-**Status**: Accepted (2026-07-05)
+**Status**: Amended by ADR-045 (2026-07-13). The feasibility record below is
+historical; Codex now receives the verified portable guard subset, while Claude-only
+Agent/Read contracts and unsupported hook dialects remain excluded.
 
 **Context**: After the Reflector loop was made multi-tool (ADR-030/032/033), the last Phase-2 candidate was porting the remaining Claude hooks — `pretool-agent-routing` and the three guards (`commit-current-work`, `commit-test-coverage`, `large-file-read`) — to the five non-Claude adapters. A first-party feasibility study (2026-07-05) was run before building.
 
@@ -1120,9 +1129,11 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 
 ---
 
-## ADR-037 — `git-hygiene` recipe + Claude-only Stop hook (shared-repo discipline)
+## ADR-037 — `git-hygiene` recipe + Stop-hook reminder (shared-repo discipline)
 
-**Status**: Accepted (2026-07-07)
+**Status**: Amended by ADR-045 (2026-07-13). The original Claude-only emission
+decision below is historical; Claude and Codex now receive verified dialect-specific
+Stop reminders, while the other adapters retain the installed checklist floor.
 
 **Context**: A reference adopter hit a git-workflow-hygiene collapse — an orchestrator interpreted "work without conflicting with the other session" as *create git worktrees* (never requested), never cleaned them up, and never deleted branches after their PRs merged: ~130 stale local branches + 34 local-only commits + orphan worktrees. Nothing was actually lost (all merged), but the hygiene collapse made completed work **look** unmerged/lost, triggered a false "backup ≠ applied" scramble, and cost large reconciliation time and trust. The adopter codified a battle-tested rule ("Git hygiene / shared-repo discipline", 7 obligations) + a non-blocking Stop hook, written project-agnostically. This is a universal failure mode for anyone using git with autonomous agents — a strong CONDUCTOR candidate.
 
@@ -1140,9 +1151,11 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 
 ---
 
-## ADR-038 — `loop-engineering` recipe + Claude-only PreToolUse loop-guard (bounded, externally-verified agent loops)
+## ADR-038 — `loop-engineering` recipe + PreToolUse loop-guard (bounded, externally-verified agent loops)
 
-**Status**: Accepted (2026-07-07)
+**Status**: Amended by ADR-045 (2026-07-13). The original Claude-only hook decision
+below is historical; Codex now receives the verified `additionalContext` variant and
+never receives Claude's unsupported `permissionDecision: ask` contract.
 
 **Context**: Autonomous agents work in loops ("do → check → fix → re-check until done"), and those loops fail in well-documented ways. A 5-source primary-research pass (peer-reviewed papers + Anthropic primary docs; findings in `docs/plans/2026-07-07-loop-engineering-research.md`) established: (a) **intrinsic self-correction is unreliable and can degrade quality** — models asked to fix their own work with no external signal flip correct answers to wrong (*LLMs Cannot Self-Correct Reasoning Yet*, Huang et al., DeepMind ICLR'24); real gains come from loops grounded in tests/tools (Reflexion, CRITIC); (b) **self-judgment of "done" is unreliable** — LLM-as-judge bias + systematic overconfidence (*Judging LLM-as-a-Judge*, NeurIPS'23), so "the model says it's done" is not evidence (the "early-victory" failure); (c) **unbounded loops run away** — infinite/oscillation loops were 95.6% cost-exhaustion/DoS in one study (*When Agents Do Not Stop*, 2026), and test-time compute saturates then hurts; (d) Anthropic's own guidance frames the loop as *gather→act→verify→repeat* bounded by `max_turns`/budget + human checkpoints, with a verify hierarchy of **rules/tests > visual > LLM-judge**. CONDUCTOR had implicit loops (quality-gates Q4, TDD, Reflector) but no first-class loop-engineering discipline. The user flagged this as a top-priority feature.
 
@@ -1266,3 +1279,227 @@ The universal rule states the tool-agnostic *principle* (cut stale tool output f
 - *Auto-switching modes on framework detection.* Rejected — suggestion only; explicit is better than clever.
 - *Diff3/merge-driver for single-file coexistence.* Rejected — marked blocks + content hashes are inspectable, greppable, and uninstallable with POSIX tools.
 - *Blocks on every tool.* Rejected — per-file tools don't need them; blocks are strictly the single-file fallback.
+
+## ADR-045 — Adapter-scoped manifests and native runtime contracts
+
+**Status**: Accepted (2026-07-13)
+
+**Context**: A mixed Claude/Codex adopter audit exposed a framework-level
+contradiction. CONDUCTOR documented that all six adapters can coexist, but every
+adapter overwrote the same `.conductor-manifest.json`; doctor consequently saw
+only the last install. A manually copied Codex surface then carried Claude hook
+assumptions (`Agent`, `Read`, `permissionDecision: ask`), absolute paths, and
+case-drifting `.Codex` references without a matching Codex manifest. The same
+audit found two real defects in the shared Claude hooks (BSD awk's missing third
+`match()` argument and duplicate `0` counter output) plus prose-only
+`CURRENT_WORK` branch state. These are repeatable failure classes in any
+multi-agent adopter repository, not defects to patch in one project.
+
+**Decision**: Harden the framework on three boundaries:
+
+1. **Ownership** — authoritative manifests move to
+   `.conductor/manifests/<adapter>.json`. The historical root manifest remains a
+   compatibility projection, legacy matching manifests migrate on first use,
+   doctor reads every authoritative manifest, and uninstall preserves files
+   referenced or required by another active adapter. The CLI adds
+   `--target=all` for an intentional six-adapter install/uninstall lifecycle.
+2. **Runtime dialect** — shared intent may be compiled per tool, but tool-native
+   files are never copied cross-tool. Validators reject absolute hook paths,
+   case drift, missing commands, and decision fields unsupported by the owning
+   runtime. Codex uses project-scoped TOML agents and Codex hook output shapes;
+   Claude's `ask` remains confined to Claude. Capability and emitted behavior
+   remain separate metadata axes.
+3. **Project state** — a portable `.conductor/project.json` declares document
+   paths and thresholds. `CURRENT_WORK` gains structured task/branch/base/head
+   fields. Doctor and stop guards compare populated fields with real Git state;
+   mtime becomes a secondary freshness signal. The plan reviewer stays distinct
+   from a new code-reviewer role.
+
+Full invariants and acceptance tests are in
+`docs/specs/2026-07-13-multitool-runtime-hardening.md`.
+
+**Consequences**: Sequential installs become independently diagnosable and
+reversible; a plausible-looking but unowned tool surface is reported instead of
+silently trusted; hook compatibility is tested as behavior rather than JSON
+syntax alone; and project-state drift is mechanically visible. The compatibility
+root manifest is deliberately not authoritative; it is an aggregate projection
+listing every installed adapter and the path to each authoritative manifest.
+New tooling uses the manifest directory for ownership and checks the projection
+for consistency.
+
+**Alternatives considered**:
+- *One merged JSON manifest.* Rejected — safely merging arbitrary adapter state in
+  dependency-free Bash would duplicate a JSON parser and make concurrent installs
+  fragile.
+- *Keep one manifest and document “install only one tool”.* Rejected — contradicts
+  the framework's multi-tool purpose and existing coexistence promise.
+- *Port every hook verbatim to all tools.* Rejected — lifecycle events, matchers,
+  payloads, and decisions differ. Unsupported enforcement is worse than an honest
+  rule-text fallback.
+- *Fix only the audited adopter repository.* Rejected — it would leave every new
+  install vulnerable to the same framework defects.
+
+## ADR-046 — Bound the Codex always-loaded kernel; preserve full rules as routed references
+
+**Status**: Accepted (2026-07-13)
+
+**Context**: Release-candidate revalidation used Codex CLI 0.144.0's local
+`debug prompt-input` renderer to inspect the exact model-visible session input.
+The prior full install generated a 68,670-byte `AGENTS.md`. Codex loaded only the
+leading project-instruction budget: later meta-discipline content, every selected
+recipe, and an end-of-file sentinel were absent. File existence, markdown validation,
+and a model answer naming several early rules had all produced false confidence.
+
+**Decision**: `AGENTS.md` becomes a compact always-loaded runtime kernel with the
+non-negotiable execution contract, activity routing, workflow phases, role separation,
+and an explicit `CONDUCTOR_KERNEL_END` marker. Its release safety budget is 24 KiB.
+Complete frontmatter-stripped universal rules are manifest-owned under
+`.codex/conductor/rules/*.md`; selected recipes are under
+`.codex/conductor/recipes/*.md`. The kernel explicitly requires opening the relevant
+reference and does not claim those files auto-load. À-la-carte modes append compact
+pointers instead of recipe bodies. Validator enforces the 24 KiB budget and reference
+set; doctor fails installed `AGENTS.md` files above Codex's default 32 KiB budget or
+missing the bounded-kernel marker. `tools/live-verify.sh --tool=codex` now uses the
+local native prompt renderer, requiring the end marker, instead of making a model call.
+
+**Consequences**: The entire always-loaded contract is verifiably model-visible,
+selected recipes no longer push a host file toward silent truncation, and full source
+fidelity remains available on demand. Codex differs honestly from Gemini's large
+single-file bundle. Existing Codex installs should be re-run so the old oversized
+bundle is replaced and tracked references are created.
+
+**Alternatives considered**:
+- *Raise `project_doc_max_bytes` in project config.* Rejected — it mutates adopter
+  configuration, relies on a non-portable override, and lets size grow without bound.
+- *Keep concatenating and merely warn.* Rejected — the old adapter already looked
+  healthy while silently losing trailing obligations.
+- *Drop detailed rules entirely.* Rejected — a compact kernel should preserve reliable
+  loading without discarding the framework's complete rationale and procedures.
+
+## ADR-047 — Ownership refreshes are lossless and shared teardown is order-independent
+
+**Status**: Accepted (2026-07-13)
+
+**Context**: Packed-consumer adversarial testing exposed two lifecycle failures that a
+zero-FAIL doctor result did not reveal. First, a same-option reinstall rebuilt each
+manifest only from files rewritten during that run; "already exists — preserve" paths
+lost ownership, so later uninstall leaked 29 managed files. Second, shared docs/profile
+were owned only by the first adapter. If that adapter was removed while others were
+active, uninstall correctly preserved the files but no remaining manifest inherited the
+final deletion/restoration duty. The Reflector also appended a trajectory entry to the
+user's top-level `.gitignore` without manifesting that mutation.
+
+**Decision**: Manifest staging begins as a lossless refresh of every still-present prior
+entry. A rewritten normal file replaces all staged ownership for that path; a rewritten
+marked block replaces only its own block entry. Full/minimal/strict adapters import one
+identical ownership record for shared docs and `.conductor/project.json`, including the
+original backup path, so any final adapter can complete teardown. Local trajectory
+payloads use a managed nested `.conductor/trajectories/.gitignore`; a user-owned nested
+file is preserved, and the exact legacy top-level CONDUCTOR block is removed during an
+opt-in Reflector upgrade.
+
+**Consequences**: Identical reinstall has a stable ownership digest. Both forward-order
+individual uninstall and reverse `--target=all --uninstall` leave zero managed files and
+backup artifacts, while user ignore/data files remain byte-identical. Doctor continues
+to validate integrity, but lifecycle regressions are now caught by explicit ownership
+cardinality/digest and zero-residue tests rather than inferred from doctor alone.
+
+**Alternatives considered**:
+- *Teach doctor a static list of every possible emitted path.* Rejected — modes and
+  recipes make the list conditional, and detection would not restore lost ownership.
+- *Require reverse uninstall order.* Rejected — adapter independence is a framework
+  contract, not a caller sequencing obligation.
+- *Keep mutating top-level `.gitignore` and add it as a normal owned file.* Rejected —
+  whole-file ownership would conflict with user edits and six shared owners; a nested
+  ignore file is scoped, checksum-safe, and naturally removable.
+
+## ADR-048 — Difficulty is invariant; model selection is adapter-native and dynamic
+
+**Status**: Amended by ADR-049 (2026-07-13).
+
+**Amendment**: The inheritance/Auto translation described below records the first
+vendor-neutral design step. ADR-049 replaces that runtime default with one-time,
+project-saved Tier mappings before role emission. The invariant retained from this
+ADR is the immutable Tier 1/2/3 difficulty contract; configured model availability
+and enforcement remain adapter-specific.
+
+**Context**: The universal model-routing rule and role frontmatter used Claude family
+names (`Opus`, `Sonnet`, `Haiku`) as if they were cross-tool difficulty labels. Every
+non-Claude adapter therefore received a Claude-shaped contract, and model releases
+risked turning copied version guidance stale. The actual portable requirement was the
+three existing difficulty classes, not a particular provider SKU.
+
+**Decision**: Preserve the section 6 Tier 1/2/3 triggers verbatim and make
+`difficulty_tier` the only model-capability field in universal role sources. A shared
+parser rejects missing or invalid role tiers. Adapters compile the Tier to verified
+native controls: Claude family aliases (with optional exact pins), Codex parent model
+inheritance plus high/medium/low reasoning effort, Gemini and Cursor inheritance,
+Copilot default/Auto inheritance, and a Windsurf workflow Tier that uses the selected
+Cascade model. No adapter invents a per-role model field absent from its verified
+format. Exact Claude/Codex/Gemini pins are opt-in environment overrides and do not
+change task classification.
+
+**Consequences**: Routine provider model launches normally require no CONDUCTOR
+change; aliases, inherited/recommended models, and Auto selection follow the owning
+tool. An adapter update is needed only for a provider schema change. Role difficulty
+cannot drift silently because validators and the multi-tool runtime suite verify the
+source Tier, compiled marker, and Codex effort mapping. Tier 2 `scribe` now correctly
+uses medium Codex reasoning instead of the prior unrelated `fast`/low setting.
+
+**Alternatives considered**:
+- *Pin the latest exact model ID in every adapter.* Rejected — availability differs by
+  plan and organization, and every release would require a framework patch.
+- *Use one inherited model everywhere and remove tiers.* Rejected — it violates the
+  user's existing difficulty contract and loses fidelity/effort intent.
+- *Rename tiers when a stronger model ships.* Rejected — model capability changes the
+  translation, not whether a task is conceptual, routine, or trivial.
+
+## ADR-049 — Configure Tier models once before role emission; distinguish configured from enforced
+
+**Status**: Accepted (2026-07-13)
+
+**Context**: Dynamic inheritance removed Claude terminology from the portable Tier
+contract, but it did not satisfy projects that need an intentional model choice for
+every supported tool. A proposed wizard inside the first real work prompt could not
+be guaranteed across six products: hooks can block or inject context, but no common
+contract captures a structured answer, persists it, regenerates every native role,
+and hot-reloads that registry in the same prompt. Cursor/Copilot availability also
+varies by account policy, while Windsurf workflows have no model field at all.
+
+**Decision**: `omniconductor init` performs a one-time pre-emission setup for every
+selected adapter. One summary offers recommended Tier 1/2/3 mappings; customization
+asks only for the selected adapter's three immutable Tier translations. The CLI
+saves a revisioned `.conductor/model-routing.json` with adapter-specific validation
+and enforcement metadata. Each deterministic adapter reloads and validates that
+file immediately before a real role-emitting write, then replaces inherited model
+environment values with the saved mapping. Reinstall reuses the file.
+`models configure/show` provides explicit
+maintenance. Non-interactive role-emitting installs fail before writes unless
+`--accept-model-defaults` is supplied. Public `transform.sh` invocations require
+Node.js and delegate through this same transaction; only fully manual file-copy or
+legacy role files rely on the rule-level first-use gate. Windsurf records Adaptive
+as `advisory-session`, never enforced.
+
+**Consequences**: Claude emits Opus/Sonnet/Haiku recommendations; Codex emits
+Sol/Terra/Luna plus high/medium/low effort; Gemini emits pro/flash/flash-lite; Cursor
+and Copilot emit saved exact models with provider-policy caveats. Model releases do
+not change task difficulty, and unavailable exact models are never silently
+downgraded. Atomic config writes, revision comparison, locking, unsafe-file checks,
+adapter-side pre-write validation, and concurrency tests prevent partial or injected
+state. A forged internal-dispatch marker or inherited model environment cannot install
+roles without valid saved routing. Real installation holds the same routing lock from
+the final saved-config read through every adapter and manifest write, including
+cross-mode recipes-only updates, so concurrent reconfiguration cannot commit a mixed
+revision. Doctor derives the routing requirement from retained managed role ownership,
+not only the latest mode label. Newly generated roles may require the tool's documented
+reload or next session.
+
+**Alternatives considered**:
+- *Run the only wizard inside the first work prompt.* Rejected — no six-tool native
+  interception, persistence, and hot-reload contract exists.
+- *Ask once for every named role.* Rejected — roles already declare immutable Tier;
+  per-role questions duplicate state and create drift.
+- *Silently accept defaults in CI.* Rejected — non-interactive automation must make
+  its choice explicit with `--accept-model-defaults` or provision reviewed config.
+- *Pretend Windsurf Adaptive is an exact workflow pin.* Rejected — the selector state
+  is neither encoded nor readable from the documented workflow surface.

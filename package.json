@@ -1,6 +1,6 @@
 {
   "name": "omniconductor",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Multi-coding-agent workflow framework. Write your project's rules, workflow, and discipline ONCE — install into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, or Windsurf. Encodes the discipline developers most often skip — spec-before-code, review gates, session continuity — so your AI agents catch what's easy to miss.",
   "license": "Apache-2.0",
   "author": "LFamily Labs LLC",
@@ -26,12 +26,15 @@
     "docs/MANUAL-INSTALL.md",
     "docs/PROMPT-CACHING-GUIDE.md",
     "docs/CONTEXT-EDITING-GUIDE.md",
+    "docs/MODEL-ROUTING.md",
+    "docs/HOW-IT-WORKS-PER-TOOL.md",
     "docs/COMPATIBILITY-MATRIX.md",
     "docs/ADAPTER-LIVE-VERIFICATION.md",
     "docs/PUBLISH-GUIDE.md",
     "docs/PUBLICATION-POLICY.md",
     "docs/DESIGN-DECISIONS.md",
     "docs/COMPARISON.md",
+    "docs/CONTRIBUTING.md",
     "README.md",
     "VISION.md",
     "LICENSE",
@@ -41,7 +44,13 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "cli": "node bin/omniconductor.js"
+    "cli": "node bin/omniconductor.js",
+    "test:multitool": "bash tools/test-multitool-runtime.sh",
+    "test:model-routing": "node tools/test-model-routing.js",
+    "test:path-safety": "node tools/test-path-safety.js",
+    "test:modes": "for tool in claude cursor copilot gemini codex windsurf; do bash tools/test-install-modes.sh $tool || exit 1; done",
+    "test": "npm run test:path-safety && npm run test:model-routing && npm run test:modes && npm run test:multitool",
+    "release:verify:local": "bash tools/release-verify-local.sh"
   },
   "keywords": [
     "claude-code",

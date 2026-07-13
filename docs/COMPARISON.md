@@ -7,14 +7,14 @@ Honest comparison of CONDUCTOR against the major existing options. Updated 2026-
 | | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR** |
 |---|---|---|---|---|---|---|
 | **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 6 tools, all with working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) — npm-published (`npx omniconductor`) |
-| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 6 roles) + 13 opt-in recipes + 10 hook templates |
-| **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — emitted on Claude today; the other tools support sub-agents too (ADR-031) but adapter emission is Phase 2 (ADR-004) |
-| **Spec-as-you-go enforcement** | Soft (encouraged) | Yes (gates) | Yes (artifacts) | No | No | ABSOLUTE on Claude (Stop hook); rule reminder on others |
-| **Two-stage code review** | Yes | Yes | Yes | No | No | ABSOLUTE on Claude (specialized agents); rule reminder on others |
+| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 8 roles) + 13 opt-in recipes + verified hook set |
+| **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — five native profile formats plus Windsurf role workflows |
+| **Spec-as-you-go enforcement** | Soft (encouraged) | Yes (gates) | Yes (artifacts) | No | No | ABSOLUTE everywhere; verified Stop guard on Claude/Codex, installed completion checklist elsewhere |
+| **Two-stage code review** | Yes | Yes | Yes | No | No | Eight-role topology on all six; mechanical guard subset on Claude/Codex and native review/checklist elsewhere |
 | **Token economy rules** | Bonus | Bonus | Not specifically | No | No | Built-in from day 1; instruction-fidelity-first since 0.4.0 (ADR-035/036) |
 | **Self-improvement loop** | No | No | No | No | No | Opt-in `self-improvement` Reflector — propose-only, human-approved (ADR-030/032/033), emitted on all 6 tools |
 | **Agent-loop / git discipline** | No | No | No | No | No | Opt-in `loop-engineering` (bounded, externally-verified loops, ADR-038) + `git-hygiene` (shared-repo discipline, ADR-037) recipes |
-| **Memory pattern** | No | No | No | No | No | 4-type, documented universally; native directory on Claude only |
+| **Memory pattern** | No | No | No | No | No | Universal 4-type pattern; native managed memory on Claude/Copilot/Codex/Windsurf, documented fallbacks elsewhere |
 | **Bilingual (한/영)** | Translations available | English-first | English-first | English-first | DIY | First-class (한/영, README + marketing) |
 | **Origin** | Single-author theory | Microsoft research roots | Indie author | IDE vendor | None | One year of production iteration at LFamily Labs |
 | **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | All 6 adapters working + CI-validated, npm-published; 1.0 shipped 2026-07 (current version in `CHANGELOG.md`) |
@@ -52,12 +52,12 @@ If you only want format conversion, you can write a 50-line script that reads `*
 ## Honest weaknesses of CONDUCTOR
 
 - **No installer GUI.** Bash adapters + the `npx omniconductor` CLI only. Power-user tool. (A VSCode-extension launcher is Phase 2 — ADR-023/025.)
-- **Enforcement emission is still Claude-weighted.** All six tools now support hooks / sub-agents / model routing (ADR-031), but CONDUCTOR's adapters currently *emit* the full hook + agent set for Claude only; the other five get the rule/recipe text plus the opt-in Reflector loop. Full non-Claude emission is Phase 2.
+- **Mechanical guard coverage is capability-specific.** Claude gets the full set, Codex gets the verified native subset, and other adapters avoid translating unverified hook contracts. All six receive role entry points and the opt-in Reflector loop.
 - **Live verification is not complete.** All 6 adapters are emit-verified in CI; live rule-loading is probed per tool by `tools/live-verify.sh`, and the current per-tool status lives in the generated table in `docs/ADAPTER-LIVE-VERIFICATION.md` (single-sourced from adapter metadata).
 - **No community yet.** No Discord, no Twitter/X presence. You're an early adopter.
 - **Tool fragmentation risk.** If 12 new tools launch in 2026, we cannot keep up. Mitigated by documented adapter contribution path (`docs/CONTRIBUTING.md`).
-- **Claude-Code bias.** The orchestrator-centric model maps naturally to Claude. On other tools the human carries more of the weight. This is documented honestly (ADR-004) but it is a real bias.
-- **Two-stage code review on Claude requires the `pr-review-toolkit` plugin.** Documented in the Claude adapter notes; fallback is manual prompt reuse.
+- **Guard asymmetry.** Claude receives the full verified guard set and Codex receives the verified native subset. Cursor, Copilot, Gemini, and Windsurf retain the same obligations through native rules plus only the lifecycle/recipe hooks whose contracts are verified.
+- **External review plugins are optional.** Every adapter emits the base `code-reviewer` role; a compatible third-party plugin may add another review signal but is not required for the two-stage workflow.
 - **Mobile rule (project-specific) is React Native flavored.** If your stack is native iOS or native Android, that rule is mostly noise — but it's project-specific and lives in your adapted output, not in `core/`.
 
 ## Honest strengths
@@ -103,7 +103,10 @@ ADR-014 sets a 95% cache-hit floor as CONDUCTOR's SLA. Loading both rule sets in
 
 **Option A — CONDUCTOR only (recommended for new projects)**
 
-Use CONDUCTOR's universal rules + roles + recipes. Skip Superpowers entirely. The 5-rule kernel covers planning, spec-as-you-go, quality gates, operations, and meta-discipline; the 6 roles cover orchestration. Add Superpowers later only if a specific skill (e.g. `using-git-worktrees`) is missing.
+Use CONDUCTOR's universal rules + roles + recipes. Skip Superpowers entirely. The
+5-rule kernel covers planning, spec-as-you-go, quality gates, operations, and
+meta-discipline; the 8 base roles cover orchestration through Tier 3 utility. Add
+Superpowers later only if a specific skill is missing.
 
 **Option B — Superpowers as primary, CONDUCTOR recipes only (for projects already on Superpowers)**
 

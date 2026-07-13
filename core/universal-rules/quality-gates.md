@@ -21,16 +21,16 @@ linked_rules:
 
 Before a code change is committed, an automated reviewer MUST inspect the diff. Block on HIGH-confidence issues (severity ≥ 75 / 100). Lower-severity issues become PR comments.
 
-### 1.1 Reviewer selection (model routing)
+### 1.1 Reviewer selection (difficulty routing)
 
 | Diff size / nature | Reviewer model |
 |---|---|
-| Single file, established pattern | Sonnet-tier |
-| Multi-file (3+) or cross-cutting | Opus-tier |
+| Single file, established pattern | Tier 2 — routine |
+| Multi-file (3+) or cross-cutting | Tier 1 — conceptual / complex |
 | Type-design heavy | Specialized "type-design" reviewer if available |
 | Error-handling heavy | Specialized "silent-failure" reviewer if available |
 
-When in doubt, upgrade one tier. The cost difference between Sonnet and Opus reviewer is modest compared to the cost of merging a HIGH-severity bug.
+When in doubt, upgrade one tier. The incremental cost or latency is modest compared to the cost of merging a HIGH-severity bug.
 
 ### 1.2 Exemptions (NOT subject to pre-commit review)
 
@@ -61,9 +61,11 @@ After commit + push + open PR, a SECOND review pass runs on the open PR before m
 
 PR opened on a non-direct-push branch (typically anything that is not `main` / `release` / `develop` per the project's branch strategy). See `recipes/branch-strategy.md` for branch naming patterns.
 
-### 2.2 Cool-down (Claude adapter only)
+### 2.2 Cool-down (Claude and Codex adapters)
 
-The `stop-r6-review-check` hook (when installed by the Claude adapter) reminds the orchestrator to run pre-merge review at most once per 30 minutes per PR. This avoids reminder spam on rapid push cycles.
+The `stop-r6-review-check` hook is installed by the Claude and Codex adapters in
+their verified Stop-hook dialects. It reminds the orchestrator to run pre-merge
+review at most once per 30 minutes per PR, avoiding reminder spam on rapid pushes.
 
 ### 2.3 Exemptions
 
@@ -74,9 +76,11 @@ Same as Q1 (docs-only, lockfile, generated files). Additionally, PRs that have a
 | Tool | Q2 mechanism |
 |---|---|
 | Claude Code | Slash command (`/code-review`) + Stop-hook reminder |
-| Cursor | Cursor command palette + manual rule reminder |
-| Copilot | GitHub PR comment review (Copilot Code Review native) + manual reminder |
-| Gemini / Codex / Windsurf | Manual reminder via rule text |
+| Codex | `code-reviewer` role + verified Stop-hook reminder |
+| Cursor | `code-reviewer` agent + native command/review surface |
+| Copilot | `code-reviewer` agent + GitHub Copilot Code Review |
+| Gemini CLI | `code-reviewer` agent + installed completion checklist |
+| Windsurf | `code-reviewer` workflow + installed completion checklist |
 
 ---
 
@@ -183,9 +187,11 @@ Before any commit:
 
 | Gate | Claude Code | Cursor | Copilot | Gemini | Codex | Windsurf |
 |---|---|---|---|---|---|---|
-| Q1 pre-commit review (auto) | Manual invoke + Stop-hook reminder | Manual | GitHub Copilot CR | Manual | Manual | Manual |
-| Q2 pre-merge review (auto) | Slash command + Stop-hook | Manual | GitHub native | Manual | Manual | Manual |
+| Q1 pre-commit review | `code-reviewer` + full guard set | `code-reviewer` agent | `code-reviewer` + GitHub native | `code-reviewer` agent | `code-reviewer` + verified commit guards | `code-reviewer` workflow |
+| Q2 pre-merge review | Slash command + Stop-hook | Native agent/review surface | GitHub native | Native agent + checklist | Native role + Stop-hook | Native workflow + checklist |
 | Q3 test coverage sync | Rule text + checklist | Same | Same | Same | Same | Same |
 | Q4 verify-after-changes | Rule text + LLM self-discipline | Same | Same | Same | Same | Same |
 
-The honest summary: only Claude Code has a pre-existing automated reminder mechanism. On other tools, the rule text + the operator's discipline carry the weight. CONDUCTOR does not pretend otherwise.
+All six adapters expose the independent review role, but only Claude and Codex
+receive CONDUCTOR's verified mechanical guard hooks. Elsewhere the native review
+surface, installed checklist, and operator approval carry the gate.

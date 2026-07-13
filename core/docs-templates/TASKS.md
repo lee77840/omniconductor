@@ -14,7 +14,7 @@
 - [ ] **Task 1** — short description
   - File paths: `<web-app>/...`, `packages/shared/...`
   - Stop condition: what proves done
-  - Owner / agent: (e.g., `@builder` Opus / human)
+  - Owner / agent: (e.g., `@builder` Tier 1 / human)
 - [ ] **Task 2** — short description
   - File paths:
   - Stop condition:
@@ -32,7 +32,7 @@
 - [ ] **Task <n>** — <short description>
   - File paths: <list of paths to read/edit>
   - Stop condition: <what proves done>
-  - Owner / agent: <e.g., @builder Opus / @helper Sonnet / human>
+  - Owner / agent: <e.g., @builder Tier 1 / @helper Tier 2 / human>
 ```
 
 ---

@@ -26,14 +26,17 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/universal-rules/quality-gates.md` | Q1..Q4 (pre-commit + pre-merge review, test sync, verify-after). |
 | `core/universal-rules/operations.md` | O2 + O3 + P3 (session continuity, completed-task delete, dev/prod sync). |
 | `core/universal-rules/meta-discipline.md` | M1 + M2 + M3 + M5 + ambiguity policy. |
-| `core/roles/README.md` | The 6 universal-roles catalog. |
-| `core/roles/planner.md` | Architecture, gap analysis, ADRs. Opus-tier. |
-| `core/roles/builder.md` | Multi-file / cross-cutting code. Opus-tier. |
-| `core/roles/reviewer.md` | Plan validation. Opus-tier. Read-only. |
-| `core/roles/helper.md` | Single-file work, established patterns. Sonnet-tier. |
-| `core/roles/designer.md` | UI / UX, design tokens, accessibility. Sonnet-tier. |
-| `core/roles/scribe.md` | Documentation sync after impl. Sonnet-tier. |
-| `core/roles/reflector.md` | Reads session trajectories; proposes lesson deltas (propose-only, opt-in). Opus-tier. |
+| `core/roles/README.md` | The 8 universal-role catalog, including Tier 3 utility, plus opt-in reflector. |
+| `core/roles/planner.md` | Architecture, gap analysis, ADRs. Tier 1. |
+| `core/roles/builder.md` | Multi-file / cross-cutting code. Tier 1. |
+| `core/roles/reviewer.md` | Plan validation. Tier 1. Read-only. |
+| `core/roles/helper.md` | Single-file work, established patterns. Tier 2. |
+| `core/roles/designer.md` | UI / UX, design tokens, accessibility. Tier 2. |
+| `core/roles/scribe.md` | Documentation sync after impl. Tier 2. |
+| `core/roles/reflector.md` | Reads session trajectories; proposes lesson deltas (propose-only, opt-in). Tier 1. |
+| `docs/MODEL-ROUTING.md` | One-time Tier-model setup, six-adapter recommendations, enforcement boundaries, CI and lifecycle behavior. |
+| `docs/specs/2026-07-13-vendor-neutral-model-routing.md` | Model-routing invariants and acceptance criteria. |
+| `docs/plans/2026-07-13-vendor-neutral-model-routing.md` | Implementation and verification plan. |
 | `core/recipes/README.md` | The 13 opt-in recipes catalog + selection guidance. |
 | `core/recipes/self-improvement.md` | Opt-in Reflector loop — propose-only session self-review (ADR-030/032/033). |
 | `core/recipes/web-mobile-parity.md` | P1 + P2 (feature + bug parity). |
@@ -109,8 +112,9 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-034. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-049. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
+| `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |
 | `docs/CONTRIBUTING.md` | Adapter contributor guide. |
 | `docs/COMPARISON.md` | Comparison with other frameworks. |
@@ -119,7 +123,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/PROMPT-CACHING-GUIDE.md` | **P1 ✅** Anthropic prompt caching structure + measurement. |
 | `docs/CONTEXT-EDITING-GUIDE.md` | Instruction-fidelity-first context reduction — lossless `clear_tool_uses` before lossy `/compact` (Claude-only, ADR-035). |
 | `docs/KPI.md` | **P1.5 ✅** Baseline metrics (cache hit 100%, output tokens/turn, etc.). |
-| `docs/MANUAL-INSTALL.md` | Path C — fallback manual `cp` / `cat` install for any tool (every tool now also has a `transform.sh`; manual steps are a fallback). |
+| `docs/MANUAL-INSTALL.md` | Path C — no-Node fallback manual `cp` / `cat` install; public `transform.sh` wrappers require Node and enter the guided CLI. |
 | `docs/PUBLISH-GUIDE.md` | VSCode Marketplace + Open VSX publish steps (Phase 2 / v0.3+, ADR-025). |
 | `docs/IDE-COMPATIBILITY-NOTES.md` | Per-IDE compatibility notes. |
 | `docs/IDE-SMOKE-TESTING.md` | Per-IDE smoke-test procedure. |

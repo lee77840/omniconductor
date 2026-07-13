@@ -1,6 +1,6 @@
 # Cursor adapter — transform.sh specification
 
-What `adapters/cursor/transform.sh` MUST do when implemented in P2.
+Normative behavior for the implemented `adapters/cursor/transform.sh`.
 
 ## Invocation
 
@@ -65,18 +65,18 @@ For each `core/universal-rules/<rule>.md`:
        - "<glob2>"
      ---
      ```
-   - Body content preserved verbatim, except:
-     - `> **Cursor-only mechanism**` callouts: keep as-is.
-     - `> **Claude-only mechanism**` callouts: REPLACE with a degraded callout: `> **Note (Cursor)**: this rule is enforced by hook on Claude Code; on Cursor, follow self-policed.`
-     - Other tool-specific callouts: STRIP.
+   - Preserve capability-aware callouts from the universal source. Never rewrite
+     a Claude + Codex shared guard as Claude-only, and never claim that Cursor
+     emits a local guard that the adapter does not install.
 
 ## Cursor-specific orchestrator manual
 
 `.cursorrules` body:
 
 1. Header — bilingual (한/영) "you are the orchestrator" intro.
-2. The 6 role personas (planner/builder/reviewer/helper/designer/scribe) reformatted as "manual orchestrator personas" — when starting a complex task, paste the relevant persona from this file as your prompt.
-3. ABSOLUTE rules (R1-R8 from CONDUCTOR universal, with R-prefix renumbered for Cursor reality — drop sub-agent-specific rules, keep spec-as-you-go / two-stage review / token economy / model routing).
+2. The 8 base roles compiled into native `.cursor/agents/*.md` profiles, including
+   the independent `code-reviewer` and bounded Tier 3 `utility` roles.
+3. ABSOLUTE rules and the native eight-role topology, with only unverified guard contracts omitted; keep spec-as-you-go / two-stage review / token economy / model routing.
 4. Universal rule TEXT (from `core/` always-loaded rules).
 5. Pointer to `docs/CURRENT_WORK.md` as session-start read.
 

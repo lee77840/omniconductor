@@ -1,6 +1,6 @@
 ---
 rule_id: meta-discipline
-rule_name: "Originality, ambiguity handling, never-skip, token economy, model routing"
+rule_name: "Originality, ambiguity handling, never-skip, token economy, difficulty routing"
 severity: ABSOLUTE
 applies_to: ["all-tools"]
 violation_count: 8+
@@ -15,7 +15,7 @@ linked_rules:
 
 # Meta-Discipline — How CONDUCTOR Stays CONDUCTOR
 
-> Bundles M1 (framework originality), M2 (token economy reference), M3 (model routing reference), M5 (ABSOLUTE rules never skip — cross-link), and the ambiguity policy (ACT-WITH-DECLARATION default + AMB-1..7 triggers).
+> Bundles M1 (framework originality), M2 (token economy reference), M3 (vendor-neutral difficulty routing), M5 (ABSOLUTE rules never skip — cross-link), and the ambiguity policy (ACT-WITH-DECLARATION default + AMB-1..7 triggers).
 
 ## 1. Process Over Speed (W5 cross-link)
 
@@ -213,9 +213,11 @@ Rationale: raw token count is a finite **attention budget**, and the goal is the
 
 Each tool has its own ignore file (`.claudeignore`, `.cursorignore`, `.aiderignore`, etc.). Keep these in sync — they prevent expensive accidental Reads of build outputs, large lockfiles, or vendored code.
 
-### 5.9 Output brevity (output tokens cost ~5× input)
+### 5.9 Output brevity
 
-Output tokens are priced far higher than input — roughly 5× across the current lineup (e.g. Opus 4.8 is $5 in / $25 out per MTok). The orchestrator's own responses are a directly controllable cost:
+Provider pricing and model ratios change, but unnecessary output always consumes
+latency, context, and often additional cost. The orchestrator's own responses are a
+directly controllable expense:
 
 - **Answer, don't narrate.** Skip preamble ("Great question! Let me…"), postamble, and restating what the user already said. Lead with the result.
 - **Match verbosity to the task.** A one-line answer for a one-line question; reserve tables and step-by-steps for genuinely multi-part work.
@@ -228,13 +230,33 @@ See Anti-Pattern 08 (verbose output / narration).
 
 ---
 
-## 6. Model Routing (M3)
+## 6. Difficulty Routing (M3)
 
-The orchestrator classifies every task and selects model tier explicitly. The user does NOT specify the model per request — that responsibility belongs to the orchestrator.
+The orchestrator classifies every task into the exact portable tier below. The
+classification is the invariant; a tool adapter translates it into that tool's
+current model-selection or reasoning control. Never infer task difficulty from a
+vendor model name, and never downgrade a declared tier because a cheaper or newer
+model exists.
 
-> **Lineup / pricing snapshot** (verified 2026-07, $ per MTok input / output): Haiku 4.5 **$1 / $5** · Sonnet 5 **$3 / $15** · Opus 4.8 **$5 / $25** · Fable 5 **$10 / $50**. Output is ~5× input at every tier (see §5.9). The tier labels below are generation-agnostic on purpose — prices and model names drift, so re-verify against Anthropic's pricing page before quoting.
+### 6.0 First-use configuration gate
 
-### 6.1 Tier 1 — Conceptual / complex (Opus-tier)
+Before the first role dispatch, verify that `.conductor/model-routing.json`
+exists and contains this tool's Tier 1/2/3 entry. If it is missing (for example,
+after a manual adapter install or an upgrade), pause role dispatch and ask the
+user to run:
+
+```bash
+npx omniconductor models configure --target=<tool> .
+```
+
+Do not invent a model, silently downgrade a Tier, or edit role files from the
+conversation. The deterministic installer owns role generation. After the
+configuration command regenerates tool-native files, reload/restart the tool
+when its native role registry does not hot-reload. The user's original task may
+continue in the main thread, but newly generated role routing begins only when
+the tool can see those files.
+
+### 6.1 Tier 1 — Conceptual / complex
 
 Trigger if any of:
 
@@ -247,7 +269,7 @@ Trigger if any of:
 - Anti-pattern audit + refactor.
 - Documentation work that synthesizes multiple concerns.
 
-### 6.2 Tier 2 — Routine (Sonnet-tier, default for most work)
+### 6.2 Tier 2 — Routine (default for most work)
 
 - Single-file or single-component tweak.
 - New page using established shell.
@@ -257,7 +279,7 @@ Trigger if any of:
 - Spec text update.
 - Translation key propagation across N locales (pattern established).
 
-### 6.3 Tier 3 — Trivial (Haiku-tier)
+### 6.3 Tier 3 — Trivial
 
 - Read a file, return a specific value.
 - Rename a variable in 1 file.
@@ -265,28 +287,36 @@ Trigger if any of:
 
 ### 6.4 Override rule of thumb
 
-> When in doubt, **upgrade one tier**. Cost difference is modest; risk of a weaker model misinterpreting conceptual work is large.
+> When in doubt, **upgrade one tier**. The risk of under-reasoning conceptual work is larger than the incremental latency or cost.
 
-This is a **fidelity** rule, not only cost caution. Anthropic's own tool-use guidance notes that on a missing required parameter, Opus "is much more likely to recognize a parameter is missing and ask," whereas a cheaper model "might also infer a reasonable value" — i.e. guess. On conceptual or instruction-dense work, a guess is instruction distortion. Route by fidelity risk, not by token price alone.
+This is a **fidelity** rule, not only cost caution. On conceptual or
+instruction-dense work, an underpowered or low-effort configuration is more likely
+to fill gaps by guessing. Route by fidelity risk, not by token price alone.
 
 ### 6.5 Surface the choice
 
-When ambiguous, the orchestrator surfaces its model choice in the dispatch announcement:
+When ambiguous, the orchestrator surfaces its difficulty choice in the dispatch announcement:
 
-> "Dispatching to `builder` (Opus) — multi-file refactor across 5 components."
+> "Dispatching to `builder` (Tier 1 — conceptual / complex) — multi-file refactor across 5 components."
 
 This gives the user a chance to override before tokens are spent.
 
-### 6.6 Per-tool applicability
+### 6.6 Per-tool translation
 
-| Tool | Model routing applies? |
-|---|---|
-| Claude Code | Yes (Agent tool's `model` parameter; PreToolUse hook validates explicit choice) |
-| Cursor | Yes (Composer model picker — orchestrator chooses by rule) |
-| Copilot | Limited (model selection is account-level, less per-task control) |
-| Gemini / Codex / Windsurf | Limited (single-model context typical) |
+| Tool | Default translation | Version-update behavior |
+|---|---|---|
+| Claude Code | Saved Tier mapping; current-family aliases are recommended by setup | Family aliases track the provider family; exact IDs remain user-selectable. |
+| Codex | Saved Tier mapping plus Tier 1/2/3 → high/medium/low reasoning effort | Exact current IDs are revalidated against the local catalog when available. |
+| Gemini CLI | Saved Tier mapping; provider semantic aliases are recommended by setup | Aliases follow the provider's complexity classes. |
+| GitHub Copilot | Saved exact Tier mapping in custom-agent `model` | Account, plan, client, and organization policy may reject or replace a selection. |
+| Cursor | Saved exact Tier mapping in custom-agent `model` | Account, plan, and administrator policy may cause provider fallback. |
+| Windsurf | Saved `Adaptive` requirement, announced in each role workflow | Workflow format has no model field or selector-state API; enforcement is advisory-session. |
 
-On limited-routing tools, the orchestrator still classifies the task — even if it can't change the model — because the tier informs effort level (low / medium / high reasoning) and dispatch budget.
+The orchestrator MUST still classify the task when the tool cannot mechanically
+switch a model. The Tier then controls reasoning depth, review strictness, dispatch
+budget, and the explicit announcement. Saved model choices never change the Tier
+triggers in §6.1–6.3, and unavailable models require explicit reconfiguration—never
+an automatic downgrade.
 
 ---
 
@@ -311,7 +341,8 @@ On Claude Code, the `pretool-agent-routing` hook validates that:
 - `model` is explicitly set.
 - The dispatcher is the orchestrator (not another role).
 
-On other tools, the rule text serves as the constraint.
+On the other five tools, the native eight-role surface plus this rule text serves
+as the routing constraint; no Claude Agent-tool matcher is claimed or translated.
 
 ---
 
@@ -322,7 +353,10 @@ On other tools, the rule text serves as the constraint.
 | Originality grep | Pre-commit script (orchestrator's responsibility) | Same | Same | Same | Same | Same |
 | AMB-1..7 trigger ASK | Rule text + LLM self-discipline | Same | Same | Same | Same | Same |
 | Token-economy Read discipline | Rule text + Stop-hook reminder when wasteful patterns spike | Rule text | Rule text | Rule text | Rule text | Rule text |
-| Model routing | PreToolUse hook validates explicit `model` | Manual per-task pick (tool-native) | Same | Same | Same | Same |
+| Difficulty routing | PreToolUse hook + saved model | Tier + saved model (provider fallback possible) | Tier + saved model (policy-controlled) | Tier + saved semantic alias | Tier + saved model + effort | Tier + Adaptive advisory |
 | Flat-with-leader | PreToolUse hook validates dispatcher | Rule text (tools have native sub-agents; role emission is a later adapter phase) | Same | Same | Same | Same |
 
-The honest summary: meta-discipline is enforced by rule text on every tool, with hook-based extras emitted on Claude Code only today — an emission gap, not a tool limitation (every listed tool ships hooks, sub-agents, and per-task model selection natively as of 2026).
+The honest summary: every tool receives the same Tier contract. Mechanical model
+switching is used only where the tool exposes a verified project-scoped control.
+Windsurf preserves the Tier and saved Adaptive requirement in workflow text because
+its selector cannot be inspected or pinned by a project workflow.

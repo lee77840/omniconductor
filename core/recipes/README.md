@@ -17,8 +17,8 @@ Per ADR-013, CONDUCTOR ships project-specific recipes as OPT-IN. They are not lo
 | `database-discipline.md` | Project has a relational store with migrations + dev/prod split. Ships 2 recipe-scoped hookify rules (SQL access-control + SECURITY DEFINER search_path) — see ADR-028 |
 | `design-system.md` | Project maintains a design-token system (color/spacing/typography tokens). Ships 1 recipe-scoped hookify rule (raw-hex-instead-of-token) — see ADR-028 |
 | `self-improvement.md` | Project wants a periodic, human-approved Reflector that distils session lessons into memory/rules. Propose-only; nothing auto-applies. Drives the `reflector` role — see ADR-030 |
-| `git-hygiene.md` | Any git project — esp. repos worked by multiple sessions/agents or with protected branches. Shared-repo discipline (no orphan worktrees, push-don't-hoard, merge=delete-branch, backup≠applied). Ships a Claude-only Stop-hook reminder (`stop-git-hygiene-guard`); other tools use the rule text — see ADR-037 |
-| `loop-engineering.md` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step). Bounded, externally-verified loops: explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, verify-externally-not-self-judgment, oscillation guard. Ships a Claude-only PreToolUse reminder (`pretool-loop-guard`); other tools use the rule text — see ADR-038 |
+| `git-hygiene.md` | Any git project — esp. repos worked by multiple sessions/agents or with protected branches. Shared-repo discipline (no orphan worktrees, push-don't-hoard, merge=delete-branch, backup≠applied). Claude/Codex add a verified Stop reminder; other adapters install the checklist — ADR-037 as amended by ADR-045 |
+| `loop-engineering.md` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step). Bounded, externally-verified loops: explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, verify-externally-not-self-judgment, oscillation guard. Claude/Codex add verified `PreToolUse` reminders; other adapters install the rule text — ADR-038 as amended by ADR-045 |
 
 ## Selection patterns
 

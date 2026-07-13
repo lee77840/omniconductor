@@ -21,7 +21,7 @@ An agent that loops "until it's right" fails in a few well-documented ways. The 
 - **"The model says it's done" is not evidence.** LLM self-assessment is systematically over-confident, and LLM-as-judge carries position/verbosity/self-preference bias (*Judging LLM-as-a-Judge*, Zheng et al., NeurIPS'23). Declaring victory without running the check ("early victory") is the most common fidelity failure.
 - **Unbounded loops run away.** Infinite / oscillation (edit↔revert) loops are a documented structural failure — in one study **95.6% ended in cost exhaustion / model-DoS** (*When Agents Do Not Stop*, 2026). More iterations help only up to a point, then *saturate and hurt*; long trajectories degrade (context rot, error compounding).
 
-So a good loop is **bounded, progress-checked, and terminated by an external verifier** — not by the model's opinion. Prose gets forgotten, so on the Claude adapter this recipe is backed by a `pretool-loop-guard` hook.
+So a good loop is **bounded, progress-checked, and terminated by an external verifier** — not by the model's opinion. Claude and Codex back this recipe with their verified `PreToolUse` hook dialects; every adapter installs the same loop obligations.
 
 ## The loop shape (well-supported)
 
@@ -61,8 +61,16 @@ Detect and break repetition: the same action repeated, or an edit↔revert cycle
 
 ## Conductor Integration
 
-- **Claude** — a PreToolUse hook `pretool-loop-guard` (from `core/hooks/`) tracks a per-session signature of each tool call and fires a **non-blocking soft-warn** (`permissionDecision: ask`) when the **same action repeats too often** (G3/G6 — likely looping without progress) or the **session's total tool calls exceed a budget** (G2 — runaway). It self-gates on this recipe being installed, is fail-open (never blocks a tool call on error), and honors `CONDUCTOR_SKIP_LOOP_GUARD=1`, `CONDUCTOR_LOOP_REPEAT_MAX` (default 5), `CONDUCTOR_LOOP_BUDGET` (default 120), `CONDUCTOR_LOOP_COOLDOWN_SECONDS` (default 120).
-- **Cursor / Copilot / Gemini / Codex / Windsurf** — the hook is Claude-only (per `docs/DESIGN-DECISIONS.md` ADR-034/ADR-038). On these tools this recipe's rule text is the enforcement: follow G1–G6 by discipline (the loop shape + external-verify rule are tool-agnostic).
+- **Claude** — `pretool-loop-guard` tracks per-session action signatures and emits
+  a non-blocking `permissionDecision: ask` soft warning on repeated actions or a
+  runaway call budget.
+- **Codex** — the same detector runs in the verified Codex `PreToolUse` dialect and
+  supplies `additionalContext`; it never emits Claude's unsupported `ask` shape.
+- **Cursor / Copilot / Gemini / Windsurf** — the installed G1–G6 rule text is the
+  enforcement floor because CONDUCTOR does not emit an unverified equivalent guard.
+- Both hook variants self-gate on this recipe, fail open, and honor
+  `CONDUCTOR_SKIP_LOOP_GUARD`, `CONDUCTOR_LOOP_REPEAT_MAX`,
+  `CONDUCTOR_LOOP_BUDGET`, and `CONDUCTOR_LOOP_COOLDOWN_SECONDS`.
 
 ## Cross-References
 

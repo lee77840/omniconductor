@@ -25,19 +25,56 @@
 #   core/recipes/*.md (selected)   →  <target>/GEMINI.md          (## Recipe — <name> sections; Gemini is single-file)
 #   core/recipes/coding-conventions →  <target>/.gemini/styleguide.md  (Gemini style-guide convention; opt-in)
 #   core/docs-templates/*.md       →  <target>/docs/*.md          (CURRENT_WORK, REMAINING_TASKS, etc.)
-#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Gemini supports sub-agents natively — ADR-031)
+#   core/hooks/*.sh.template       →  Gemini-verified lifecycle/recipe subset only; Claude/Codex have additional verified guards
+#   core/roles/*.md                →  <target>/.gemini/agents/*.md (native roles; saved Tier model — ADR-049)
 #
 # Gemini reality (per adapters/gemini/SUPPORTED-FEATURES.md):
 #   - Single always-loaded rule file (GEMINI.md). No per-pattern rule scoping.
 #   - Gemini CLI supports sub-agents / hooks / per-call model routing natively
-#     (ADR-031), but this adapter does not emit them yet (Phase 2). CONDUCTOR
+#     (ADR-031); this adapter emits native role profiles in full/strict mode. CONDUCTOR
 #     emits the Reflector hook when --recipes=self-improvement (ADR-032); other
-#     guards remain Claude-only emission (ADR-034).
-#   The bundle below carries the rule TEXT honestly; Claude-only enforcement mechanisms
-#   are noted as self-policed for Gemini, never faked.
+#     additional workflow guards are not emitted by this adapter.
+#   The bundle carries universal rule text and states per-tool enforcement truthfully.
 
 set -eu
+
+# Direct adapter calls enter through the CLI so one-time Tier-model setup runs
+# before role emission. Array forwarding preserves exact shell argument
+# boundaries; the CLI marks its adapter child to prevent wrapper recursion.
+ORIGINAL_ARGS=("$@")
+CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDUCTOR_DELEGATE_TO_CLI="true"
+[ "${#ORIGINAL_ARGS[@]}" -gt 0 ] || CONDUCTOR_DELEGATE_TO_CLI="false"
+if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    case "$_conductor_arg" in --help|-h) CONDUCTOR_DELEGATE_TO_CLI="false" ;; esac
+  done
+fi
+CONDUCTOR_CLI_CHILD="false"
+conductor_file_identity() {
+  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
+    stat -f '%i:%z' "$1"
+  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
+    stat -c '%i:%s' "$1"
+  else
+    return 1
+  fi
+}
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
+  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
+    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
+    && [ -n "$_conductor_dispatch_identity" ] \
+    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+    CONDUCTOR_CLI_CHILD="true"
+  fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required for one-time CONDUCTOR model setup." >&2
+    exit 127
+  }
+  exec node "$CONDUCTOR_ROOT/bin/omniconductor.js" init --target=gemini "${ORIGINAL_ARGS[@]}"
+fi
 
 # ----- arg parsing --------------------------------------------------------
 
@@ -94,9 +131,9 @@ Gemini single-file model:
     native style-guide convention).
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
-  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (not yet emitted for Gemini — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
-  - Per-call model routing (supported natively by Gemini CLI, ADR-031; not yet automated by CONDUCTOR)
+  - Unverified guard ports (CONDUCTOR emits only Gemini contracts verified by this adapter; Reflector is opt-in)
+  - Claude-only Agent/Read hook contracts and Hookify rules
+  - Unvalidated model values (the CLI supplies the saved Tier mapping)
   - Built-in memory directory (DIY at .memory/ — see the note inside GEMINI.md)
 EOF
       exit 0
@@ -134,8 +171,7 @@ if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true"
   exit 1
 fi
 
-# Resolve CONDUCTOR root (where this script lives: adapters/gemini/).
-CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Resolve CONDUCTOR assets (root was resolved by the invocation wrapper).
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
 
@@ -148,6 +184,16 @@ if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
 TARGET_ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "Error: target directory does not exist or is not a directory: $TARGET" >&2; exit 1; }
+
+if [ "$UNINSTALL" != "true" ] && [ "$DRY_RUN" != "true" ] && [ "$MODE" != "recipes-only" ]; then
+  _conductor_models=()
+  while IFS= read -r _conductor_model; do _conductor_models+=("$_conductor_model"); done \
+    < <(node "$CONDUCTOR_ROOT/bin/model-routing.js" resolve "$TARGET_ABS" gemini)
+  [ "${#_conductor_models[@]}" -eq 3 ] || { echo "Error: valid Gemini Tier routing is required before installation." >&2; exit 2; }
+  export CONDUCTOR_GEMINI_MODEL_TIER_1="${_conductor_models[0]}"
+  export CONDUCTOR_GEMINI_MODEL_TIER_2="${_conductor_models[1]}"
+  export CONDUCTOR_GEMINI_MODEL_TIER_3="${_conductor_models[2]}"
+fi
 
 # ----- helpers ------------------------------------------------------------
 
@@ -188,10 +234,9 @@ derive_title() {
 
 # Emit a rule/recipe body into GEMINI.md as a section.
 # The body (sans frontmatter) is demoted: its H1 "# Title" line is dropped (the
-# caller supplies the "## " heading) and the Claude-only callout is rewritten for
-# Gemini reality per transform-spec.md:
-#   "> **Claude-only mechanism**: ..."  ->  "> **Note (Gemini)**: enforced by hook
-#   on Claude Code; on Gemini CLI, follow self-policed."
+# caller supplies the "## " heading). Tool-specific capability tables in the
+# source are preserved verbatim; the adapter must not rewrite them into stale
+# provider-only claims.
 # Honors DRY_RUN at the caller level (caller guards writes); this fn only prints.
 emit_rule_body() {
   local src="$1"
@@ -200,11 +245,6 @@ emit_rule_body() {
         BEGIN{dropped=0}
         # Drop the first H1 (the section title is provided by the caller as "## ").
         dropped==0 && /^# /{dropped=1; next}
-        # Rewrite Claude-only mechanism callouts for Gemini self-policing.
-        /^> \*\*Claude-only mechanism\*\*/{
-          print "> **Note (Gemini)**: enforced by hook on Claude Code; on Gemini CLI, follow self-policed."
-          next
-        }
         {print}
       '
 }
@@ -232,13 +272,15 @@ backup_if_exists() {
 #
 # Format identical to Claude/Cursor adapter manifests. POSIX shell + sed only — no jq.
 
-MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+LEGACY_MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+MANIFEST_PATH="$TARGET_ABS/.conductor/manifests/gemini.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
 
 # shellcheck source=../../tools/manifest-safety.sh
 . "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
+conductor_manifest_prepare "gemini"
 
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
@@ -246,9 +288,8 @@ init_manifest() {
     return
   fi
   MANIFEST_TS="$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)"
-  MANIFEST_STAGE_PATH="$TARGET_ABS/.conductor-manifest.json.staging"
-  /bin/rm -f "$MANIFEST_STAGE_PATH"
-  : > "$MANIFEST_STAGE_PATH"
+  MANIFEST_STAGE_PATH="$MANIFEST_PATH.staging"
+  conductor_manifest_init_stage
 }
 
 record_emit() {
@@ -259,6 +300,7 @@ record_emit() {
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
   local esc_path esc_src esc_backup emitted_sha
+  conductor_manifest_stage_drop_path "$relpath"
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -308,6 +350,8 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
+  "schema_version": 2,
+  "manifest_scope": "adapter",
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "gemini",
   "mode": "$MODE",
@@ -321,6 +365,7 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+  conductor_manifest_publish_projection
 }
 
 backup_and_remember() {
@@ -401,6 +446,7 @@ append_block() {
 record_emit_block() {
   if [ "$DRY_RUN" = "true" ] || [ "$UNINSTALL" = "true" ]; then return; fi
   local relpath="$1" name="$2" sha="$3" created="$4"
+  conductor_manifest_stage_drop_block "$relpath" "$name"
   printf '    {"path": "%s", "type": "block", "block": "%s", "sha256": "%s", "created_file": %s},\n' \
     "$relpath" "$name" "$sha" "$created" >> "$MANIFEST_STAGE_PATH"
 }
@@ -516,6 +562,12 @@ do_uninstall() {
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
 
+    if conductor_manifest_path_needed_elsewhere "$rel_path"; then
+      log "  preserve shared $rel_path (required by another active adapter)"
+      preserved=$((preserved + 1))
+      continue
+    fi
+
     if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
       if [ -z "$expected_sha" ]; then
         log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
@@ -571,6 +623,7 @@ do_uninstall() {
     done
     log "  deleted $MANIFEST_PATH"
   fi
+  conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (children before parents).
   for d in .gemini/commands .gemini/agents .conductor/reflect .conductor .gemini; do
@@ -698,7 +751,18 @@ fi
 
 # ----- step 1: GEMINI.md bundle (header + rules + workflow + pointers) ----
 
+# Validate all Tier pins before any managed file is emitted. Tier 3 is normally
+# handled directly by the orchestrator and has no dedicated role profile.
+# Uninstall returned above and remains available even with a stale override.
+GEMINI_TIER_1_MODEL="${CONDUCTOR_GEMINI_MODEL_TIER_1:-inherit}"
+GEMINI_TIER_2_MODEL="${CONDUCTOR_GEMINI_MODEL_TIER_2:-inherit}"
+GEMINI_TIER_3_MODEL="${CONDUCTOR_GEMINI_MODEL_TIER_3:-inherit}"
+conductor_validate_model_slug "$GEMINI_TIER_1_MODEL" "Gemini Tier 1 model" || exit 1
+conductor_validate_model_slug "$GEMINI_TIER_2_MODEL" "Gemini Tier 2 model" || exit 1
+conductor_validate_model_slug "$GEMINI_TIER_3_MODEL" "Gemini Tier 3 model" || exit 1
+
 init_manifest
+conductor_install_project_profile
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 GEMINI_DEST="$TARGET_ABS/GEMINI.md"
@@ -744,22 +808,20 @@ else
 **EN** — You are the lead orchestrator for **{{PROJECT_NAME}}**. You translate the
 user's intent into a disciplined Plan → Architecture → Tasks → Implementation →
 Review → Spec workflow. The universal rules below are your operating floor; every
-turn inherits them. Gemini CLI supports sub-agents and hooks natively (ADR-031),
-but CONDUCTOR's Gemini adapter currently emits rule text (plus the Reflector loop)
-only — full hook/agent emission is Phase 2 — so these rules are **self-policed**:
-you follow them by reading them, not because an emitted hook blocks you.
+turn inherits them. Gemini CLI supports sub-agents and hooks natively (ADR-031).
+CONDUCTOR emits eight native role profiles in `.gemini/agents/` for full/strict
+installs. Rules without a verified native hook remain explicit workflow obligations.
 
 **KO** — 당신은 **{{PROJECT_NAME}}** 의 리드 오케스트레이터입니다. 사용자의 의도를
 Plan → Architecture → Tasks → Implementation → Review → Spec 워크플로로 옮깁니다.
-아래 universal rule 은 모든 턴이 상속하는 기본 규칙입니다. Gemini CLI 는 sub-agent 와
-hook 을 네이티브로 지원하지만 (ADR-031), CONDUCTOR 의 Gemini adapter 는 현재 rule 텍스트
-(+ Reflector loop) 만 생성합니다 (hook/agent 자동 생성은 Phase 2) — 따라서 이 규칙들은
-**자기 규율(self-policed)** 로 지켜야 합니다.
+아래 universal rule 은 모든 턴이 상속하는 기본 규칙입니다. full/strict 설치는
+`.gemini/agents/` 에 8개 네이티브 역할을 생성합니다. 검증된 Gemini 훅이 없는 규칙은
+명시적인 워크플로 의무로 준수해야 합니다.
 
 > **Note (Gemini)**: Claude Code enforces parts of these rules with PreToolUse / Stop
 > hooks and sub-agent dispatch. Gemini CLI has those surfaces natively too (ADR-031),
-> but CONDUCTOR does not emit hooks/agents here yet (Phase 2). Where a rule mentions a
-> Claude-only mechanism, treat it as self-policed: read the rule, follow it.
+> CONDUCTOR emits native agent profiles, but it never translates a Claude-only hook
+> contract by name. Where no verified Gemini hook exists, follow the rule explicitly.
 
 ## ABSOLUTE rules (summary) / 절대 규칙 요약
 
@@ -946,6 +1008,7 @@ else
         case "$_prev" in *'"type": "block"'*) : ;; *) continue ;; esac
         _pname="$(printf '%s' "$_prev" | /usr/bin/sed -E 's/.*"block": *"([^"]*)".*/\1/')"
         [ "$_pname" = "$BLOCK_NAME" ] && continue
+        conductor_manifest_stage_has_block "GEMINI.md" "$_pname" && continue
         if /usr/bin/grep -qF "<!-- conductor:block $_pname -->" "$GEMINI_DEST" 2>/dev/null; then
           printf '%s\n' "$_prev" | /usr/bin/sed 's/,*$/,/' >> "$MANIFEST_STAGE_PATH"
           log "  preserved previous block '$_pname' in manifest"
@@ -992,6 +1055,37 @@ fi
 
 # ----- self-improvement (opt-in: self-improvement recipe) ------------------
 
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  log "Step: native roles → .gemini/agents/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.gemini/agents"
+    for role in planner reviewer code-reviewer builder helper designer scribe utility; do
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      case "$tier" in
+        1) model="$GEMINI_TIER_1_MODEL" ;;
+        2) model="$GEMINI_TIER_2_MODEL" ;;
+        3) model="$GEMINI_TIER_3_MODEL" ;;
+      esac
+      conductor_validate_model_slug "$model" "Gemini model for $role" || exit 1
+      case "$role" in
+        planner) desc="Architecture, gap analysis, and trade-off planning without implementation." ;;
+        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks." ;;
+        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests." ;;
+        builder) desc="Primary implementation owner for cross-cutting or high-risk changes." ;;
+        helper) desc="Focused implementation owner for bounded, independent changes." ;;
+        designer) desc="UI and interaction implementation owner with design-system discipline." ;;
+        scribe) desc="Documentation, changelog, index, and session-state maintenance." ;;
+        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." ;;
+      esac
+      ag="$TARGET_ABS/.gemini/agents/$role.md"
+      backup_and_remember "$ag"
+      { printf -- '---\nname: %s\ndescription: %s\nmodel: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the Gemini adapter translation.\n\n' "$role" "$desc" "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$ag"
+      record_emit ".gemini/agents/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
+    done
+  fi
+fi
+
 if [ "$MODE" = "minimal" ]; then
   RECIPES_FOR_RUNTIME=""
   log "Step: self-improvement runtime — skipped (--mode=minimal ships text only)"
@@ -1003,8 +1097,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     log "Step: self-improvement (Reflector) → .gemini hooks/command/agent"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.gemini/commands" "$TARGET_ABS/.gemini/agents"
-      gi="$TARGET_ABS/.gitignore"
-      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      conductor_install_trajectory_ignore
       for s in trajectory-log prune-lessons run-weekly; do
         d="$TARGET_ABS/.conductor/reflect/$s.sh"
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
@@ -1018,7 +1111,8 @@ case ",$RECIPES_FOR_RUNTIME," in
       done
       # settings.json hooks — only if absent (merging JSON is unsafe in bash)
       hc="$TARGET_ABS/.gemini/settings.json"
-      if [ ! -f "$hc" ]; then
+      hc_entry="$(conductor_manifest_entry_for_path ".gemini/settings.json" 2>/dev/null || true)"
+      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
         backup_and_remember "$hc"
         /bin/cat > "$hc" <<'HOOK'
 {
@@ -1031,7 +1125,7 @@ case ",$RECIPES_FOR_RUNTIME," in
 HOOK
         record_emit ".gemini/settings.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
       else
-        log "  .gemini/settings.json exists — add a SessionEnd hook calling .conductor/reflect/trajectory-log.sh manually"
+        log "  WARNING: .gemini/settings.json is user-owned — preserved; merge the CONDUCTOR SessionEnd hook manually"
       fi
       cmd="$TARGET_ABS/.gemini/commands/reflect.toml"
       backup_and_remember "$cmd"
@@ -1039,7 +1133,11 @@ HOOK
       record_emit ".gemini/commands/reflect.toml" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
       ag="$TARGET_ABS/.gemini/agents/reflector.md"
       backup_and_remember "$ag"
-      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      model="$GEMINI_TIER_1_MODEL"
+      conductor_validate_model_slug "$model" "Gemini model for reflector" || exit 1
+      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the Gemini adapter translation.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
       record_emit ".gemini/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;
@@ -1104,10 +1202,14 @@ fi
 echo "  Style guide: $([ "$WANT_STYLEGUIDE" = "true" ] && echo ".gemini/styleguide.md emitted" || echo "(not emitted — select coding-conventions)")"
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
-echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: not yet emitted for Gemini (tool supports sub-agents natively — ADR-031; Phase 2)."
-echo "  - Per-call model routing: supported natively by Gemini CLI (ADR-031); not yet automated by CONDUCTOR."
+echo " Runtime / capability boundary:"
+echo "  - Hooks: only verified Gemini contracts are emitted; the Reflector hook is opt-in (ADR-032/045)."
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  echo "  - Native roles: 8 profiles in .gemini/agents/."
+else
+  echo "  - Native roles: omitted by --mode=$MODE."
+fi
+echo "  - Model routing: profiles use the project-saved Tier mapping; recommended aliases are pro/flash/flash-lite."
 echo "  - Built-in memory: DIY at .memory/ (see the note inside GEMINI.md)."
 echo ""
 echo " Activation: open $TARGET_ABS with Gemini CLI — it loads GEMINI.md automatically."

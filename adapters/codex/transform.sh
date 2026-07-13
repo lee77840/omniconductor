@@ -2,8 +2,8 @@
 #
 # CONDUCTOR — Codex adapter transform.sh
 #
-# Reads core/ assets and writes them into a target project as a single native
-# Codex bundle (AGENTS.md at project root) plus universal doc templates.
+# Reads core/ assets and writes a compact always-loaded Codex kernel at the
+# project root plus complete on-demand rule references and universal docs.
 #
 # AGENTS.md is the established cross-agent project-rules convention adopted by
 # OpenAI Codex / Codex CLI (supersedes the early-design .codex/codex.md guess —
@@ -24,19 +24,57 @@
 #   bash adapters/codex/transform.sh . --uninstall --force      # bypass safety checks
 #
 # Layer 2 transformation (per ADR-004 honesty + ADR-021):
-#   <synthesized header>           →  <target>/AGENTS.md  (Codex-flavored bilingual intro)
-#   core/universal-rules/*.md      →  <target>/AGENTS.md  (each as "## <title>", body sans frontmatter)
-#   core/workflow/PHASES.md        →  <target>/AGENTS.md  (compressed phase table)
-#   core/recipes/*.md (selected)   →  <target>/AGENTS.md  (each as "## Recipe — <name>")
+#   adapters/codex/AGENTS-kernel.md → <target>/AGENTS.md (compact always-loaded contract)
+#   core/universal-rules/*.md      →  <target>/.codex/conductor/rules/*.md (complete references)
+#   core/recipes/*.md (selected)   →  <target>/.codex/conductor/recipes/*.md (complete references)
 #   core/docs-templates/*.md       →  <target>/docs/*.md  (CURRENT_WORK, REMAINING_TASKS, etc.)
-#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Codex supports sub-agents natively — ADR-031)
+#   supported core/hooks/*.sh.template → <target>/.codex/hooks/*.sh + hooks.json
+#   core/roles/*.md                →  <target>/.codex/agents/*.toml (native Codex subagents)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
-# Single-file model: Codex reads ONE always-loaded rules file. Everything that
-# Cursor splits across .cursor/rules/*.mdc is concatenated into AGENTS.md here.
+# Codex reads one bounded always-loaded project file. Complete source text is
+# intentionally kept out of AGENTS.md so Codex's default project-doc byte limit
+# cannot silently truncate the execution contract or selected recipe pointers.
 
 set -eu
+
+# Direct adapter calls enter through the CLI so one-time Tier-model setup runs
+# before role emission. Array forwarding preserves exact shell argument
+# boundaries; the CLI marks its adapter child to prevent wrapper recursion.
+ORIGINAL_ARGS=("$@")
+CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDUCTOR_DELEGATE_TO_CLI="true"
+[ "${#ORIGINAL_ARGS[@]}" -gt 0 ] || CONDUCTOR_DELEGATE_TO_CLI="false"
+if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    case "$_conductor_arg" in --help|-h) CONDUCTOR_DELEGATE_TO_CLI="false" ;; esac
+  done
+fi
+CONDUCTOR_CLI_CHILD="false"
+conductor_file_identity() {
+  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
+    stat -f '%i:%z' "$1"
+  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
+    stat -c '%i:%s' "$1"
+  else
+    return 1
+  fi
+}
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
+  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
+    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
+    && [ -n "$_conductor_dispatch_identity" ] \
+    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+    CONDUCTOR_CLI_CHILD="true"
+  fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required for one-time CONDUCTOR model setup." >&2
+    exit 127
+  }
+  exec node "$CONDUCTOR_ROOT/bin/omniconductor.js" init --target=codex "${ORIGINAL_ARGS[@]}"
+fi
 
 # ----- arg parsing --------------------------------------------------------
 
@@ -64,7 +102,8 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/codex/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to append into AGENTS.md
+  --recipes=A,B,C       Comma-separated recipes to reference from AGENTS.md and
+                        install under .codex/conductor/recipes/
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
                         docs only) | strict (abort if AGENTS.md exists) | recipes-only
                         (marked block appended to AGENTS.md; requires --recipes=) |
@@ -77,16 +116,20 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Output (single-file Codex model):
-  <target>/AGENTS.md    Bundled intro + 5 universal rules + compressed workflow + recipes
+Output (bounded Codex project-instruction model):
+  <target>/AGENTS.md    Compact always-loaded execution kernel and reference routing
+  <target>/.codex/conductor/rules/*.md    Complete universal-rule references
+  <target>/.codex/conductor/recipes/*.md  Complete selected-recipe references
+  <target>/.codex/agents/*.toml  Eight native role profiles (full/strict)
+  <target>/.codex/hooks.json     Supported native lifecycle guards (full/strict)
   <target>/docs/*.md    Universal doc templates (CURRENT_WORK, REMAINING_TASKS, ...)
 
 Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene, loop-engineering
 
 What this adapter does NOT install (per ADR-004 honesty):
-  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (not yet emitted for Codex — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
-  - Per-pattern rule scoping (Codex loads AGENTS.md whole — all rules always-on)
+  - Claude-only hook contracts (Agent/Read routing, large-file Read interception, Hookify)
+  - Unsupported Codex permissionDecision:ask gates; soft warnings use additionalContext
+  - Automatic loading of detailed references (AGENTS.md tells Codex when to open them)
   - Hookify rule templates (Claude-only plugin)
 EOF
       exit 0
@@ -124,8 +167,7 @@ if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true"
   exit 1
 fi
 
-# Resolve CONDUCTOR root (where this script lives: adapters/codex/).
-CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Resolve CONDUCTOR assets (root was resolved by the invocation wrapper).
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
 
@@ -138,6 +180,16 @@ if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
 TARGET_ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "Error: target directory does not exist or is not a directory: $TARGET" >&2; exit 1; }
+
+if [ "$UNINSTALL" != "true" ] && [ "$DRY_RUN" != "true" ] && [ "$MODE" != "recipes-only" ]; then
+  _conductor_models=()
+  while IFS= read -r _conductor_model; do _conductor_models+=("$_conductor_model"); done \
+    < <(node "$CONDUCTOR_ROOT/bin/model-routing.js" resolve "$TARGET_ABS" codex)
+  [ "${#_conductor_models[@]}" -eq 3 ] || { echo "Error: valid Codex Tier routing is required before installation." >&2; exit 2; }
+  export CONDUCTOR_CODEX_MODEL_TIER_1="${_conductor_models[0]}"
+  export CONDUCTOR_CODEX_MODEL_TIER_2="${_conductor_models[1]}"
+  export CONDUCTOR_CODEX_MODEL_TIER_3="${_conductor_models[2]}"
+fi
 
 # ----- helpers ------------------------------------------------------------
 
@@ -175,6 +227,50 @@ derive_title() {
   printf '%s' "$title"
 }
 
+has_recipe() {
+  case ",$RECIPES," in *",$1,"*) return 0 ;; *) return 1 ;; esac
+}
+
+# Emit one native Codex subagent. Real installs reload the project-saved model
+# slugs before this point; inherited environment values are internal transport
+# only and cannot override the saved mapping.
+emit_codex_agent() {
+  local role="$1" description="$2" sandbox="$3" tier effort tier_label
+  local src="$CORE_ROOT/roles/$role.md" dest="$TARGET_ABS/.codex/agents/$role.toml"
+  local model=""
+  tier="$(conductor_role_difficulty_tier "$src")" || exit 1
+  effort="$(conductor_codex_effort_for_tier "$tier")" || exit 1
+  tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+  case "$tier" in
+    1) model="$CODEX_TIER_1_MODEL" ;;
+    2) model="$CODEX_TIER_2_MODEL" ;;
+    3) model="$CODEX_TIER_3_MODEL" ;;
+  esac
+  if [ -n "$model" ] && ! conductor_validate_model_slug "$model" "Codex model for $role"; then
+    /bin/rm -f "${MANIFEST_STAGE_PATH:-}"
+    exit 1
+  fi
+  backup_and_remember "$dest"
+  {
+    printf 'name = "%s"\n' "$role"
+    printf 'description = "%s"\n' "$description"
+    [ -z "$model" ] || printf 'model = "%s"\n' "$model"
+    printf 'model_reasoning_effort = "%s"\n' "$effort"
+    printf 'sandbox_mode = "%s"\n' "$sandbox"
+    printf 'developer_instructions = """\n'
+    printf 'CONDUCTOR difficulty contract: %s. The triggers in meta-discipline.md section 6 are authoritative; reasoning effort is only this adapter\x27s translation.\n\n' "$tier_label"
+    strip_frontmatter "$src"
+    printf '\n"""\n'
+  } > "$dest"
+  record_emit ".codex/agents/$role.toml" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
+}
+
+pin_codex_hook_dialect() {
+  local file="$1" tmp="$1.conductor-tmp"
+  /usr/bin/awk '{ print; if ($0 == "set -u") print "export CONDUCTOR_HOOK_DIALECT=codex" }' "$file" > "$tmp"
+  /bin/mv "$tmp" "$file"
+}
+
 # backup_and_remember <dest>
 # If <dest> exists, copy it to <dest>.conductor-backup-<ts> and remember the relative
 # backup path in MANIFEST_LAST_BACKUP for the next record_emit. Honors DRY_RUN.
@@ -187,13 +283,15 @@ backup_and_remember() {
 #
 # Format identical to Claude/Cursor adapters' manifest. POSIX shell + sed only — no jq.
 
-MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+LEGACY_MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+MANIFEST_PATH="$TARGET_ABS/.conductor/manifests/codex.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
 
 # shellcheck source=../../tools/manifest-safety.sh
 . "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
+conductor_manifest_prepare "codex"
 
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
@@ -201,9 +299,8 @@ init_manifest() {
     return
   fi
   MANIFEST_TS="$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)"
-  MANIFEST_STAGE_PATH="$TARGET_ABS/.conductor-manifest.json.staging"
-  /bin/rm -f "$MANIFEST_STAGE_PATH"
-  : > "$MANIFEST_STAGE_PATH"
+  MANIFEST_STAGE_PATH="$MANIFEST_PATH.staging"
+  conductor_manifest_init_stage
 }
 
 record_emit() {
@@ -214,6 +311,7 @@ record_emit() {
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
   local esc_path esc_src esc_backup emitted_sha
+  conductor_manifest_stage_drop_path "$relpath"
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -266,6 +364,8 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
+  "schema_version": 2,
+  "manifest_scope": "adapter",
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "codex",
   "mode": "$MODE",
@@ -279,6 +379,7 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+  conductor_manifest_publish_projection
 }
 
 # ----- marked append-blocks (ADR-044, --mode=recipes-only / reflector-only) ----
@@ -350,6 +451,7 @@ append_block() {
 record_emit_block() {
   if [ "$DRY_RUN" = "true" ] || [ "$UNINSTALL" = "true" ]; then return; fi
   local relpath="$1" name="$2" sha="$3" created="$4"
+  conductor_manifest_stage_drop_block "$relpath" "$name"
   printf '    {"path": "%s", "type": "block", "block": "%s", "sha256": "%s", "created_file": %s},\n' \
     "$relpath" "$name" "$sha" "$created" >> "$MANIFEST_STAGE_PATH"
 }
@@ -457,6 +559,12 @@ do_uninstall() {
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
 
+    if conductor_manifest_path_needed_elsewhere "$rel_path"; then
+      log "  preserve shared $rel_path (required by another active adapter)"
+      preserved=$((preserved + 1))
+      continue
+    fi
+
     if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
       if [ -z "$expected_sha" ]; then
         log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
@@ -512,6 +620,7 @@ do_uninstall() {
     done
     log "  deleted $MANIFEST_PATH"
   fi
+  conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (deepest first).
   for d in .agents/skills/reflect .agents/skills .agents .codex/agents .codex .conductor/reflect .conductor docs/specs docs; do
@@ -613,7 +722,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
   read -r _apply_answer
   if [ "$_apply_answer" = "n" ] || [ "$_apply_answer" = "N" ]; then
     WIZARD_APPLY_RULES="false"
-    echo "  Skipping universal-rules — AGENTS.md will carry intro + workflow only."
+    echo "  Skipping complete universal-rule references — AGENTS.md keeps the compact kernel only."
   fi
 
   echo ""
@@ -633,9 +742,20 @@ elif [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "true" ]; then
   log "Adopter case detected — applying defaults (--no-prompt): rules=yes, recipes=${RECIPES:-(none)}"
 fi
 
-# ----- step 1: build AGENTS.md (single-file Codex bundle) -----------------
+# ----- step 1: build bounded AGENTS.md kernel + complete references --------
+
+# Validate every advertised override before any managed file is emitted. Tier 3
+# has no dedicated default role, so lazy per-role validation is insufficient.
+# Uninstall returned above and remains available even with a stale override.
+CODEX_TIER_1_MODEL="${CONDUCTOR_CODEX_MODEL_TIER_1:-${CONDUCTOR_CODEX_MODEL_HIGH:-}}"
+CODEX_TIER_2_MODEL="${CONDUCTOR_CODEX_MODEL_TIER_2:-${CONDUCTOR_CODEX_MODEL_STANDARD:-}}"
+CODEX_TIER_3_MODEL="${CONDUCTOR_CODEX_MODEL_TIER_3:-${CONDUCTOR_CODEX_MODEL_FAST:-}}"
+[ -z "$CODEX_TIER_1_MODEL" ] || conductor_validate_model_slug "$CODEX_TIER_1_MODEL" "Codex Tier 1 model" || exit 1
+[ -z "$CODEX_TIER_2_MODEL" ] || conductor_validate_model_slug "$CODEX_TIER_2_MODEL" "Codex Tier 2 model" || exit 1
+[ -z "$CODEX_TIER_3_MODEL" ] || conductor_validate_model_slug "$CODEX_TIER_3_MODEL" "Codex Tier 3 model" || exit 1
 
 init_manifest
+conductor_install_project_profile
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
@@ -643,10 +763,24 @@ AGENTS_DEST="$TARGET_ABS/AGENTS.md"
 
 INSTALLED_RECIPES=""
 
+# Emit a complete rule/recipe as an on-demand Codex reference.
+emit_codex_reference() {
+  local src="$1" rel="$2" dest="$TARGET_ABS/$2"
+  if [ "$DRY_RUN" = "true" ]; then
+    log "would write $dest"
+    return
+  fi
+  /bin/mkdir -p "$(dirname "$dest")"
+  backup_and_remember "$dest"
+  strip_frontmatter "$src" > "$dest"
+  record_emit "$rel" "${src#"$CONDUCTOR_ROOT/"}" "$MANIFEST_LAST_BACKUP"
+}
+
 if [ "$MODE" != "recipes-only" ] && [ "$MODE" != "reflector-only" ]; then
 
 log "Step 1/2: AGENTS.md → $AGENTS_DEST"
 backup_and_remember "$AGENTS_DEST"
+AGENTS_BASELINE_BACKUP="$MANIFEST_LAST_BACKUP"
 
 # Collect installed recipe ids (for the summary + manifest), validating each exists.
 INSTALLED_RECIPES=""
@@ -663,185 +797,108 @@ if [ -n "$RECIPES" ]; then
   done
 fi
 
-# build_agents_md — writes the full bundle to stdout. Pure assembly; no side effects.
+if [ "$WIZARD_APPLY_RULES" = "true" ]; then
+  for rule in $UNIVERSAL_RULES; do
+    src="$CORE_ROOT/universal-rules/$rule.md"
+    [ -f "$src" ] || { echo "Warning: $src not found; skipping" >&2; continue; }
+    emit_codex_reference "$src" ".codex/conductor/rules/$rule.md"
+  done
+fi
+if [ -n "$INSTALLED_RECIPES" ]; then
+  for r in $INSTALLED_RECIPES; do
+    src="$CORE_ROOT/recipes/$r.md"
+    [ -f "$src" ] || continue
+    emit_codex_reference "$src" ".codex/conductor/recipes/$r.md"
+  done
+fi
+
+# build_agents_md — writes the bounded always-loaded kernel to stdout.
 build_agents_md() {
-  # --- header (synthesized inline; no _native/*.tpl exists) ---------------
-  /bin/cat <<'HEADER'
-# AGENTS.md — CONDUCTOR workflow rules (Codex adapter)
+  /bin/cat "$CONDUCTOR_ROOT/adapters/codex/AGENTS-kernel.md"
 
-> 이 파일은 CONDUCTOR 프레임워크가 생성한 **프로젝트 규칙 번들**입니다. Codex 는 세션 시작 시
-> 프로젝트 루트의 `AGENTS.md` 를 자동 로드합니다. 아래 규칙은 어떤 코드를 생성하든 항상 적용됩니다.
->
-> This file is a **project rules bundle** generated by the CONDUCTOR framework. Codex auto-loads
-> `AGENTS.md` from the project root at session start. The rules below apply to every change you make.
+  if [ "$WIZARD_APPLY_RULES" != "true" ]; then
+    /bin/cat <<'NORULES'
 
-## How to use this with Codex (한/영)
+## Detailed universal rules
 
-**한국어** — Codex 는 *한 방(one-shot) 셸 작업* 에 강합니다. 스크립트 작성, 파일 일괄 변환, git 작업,
-"이 명령 실행하고 결과 보고" 류 작업이 최적입니다. Codex 는 서브에이전트/훅을 네이티브로 지원하지만
-(ADR-031), CONDUCTOR 의 Codex adapter 는 아직 이를 자동 생성하지 않으므로 (Phase 2), 멀티 스텝
-오케스트레이션은 순차 프롬프트로 분해하거나 CONDUCTOR 의 full-emission 인 Claude adapter 를 쓰세요.
-이 번들은 Codex 가 *인라인으로 생성하는 코드* 가 프로젝트 컨벤션을 따르도록 충분한 맥락을 줍니다.
-
-**English** — Codex shines at *one-shot shell tasks*: writing scripts, batch file transforms, git
-operations, and "run this command and report the output" work. Codex supports sub-agents and hooks
-natively (ADR-031), but CONDUCTOR's Codex adapter does not emit them yet (Phase 2) — decompose
-multi-step orchestration into sequential prompts, or use CONDUCTOR's full-emission Claude adapter.
-This bundle gives Codex enough context that the code it generates inline
-follows your project conventions.
-
-> **Enforcement note (Codex)**: Codex supports sub-agents, hooks, and per-task model routing
-> natively (ADR-031), but CONDUCTOR's Codex adapter currently emits rule text (plus the Reflector
-> loop) only — full hook/agent emission is Phase 2. Every rule below is loaded *always* and is
-> **self-policed** — CONDUCTOR installs no automated gate here. Enforcement mechanisms cited in
-> the rule text (Stop hooks, agent routing) are emitted for Claude only today; treat them as
-> reminders. Pair this with a git pre-commit hook if you want a hard gate.
-
-## ABSOLUTE rules (always-on summary)
-
-These five bundles are **ABSOLUTE severity** — they are the universal floor, never skipped regardless
-of task size. Full text of each is in its own section below.
-
-| Rule | What it guarantees |
-|---|---|
-| **Workflow** | Plan-first / docs-first / process-first ordering; never skip phases by scope. |
-| **Spec-as-you-go** | Documentation updated in the *same turn* as the code it describes. |
-| **Quality Gates** | Two-stage review (pre-commit + pre-merge), test sync, verify-after-change. |
-| **Operations** | Session continuity, completed-task hygiene, dev/prod parity. |
-| **Meta-Discipline** | Originality, ambiguity policy, token economy, model routing, flat-with-leader. |
-
-> Before any **non-trivial** task: **Read `docs/CURRENT_WORK.md`** for current project state, then act.
-
-HEADER
-
-  # --- universal rules (each as "## <title>", body sans frontmatter) ------
-  if [ "$WIZARD_APPLY_RULES" = "true" ]; then
-    for rule in $UNIVERSAL_RULES; do
-      src="$CORE_ROOT/universal-rules/$rule.md"
-      [ -f "$src" ] || { echo "Warning: $src not found; skipping" >&2; continue; }
-      title="$(derive_title "$src")"
-      echo "---"
-      echo ""
-      echo "## $title"
-      echo ""
-      strip_frontmatter "$src"
-      echo ""
-    done
+The installer was told not to emit the complete universal-rule references. The
+non-negotiable kernel above still applies, but `.codex/conductor/rules/*.md` is
+intentionally absent.
+NORULES
   fi
 
-  # --- compressed workflow from PHASES.md --------------------------------
-  echo "---"
-  echo ""
-  /bin/cat <<'WORKFLOW'
-## Workflow phases (compressed)
-
-The 6-phase model scales with scope. **Codex's typical one-shot use cases skip Plan / Architecture
-more often than other tools** — but the gates that remain (Implementation → Review → Spec) still hold.
-
-| Scope | Phases entered | Skip |
-|---|---|---|
-| Trivial | Implementation → Review → Spec | Plan, Architecture, Tasks |
-| Simple  | Tasks → Implementation → Review → Spec | Plan, Architecture |
-| Medium  | Plan → Tasks → Implementation → Review → Spec | Architecture |
-| Large   | Plan → Architecture → Tasks → Implementation → Review → Spec | — |
-
-- **Plan** — for medium+ scope: write the approach, files affected, risks, stop condition.
-- **Architecture** — for large/system-shaping work: record decision(s) under `docs/architecture/`.
-- **Tasks** — enumerate work with objective, file paths, constraints, output paths, stop condition.
-- **Implementation** — code + test updates per task. Keep changes scoped to the task.
-- **Review** — Stage A on the diff (correctness), Stage B before merge (block on HIGH-confidence issues).
-- **Spec** — update `docs/specs/<area>.md` to reflect actually-shipped behavior (spec-as-you-go).
-
-> On Codex, phase enforcement is **self-policed** (CONDUCTOR emits no Stop hooks here yet). The rule text above is the reminder.
-
-WORKFLOW
-
-  # --- recipes (opt-in), each as "## Recipe — <name>" --------------------
   if [ -n "$INSTALLED_RECIPES" ]; then
+    echo ""
+    echo "## Selected recipe routing"
+    echo ""
+    echo "Selected recipes are not automatically loaded. Read the matching complete"
+    echo "reference before work in that domain:"
+    echo ""
     for r in $INSTALLED_RECIPES; do
-      src="$CORE_ROOT/recipes/$r.md"
-      [ -f "$src" ] || continue
-      echo "---"
-      echo ""
-      echo "## Recipe — $r"
-      echo ""
-      strip_frontmatter "$src"
-      echo ""
+      echo "- \`$r\` → \`.codex/conductor/recipes/$r.md\`"
     done
+  else
+    /bin/cat <<'NORECIPES'
+
+## Selected recipe routing
+
+No optional CONDUCTOR recipes were selected for this installation.
+NORECIPES
   fi
 
-  # --- memory note (DIY .memory/) ----------------------------------------
-  /bin/cat <<'MEMORY'
----
+  /bin/cat <<'TAIL'
 
-## Memory (DIY `.memory/`)
-
-Codex has **no built-in memory directory**. To persist cross-session context (user role/preferences,
-corrections you should not repeat, ongoing project goals, pointers to external systems), create a
-`.memory/` directory at the project root and add it to `.gitignore` so personal entries don't leak
-into the repo.
-
-Suggested layout (one file per entry + an always-read index):
-
-```
-.memory/
-├── MEMORY.md         # index, ≤ 200 lines — paste relevant entries into your prompt
-├── user_*.md         # role, preferences, knowledge level
-├── feedback_*.md     # corrections + validated approaches (lead with the rule, then Why / How)
-├── project_*.md      # ongoing work, goals, deadlines (use absolute dates)
-└── reference_*.md    # pointers to external systems (issue trackers, dashboards)
-```
-
-Do NOT store in memory: code patterns / conventions / file paths (read the code), git history
-(use `git log`), debugging fix recipes (the fix is in the commit), or anything already in this
-AGENTS.md. Before relying on a memory entry, **verify it's still true** (the path/flag/claim may be stale).
-MEMORY
+<!-- CONDUCTOR_KERNEL_END: validator and doctor use this marker to detect truncation risk. -->
+TAIL
 }
 
 if [ "$DRY_RUN" = "true" ]; then
-  log "would write $AGENTS_DEST (intro + $( [ "$WIZARD_APPLY_RULES" = "true" ] && echo 5 || echo 0 ) universal rules + compressed workflow + recipes:${INSTALLED_RECIPES:- none})"
+  log "would write bounded $AGENTS_DEST kernel + $( [ "$WIZARD_APPLY_RULES" = "true" ] && echo 5 || echo 0 ) detailed rule references + recipes:${INSTALLED_RECIPES:- none}"
 else
   build_agents_md > "$AGENTS_DEST"
-  record_emit "AGENTS.md" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+  record_emit "AGENTS.md" "<synthesized>" "$AGENTS_BASELINE_BACKUP"
   log "  wrote $AGENTS_DEST"
 fi
 
 else
   # ----- à-la-carte modes: marked block appended to AGENTS.md (ADR-044) ------
   BLOCK_NAME="recipes"; [ "$MODE" = "reflector-only" ] && BLOCK_NAME="reflector"
-  log "Step 1/2: --mode=$MODE — '$BLOCK_NAME' marked block → $AGENTS_DEST (no full bundle)"
+  log "Step 1/2: --mode=$MODE — compact '$BLOCK_NAME' block → $AGENTS_DEST (no full kernel)"
   if [ "$DRY_RUN" = "true" ]; then
     log "would append marked block '$BLOCK_NAME' (selected recipes: $RECIPES) to $AGENTS_DEST"
   else
-    _blk="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/conductor-block.XXXXXX")"
-    {
-      echo "# CONDUCTOR — à la carte (--mode=$MODE)"
-      echo ""
-      echo "> Installed by CONDUCTOR WITHOUT the universal-rule bundle. This is a managed"
-      echo "> block: --uninstall strips it when unmodified. Full workflow: --mode=full."
-      echo ""
-      IFS=',' read -ra _RECIPE_LIST <<< "$RECIPES"
-      for r in "${_RECIPE_LIST[@]}"; do
-        r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
-        [ -z "$r" ] && continue
-        src="$CORE_ROOT/recipes/$r.md"
-        if [ ! -f "$src" ]; then
-          echo "Warning: recipe '$r' not found at $src; skipping" >&2
-          continue
-        fi
-        echo "## Recipe — $r"
-        echo ""
-        strip_frontmatter "$src"
-        echo ""
-        INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
-      done
-    } > "$_blk"
+    IFS=',' read -ra _RECIPE_LIST <<< "$RECIPES"
+    for r in "${_RECIPE_LIST[@]}"; do
+      r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
+      [ -z "$r" ] && continue
+      src="$CORE_ROOT/recipes/$r.md"
+      if [ ! -f "$src" ]; then
+        echo "Warning: recipe '$r' not found at $src; skipping" >&2
+        continue
+      fi
+      INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
+    done
     if [ -z "${INSTALLED_RECIPES// /}" ]; then
-      /bin/rm -f "$_blk"
       echo "Error: --mode=$MODE resolved ZERO valid recipes from '--recipes=$RECIPES' — nothing to install (check the names)." >&2
       /bin/rm -f "$MANIFEST_STAGE_PATH"
       exit 1
     fi
+    for r in $INSTALLED_RECIPES; do
+      emit_codex_reference "$CORE_ROOT/recipes/$r.md" ".codex/conductor/recipes/$r.md"
+    done
+    _blk="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/conductor-block.XXXXXX")"
+    {
+      echo "# CONDUCTOR — à la carte (--mode=$MODE)"
+      echo ""
+      echo "> Installed WITHOUT the universal-rule kernel. This managed block stays compact"
+      echo "> so an existing AGENTS.md is not pushed across Codex's instruction budget."
+      echo ""
+      echo "Read each complete recipe before work in its domain:"
+      echo ""
+      for r in $INSTALLED_RECIPES; do
+        echo "- \`$r\` → \`.codex/conductor/recipes/$r.md\`"
+      done
+    } > "$_blk"
     append_block "$AGENTS_DEST" "$BLOCK_NAME" "$_blk"
     /bin/rm -f "$_blk"
     record_emit_block "AGENTS.md" "$BLOCK_NAME" "$BLOCK_SHA" "$BLOCK_CREATED"
@@ -853,11 +910,126 @@ else
         case "$_prev" in *'"type": "block"'*) : ;; *) continue ;; esac
         _pname="$(printf '%s' "$_prev" | /usr/bin/sed -E 's/.*"block": *"([^"]*)".*/\1/')"
         [ "$_pname" = "$BLOCK_NAME" ] && continue
+        conductor_manifest_stage_has_block "AGENTS.md" "$_pname" && continue
         if /usr/bin/grep -qF "<!-- conductor:block $_pname -->" "$AGENTS_DEST" 2>/dev/null; then
           printf '%s\n' "$_prev" | /usr/bin/sed 's/,*$/,/' >> "$MANIFEST_STAGE_PATH"
           log "  preserved previous block '$_pname' in manifest"
         fi
       done < "$MANIFEST_PATH"
+    fi
+  fi
+fi
+
+# ----- Codex-native roles and supported hook contracts --------------------
+
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  log "Step: native Codex roles → .codex/agents/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.codex/agents"
+    emit_codex_agent planner "Architecture, gap analysis, and trade-off planning without implementation." read-only
+    emit_codex_agent reviewer "Read-only pre-implementation review of plans, architecture, and task decomposition." read-only
+    emit_codex_agent code-reviewer "Read-only post-implementation review for correctness, security, regressions, and tests." read-only
+    emit_codex_agent builder "Primary implementation owner for cross-cutting or high-risk changes." workspace-write
+    emit_codex_agent helper "Focused implementation owner for bounded, independent changes." workspace-write
+    emit_codex_agent designer "UI and interaction implementation owner with design-system discipline." workspace-write
+    emit_codex_agent scribe "Documentation, changelog, index, and session-state maintenance." workspace-write
+    emit_codex_agent utility "Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." workspace-write
+  fi
+fi
+
+# Codex hook coverage is intentionally narrower than Claude's. Only hooks with
+# a verified Codex event/input/output contract are compiled. Agent/Read routing,
+# large-file Read interception, and Hookify remain explicit fallbacks.
+INSTALL_CODEX_HOOKS="false"
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ] || { [ "$MODE" = "reflector-only" ] && has_recipe self-improvement; }; then
+  INSTALL_CODEX_HOOKS="true"
+fi
+if [ "$INSTALL_CODEX_HOOKS" = "true" ]; then
+  log "Step: Codex-native hooks → .codex/hooks.json + .codex/hooks/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.codex/hooks"
+    if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+      for h in pretool-commit-current-work-check pretool-commit-test-coverage-check stop-session-log-check stop-r6-review-check; do
+        src="$CORE_ROOT/hooks/$h.sh.template"
+        dest="$TARGET_ABS/.codex/hooks/$h.sh"
+        backup_and_remember "$dest"
+        /bin/cp "$src" "$dest"
+        pin_codex_hook_dialect "$dest"
+        /bin/chmod +x "$dest"
+        record_emit ".codex/hooks/$h.sh" "core/hooks/$h.sh.template" "$MANIFEST_LAST_BACKUP"
+      done
+      if has_recipe loop-engineering; then
+        h="pretool-loop-guard"; src="$CORE_ROOT/hooks/$h.sh.template"; dest="$TARGET_ABS/.codex/hooks/$h.sh"
+        backup_and_remember "$dest"; /bin/cp "$src" "$dest"; pin_codex_hook_dialect "$dest"; /bin/chmod +x "$dest"
+        record_emit ".codex/hooks/$h.sh" "core/hooks/$h.sh.template" "$MANIFEST_LAST_BACKUP"
+      fi
+      if has_recipe git-hygiene; then
+        h="stop-git-hygiene-guard"; src="$CORE_ROOT/hooks/$h.sh.template"; dest="$TARGET_ABS/.codex/hooks/$h.sh"
+        backup_and_remember "$dest"; /bin/cp "$src" "$dest"; pin_codex_hook_dialect "$dest"; /bin/chmod +x "$dest"
+        record_emit ".codex/hooks/$h.sh" "core/hooks/$h.sh.template" "$MANIFEST_LAST_BACKUP"
+      fi
+    fi
+
+    hc="$TARGET_ABS/.codex/hooks.json"
+    hc_entry="$(conductor_manifest_entry_for_path ".codex/hooks.json" 2>/dev/null || true)"
+    if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
+      backup_and_remember "$hc"
+      if [ "$MODE" = "reflector-only" ]; then
+        /bin/cat > "$hc" <<'HOOKJSON'
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "timeout": 30, "statusMessage": "Recording CONDUCTOR trajectory" }
+      ] }
+    ]
+  }
+}
+HOOKJSON
+      else
+        {
+          /bin/cat <<'HOOKJSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "^Bash$", "hooks": [
+        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-commit-current-work-check.sh\"", "timeout": 30, "statusMessage": "Checking CURRENT_WORK synchronization" },
+        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-commit-test-coverage-check.sh\"", "timeout": 30, "statusMessage": "Checking staged test coverage" }
+HOOKJSON
+          if has_recipe loop-engineering; then
+            /bin/cat <<'HOOKJSON'
+        ,{ "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex CONDUCTOR_LOOP_RECIPE_PATH=.codex/conductor/recipes/loop-engineering.md bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-loop-guard.sh\"", "timeout": 30, "statusMessage": "Checking loop budget" }
+HOOKJSON
+          fi
+          /bin/cat <<'HOOKJSON'
+      ] }
+    ],
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-session-log-check.sh\"", "timeout": 30, "statusMessage": "Checking session and spec state" },
+        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-r6-review-check.sh\"", "timeout": 30, "statusMessage": "Checking pre-merge review state" }
+HOOKJSON
+          if has_recipe git-hygiene; then
+            /bin/cat <<'HOOKJSON'
+        ,{ "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex CONDUCTOR_GIT_HYGIENE_RECIPE_PATH=.codex/conductor/recipes/git-hygiene.md bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-git-hygiene-guard.sh\"", "timeout": 30, "statusMessage": "Checking git hygiene" }
+HOOKJSON
+          fi
+          if has_recipe self-improvement; then
+            /bin/cat <<'HOOKJSON'
+        ,{ "type": "command", "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "timeout": 30, "statusMessage": "Recording CONDUCTOR trajectory" }
+HOOKJSON
+          fi
+          /bin/cat <<'HOOKJSON'
+      ] }
+    ]
+  }
+}
+HOOKJSON
+        } > "$hc"
+      fi
+      record_emit ".codex/hooks.json" "<synthesized:codex-native>" "$MANIFEST_LAST_BACKUP"
+    else
+      log "  WARNING: .codex/hooks.json is user-owned; preserved unchanged. Merge the CONDUCTOR hooks manually or reinstall after moving it."
     fi
   fi
 fi
@@ -875,8 +1047,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     log "Step: self-improvement (Reflector) → .codex hook/skill/agent"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.codex" "$TARGET_ABS/.codex/agents" "$TARGET_ABS/.agents/skills/reflect"
-      gi="$TARGET_ABS/.gitignore"
-      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      conductor_install_trajectory_ignore
       for s in trajectory-log prune-lessons run-weekly; do
         d="$TARGET_ABS/.conductor/reflect/$s.sh"
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
@@ -888,30 +1059,11 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
         record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
       done
-      hc="$TARGET_ABS/.codex/hooks.json"
-      if [ ! -f "$hc" ]; then
-        backup_and_remember "$hc"
-        /bin/cat > "$hc" <<'HOOK'
-{
-  "hooks": {
-    "Stop": [
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash ./.conductor/reflect/trajectory-log.sh", "timeout": 30 } ] }
-    ]
-  }
-}
-HOOK
-        record_emit ".codex/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
-      else
-        log "  .codex/hooks.json exists — add a Stop hook calling ./.conductor/reflect/trajectory-log.sh manually"
-      fi
       sk="$TARGET_ABS/.agents/skills/reflect/SKILL.md"
       backup_and_remember "$sk"
       { printf -- '---\nname: reflect\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only). Use when wrapping up work.\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$sk"
       record_emit ".agents/skills/reflect/SKILL.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
-      ag="$TARGET_ABS/.codex/agents/reflector.toml"
-      backup_and_remember "$ag"
-      { printf 'name = "reflector"\ndescription = "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies."\ndeveloper_instructions = """\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; printf '\n"""\n'; } > "$ag"
-      record_emit ".codex/agents/reflector.toml" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
+      emit_codex_agent reflector "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies." workspace-write
     fi
     ;;
 esac
@@ -971,18 +1123,25 @@ fi
 echo "  Target: $TARGET_ABS"
 echo "  Adapter: codex"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
-  echo "  AGENTS.md: marked à-la-carte block appended (no universal-rule bundle)"
+  echo "  AGENTS.md: compact à-la-carte pointer block appended (no universal-rule kernel)"
 elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
-  echo "  AGENTS.md: intro + 5 universal rules + compressed workflow + memory note"
+  echo "  AGENTS.md: bounded always-loaded kernel; complete rules in .codex/conductor/rules/"
 else
-  echo "  AGENTS.md: intro + compressed workflow + memory note (universal rules skipped)"
+  echo "  AGENTS.md: bounded always-loaded kernel (detailed universal rules skipped)"
 fi
-echo "  Recipes appended:${INSTALLED_RECIPES:- (none)}"
+echo "  Recipe references installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
+echo " Native runtime:"
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  echo "  - Roles: 8 native Codex subagents in .codex/agents/."
+  echo "  - Hooks: supported PreToolUse/Stop guards in .codex/hooks.json."
+  echo "  - Trust: run /hooks in Codex after install or hook changes."
+else
+  echo "  - Full roles/guards are omitted by --mode=$MODE."
+fi
 echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: not yet emitted for Codex (tool supports sub-agents natively — ADR-031; Phase 2)."
-echo "  - Per-pattern scoping: Codex loads AGENTS.md whole — all rules are always-on."
+echo "  - Claude-only Agent/Read routing and large-file interception."
+echo "  - Detailed references are on-demand; AGENTS.md states when Codex must open them."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""
 echo " Activation: AGENTS.md auto-loads on Codex session start (project root)."
@@ -992,4 +1151,4 @@ echo "Next steps for the project:"
 echo "  1. Open $TARGET_ABS with Codex."
 [ -d "$TARGET_ABS/docs" ] && echo "  2. Edit docs/CURRENT_WORK.md with your project's current state."
 echo "  3. (optional) Create .memory/ and add it to .gitignore — see the Memory section in AGENTS.md."
-echo "  4. Verify Codex cites project conventions when generating code (confirms AGENTS.md loaded)."
+echo "  4. Run /hooks, review and trust project hooks, then verify project conventions are loaded."

@@ -1,7 +1,7 @@
 ---
 role: builder
 purpose: "Multi-file or cross-cutting code implementation (3+ files, cross-cutting changes)"
-default_model: opus
+difficulty_tier: 1
 must_do:
   - read project rule index (AGENT.md or equivalent) before any code edit
   - read the dispatch brief carefully — it contains full scope

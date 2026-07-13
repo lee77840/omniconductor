@@ -10,9 +10,9 @@ Detailed matrix of which CONDUCTOR features Windsurf supports.
 | **Directory-based rule loading** | ✅ Native | `.devin/rules/*.md` | All files in directory load together. No per-pattern scoping. Legacy `.windsurf/rules/` still read. |
 | **In-IDE chat / completion** | ✅ Native | Windsurf's primary feature | Similar to Cursor. |
 | **Per-pattern rule scoping** | ⚠️ Directory-based only | — | Whole `.devin/rules/` directory loads; no per-file glob filtering. |
-| **Sub-agent dispatch** | ✅ Native (2026) | Cascade sub-agent dispatch | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. CONDUCTOR ships the reflector as a manual rule (`.devin/rules/reflector.md`) rather than a named agent file. |
-| **Hooks** | ✅ Native (2026) | `.windsurf/hooks.json` | ADR-031. No session-start/stop hook event — CONDUCTOR uses `post_cascade_response_with_transcript` instead. Only the Reflector hook is emitted today (ADR-032); broader hook-set emission is Phase 2. |
-| **Per-task model routing** | ✅ Native (2026) | Per-task model selection | ADR-031. |
+| **Role entry points** | ✅ Emitted workflows | Eight `.windsurf/workflows/*.md` files | Includes Tier 3 utility; no unverified project custom-agent profile contract is claimed. |
+| **Hooks** | ✅ Native (2026) | `.windsurf/hooks.json` | CONDUCTOR uses the verified `post_cascade_response_with_transcript` Reflector hook; no unverified Stop/session guard is claimed. |
+| **Per-task model routing** | ⚠️ Advisory-session | Cascade Adaptive selector | Setup saves Adaptive and workflows display a preflight; no workflow model field or selector-state API exists. |
 | **Custom slash commands** | ✅ Native (2026) | Workflows at `.windsurf/workflows/*.md` | ADR-031. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Read on demand. |
@@ -26,10 +26,9 @@ For each `core/universal-rules/<rule>.md`:
 1. Parse YAML front-matter.
 2. If `always_loaded: true` → APPEND content (sans front-matter) to `.windsurfrules`.
 3. Else → write `.devin/rules/<rule>.md` (preferred dir; legacy `.windsurf/rules/` still read) (front-matter STRIPPED — Windsurf doesn't use it for filtering).
-4. Tool-specific callouts:
-   - `> **Windsurf-only mechanism**` (rare): keep.
-   - `> **Claude-only mechanism**`: REPLACE with `> **Note (Windsurf)**: enforced by hook on Claude Code; on Windsurf, follow self-policed.`
-   - Other tool callouts: STRIP.
+4. Preserve capability-aware callouts from the universal source. Never rewrite a
+   Claude + Codex shared guard as Claude-only, and never claim that Windsurf emits
+   a local guard that the adapter does not install.
 
 ## Strengths to lean into
 
@@ -39,7 +38,8 @@ For each `core/universal-rules/<rule>.md`:
 ## Weaknesses to acknowledge
 
 - Lack of per-pattern scoping means `coding-conventions.md` loads even when editing a `README.md`. Acceptable; just adds a small context cost per session.
-- Hooks are now natively supported (`.windsurf/hooks.json` — see `docs/COMPATIBILITY-MATRIX.md` / ADR-031), but Windsurf has no session-start/stop hook event; CONDUCTOR uses `post_cascade_response_with_transcript` as the closest equivalent. CONDUCTOR currently emits only the self-improvement Reflector hook (ADR-032); broader hook-set emission (commit-blocking, spec enforcement) is Phase 2 — until then, pair with a git pre-commit hook for mechanical enforcement.
+- Windsurf hooks are supported through `.windsurf/hooks.json`, but no verified session/stop guard contract is claimed. CONDUCTOR uses `post_cascade_response_with_transcript` for the Reflector and native workflows for the eight roles; pair with Git/CI hooks for mechanical enforcement.
+- The documented workflow format is prompt steps, not a per-workflow model manifest. Select Adaptive in Cascade; CONDUCTOR preserves Tier requirements in workflow text and never claims automatic enforcement.
 
 ## Adapter status
 

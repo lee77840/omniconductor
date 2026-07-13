@@ -4,10 +4,10 @@ name: validate
 # Dependency-light: only bash + node (both pre-installed on ubuntu-latest).
 # The CLI is dependency-free, so no `npm install` step is required.
 
+# Manual release gate only. Routine pushes and pull requests are verified by the
+# local release command and must not consume GitHub Actions minutes.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -68,9 +68,10 @@ jobs:
         run: |
           rm -rf "/tmp/ci-${{ matrix.tool }}"
           mkdir -p "/tmp/ci-${{ matrix.tool }}"
-          bash "adapters/${{ matrix.tool }}/transform.sh" \
-            "/tmp/ci-${{ matrix.tool }}" \
+          node bin/omniconductor.js init \
+            --target="${{ matrix.tool }}" "/tmp/ci-${{ matrix.tool }}" \
             --no-prompt \
+            --accept-model-defaults \
             --recipes=tdd,debugging,self-improvement,git-hygiene,loop-engineering
       - name: Validate adapter output
         run: |
@@ -83,7 +84,7 @@ jobs:
       - name: Doctor detects a broken install (negative)
         run: |
           t="/tmp/ci-${{ matrix.tool }}"
-          first="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1]+'/.conductor-manifest.json','utf8')).emitted_files[0].path)" "$t")"
+          first="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1]+'/.conductor/manifests/${{ matrix.tool }}.json','utf8')).emitted_files[0].path)" "$t")"
           mv "$t/$first" "$t/$first.hidden"
           if node bin/omniconductor.js doctor "$t" >/dev/null 2>&1; then
             echo "ERROR: doctor exited 0 on a broken install" >&2; exit 1
@@ -138,6 +139,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run mode test harness
         run: bash tools/test-install-modes.sh "${{ matrix.tool }}"
+
+  # ---------------------------------------------------------------------------
+  # 2c. Multi-tool coexistence + native runtime contracts (ADR-045).
+  #     Run on GNU/Linux and macOS/BSD userlands to cover awk/sed portability.
+  # ---------------------------------------------------------------------------
+  multitool-runtime:
+    name: multitool runtime (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run one-time model-routing state, safety, and concurrency fixtures
+        run: npm run test:model-routing
+      - name: Run managed-path and manifest-containment attack fixtures
+        run: npm run test:path-safety
+      - name: Run six-adapter coexistence and semantic doctor fixtures
+        run: npm run test:multitool
 
   # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a

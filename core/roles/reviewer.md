@@ -1,7 +1,7 @@
 ---
 role: reviewer
 purpose: "Plan validation before implementation. Read-only. Gatekeeper for builder / helper / designer."
-default_model: opus
+difficulty_tier: 1
 must_do:
   - read the .plan.md or design doc under review
   - read the rule index (AGENT.md or equivalent) and relevant specs

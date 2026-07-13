@@ -21,15 +21,17 @@ How to keep your CONDUCTOR discipline when you change which AI coding tool you u
 
 2. **Open Cursor.** Cursor auto-loads the `alwaysApply` rules at session start and the glob-matched `.mdc` files when you touch matching files.
 
-3. **(Optional) Use CONDUCTOR's workflow discipline as your session prompt template.** CONDUCTOR doesn't emit its role agents for Cursor yet (Cursor has native sub-agents — ADR-031; emission is Phase 2), so the human plays orchestrator. The emitted universal rules carry the workflow/dispatch discipline; paste relevant sections into your first prompt for a complex task.
+3. **Use the emitted Cursor roles.** Full/strict installs create eight `.cursor/agents/*.md` profiles. Select planner/builder/reviewer/code-reviewer/utility as the task moves through its phases and difficulty.
 
 4. **Continue using `docs/CURRENT_WORK.md`, `docs/specs/*.md`, etc.** These files are tool-agnostic — Cursor reads them the same way Claude does.
 
 ### What you need to manually preserve
 
-- **Two-stage code review.** Cursor cannot block your commit. Run the review prompts manually before each commit using Cursor's chat: paste the diff, ask the chat to review against `coding-conventions` and `spec-as-you-go`. Then commit.
+- **Two-stage code review.** CONDUCTOR does not emit an unverified commit-blocking
+  guard for Cursor. Invoke the emitted `code-reviewer` agent before commit, then use
+  Cursor's native review surface or the same agent again for the PR.
 - **Spec-as-you-go.** Same — Cursor cannot block. The `.mdc` rule for `docs/specs/**` reminds you when you touch a spec file, but enforcement is on you.
-- **Model routing.** Cursor uses one model per session. Pick the right model in the Cursor UI when starting a complex task; you cannot switch mid-session via a `model:` argument.
+- **Model routing.** Run `omniconductor models configure --target=cursor .` once. CONDUCTOR writes the saved Tier mapping into Cursor's native agent profiles; the provider may still apply account, plan, or administrator fallback.
 
 ### What you keep automatically
 
@@ -58,14 +60,19 @@ How to keep your CONDUCTOR discipline when you change which AI coding tool you u
 
 ### What you need to manually preserve
 
-- **Sub-agent dispatch and Stage A pre-commit review.** Copilot doesn't block commits. Run review prompts manually in Copilot Chat before commit.
-- **Per-call model routing.** Copilot Chat lets you pick model in UI; not programmatic.
+- **Stage A pre-commit blocking.** CONDUCTOR emits the `code-reviewer` agent but does
+  not claim a repository-local hook that blocks a Copilot commit. Invoke the agent
+  before commit and keep the review result with the task evidence.
+- **Model policy.** Run `omniconductor models configure --target=copilot .` once.
+  The saved exact model is written into each repository agent, while account, plan,
+  client, and organization policy remain authoritative.
 
 ---
 
 ## Common scenario C — Cursor → Claude Code
 
-**Why this happens**: You started with Cursor and discovered the multi-file refactor needs are too painful without sub-agents.
+**Why this happens**: You want Claude's full verified guard set or its native project
+memory while keeping the same eight-role topology already available in Cursor.
 
 ### Steps
 
@@ -83,13 +90,12 @@ How to keep your CONDUCTOR discipline when you change which AI coding tool you u
    - Keep both (Cursor for in-IDE chat, Claude for orchestrated work) — multi-tool installs coexist.
    - Remove `.cursor/` and `.cursorrules` if the project is now Claude-only.
 
-### What you GAIN
+### Claude-specific differences
 
-- Sub-agent dispatch.
-- Stop hook ABSOLUTE enforcement of spec-as-you-go.
-- PreToolUse routing.
-- Per-call model routing.
-- Built-in memory directory.
+- Full verified Stop/PreToolUse guard set rather than Cursor's narrower emitted hook set.
+- Claude's native project memory directory.
+- Claude family aliases from the same saved Tier 1/2/3 configuration.
+- The role topology and difficulty classification do not change during migration.
 
 ### What needs no migration
 
@@ -114,7 +120,10 @@ All three generate non-overlapping files (see `docs/HOW-IT-WORKS-PER-TOOL.md` fo
 
 ### Discipline note
 
-Updating a universal rule means re-running every adapter you use, OR editing each tool's adapter output by hand. P3 may add a `--target=all` flag to re-run every adapter at once; until then, repeat the install command per tool.
+Updating a universal rule means re-running every adapter you use. Use
+`init --target=all` to refresh all six, or target only the adapters installed in
+the project. Avoid hand-editing managed output because checksums intentionally
+surface local divergence.
 
 ---
 
@@ -122,10 +131,11 @@ Updating a universal rule means re-running every adapter you use, OR editing eac
 
 | Going from | To | Command | Manual work |
 |---|---|---|---|
-| Claude | Cursor | `init --target=cursor` | Self-police spec + review (guard hooks not emitted yet — Phase 2, ADR-034) |
+| Claude | Cursor | `init --target=cursor` | Native role profiles; spec/review checks without verified Cursor guards remain workflow obligations |
 | Claude | Copilot | `init --target=copilot` | Configure Copilot PR review for Stage B |
 | Claude | Gemini | `init --target=gemini` | All rules become single bundle; lose per-pattern scoping |
-| Claude | Codex / Windsurf | `init --target=codex` / `--target=windsurf` | Same as Gemini, plus more manual orchestrator role |
+| Claude | Codex | `init --target=codex` | Bounded always-loaded kernel plus complete on-demand references; no glob scoping |
+| Claude | Windsurf | `init --target=windsurf` | Rules load from `.windsurfrules` / `.devin/rules`; roles are invocable workflows |
 | Cursor / Copilot / Gemini / Codex / Windsurf | Claude | `init --target=claude` | Copy + customize settings.json; restart Claude Code |
 | Anything | Anything (add tool) | `init --target=<new>` | New files generated; existing tool files untouched |
 

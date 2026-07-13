@@ -1,6 +1,8 @@
 # PHASES — detailed entry/exit criteria per workflow phase
 
-> **Status (P0 foundation): PLACEHOLDER.** This file describes intent and structure. P1 fills each phase section with concrete content sanitized from the reference adopter.
+> The phase contract is tool-neutral. Full/strict installs expose all eight roles on
+> every supported adapter; the native surface is an agent profile on five tools and
+> an invocable workflow on Windsurf.
 
 ## How to read this file
 
@@ -25,7 +27,7 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 
 **Trigger**: medium+ scope request.
 
-**Owner**: orchestrator (Claude main session) or human (other tools).
+**Owner**: orchestrator, with human approval where the project requires it.
 
 **Inputs**: user request, prior context (`docs/CURRENT_WORK.md`).
 
@@ -47,7 +49,7 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 
 **Trigger**: large scope work that affects system-level shape (auth flow, data model, billing).
 
-**Owner**: strategist agent (Claude) or human (other tools).
+**Owner**: `planner` role; the orchestrator retains the final decision.
 
 **Inputs**: `.plan.md`.
 
@@ -61,7 +63,7 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 
 **Trigger**: plan approved (medium+) OR direct request (simple).
 
-**Owner**: orchestrator (Claude) or human.
+**Owner**: orchestrator.
 
 **Inputs**: `.plan.md` (medium+) or request alone (simple).
 
@@ -75,13 +77,16 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 
 **Trigger**: tasks ready.
 
-**Owner**: builder / helper / designer / mailer / translator / scribe agent (Claude) or human.
+**Owner**: `builder`, `helper`, `designer`, or `utility` according to the
+immutable difficulty and scope rules. Project recipes may add specialist roles.
 
 **Inputs**: task list.
 
 **Outputs**: code + e2e test updates per task.
 
-**Entry / exit / anti-patterns**: P1 fill (will include "one task per agent", "no general-purpose agent", "model override per R2").
+**Entry / exit / anti-patterns**: one bounded task per role dispatch; no generic
+catch-all dispatch; use the project-saved Tier translation without changing the
+task's difficulty classification.
 
 ---
 
@@ -90,8 +95,9 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 **Trigger**: implementation task complete.
 
 **Owner**:
-- Stage A: code-reviewer agent (Claude) or human (other tools).
-- Stage B: `/code-review` slash command (Claude + Cursor partial) or human (other tools).
+- Stage A: independent `code-reviewer` role on every adapter.
+- Stage B: the tool's native review command or PR review surface, with human
+  approval where required.
 
 **Inputs**: git diff (Stage A) or open PR (Stage B).
 
@@ -105,13 +111,15 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 
 **Trigger**: implementation merged.
 
-**Owner**: scribe agent (Claude) or human.
+**Owner**: `scribe` role, with the orchestrator verifying code/spec agreement.
 
 **Inputs**: shipped code; existing `docs/specs/<area>.md`.
 
 **Outputs**: updated spec reflecting actual shipped behavior.
 
-**Entry / exit / anti-patterns**: P1 fill (will include "spec-as-you-go ABSOLUTE", "Stop hook enforcement on Claude", "rule reminder on others").
+**Entry / exit / anti-patterns**: spec-as-you-go is ABSOLUTE. Claude and Codex
+install verified Stop reminders; the other adapters enforce the same rule through
+their installed instructions and the completion checklist.
 
 ---
 
@@ -126,9 +134,11 @@ For each of the 6 phases (Plan / Architecture / Tasks / Implementation / Review 
 
 ## Tool-agnostic enforcement reminder
 
-Workflow definition is universal. Enforcement degrades:
+Workflow definition and role topology are universal. Mechanical enforcement varies:
 
-- **Claude Code**: Stop hooks can block phase-skipping at commit time (e.g., no `.plan.md` for medium+ → blocked).
-- **Cursor / Copilot / Gemini / Codex / Windsurf**: rule text reminds. Self-policed.
+- **Claude Code**: full verified guard-hook set.
+- **Codex**: verified `PreToolUse`/`Stop` guard subset.
+- **Cursor / Copilot / Gemini / Windsurf**: native role entry points plus installed
+  rule text; only lifecycle/recipe hooks with verified contracts are emitted.
 
 See `docs/COMPATIBILITY-MATRIX.md` for the per-tool enforcement column.

@@ -48,7 +48,8 @@
 #
 #   codex:
 #     - AGENTS.md exists, non-empty
-#     - all 5 universal-rule sections present
+#     - compact kernel stays within the project-instruction byte budget
+#     - all 5 complete universal-rule references are present
 #     - no unsubstituted ${...} placeholders (outside code fences)
 #     - no reference-product leakage
 #
@@ -183,6 +184,138 @@ file_empty() {
   if ! grep -q '[^[:space:]]' "$1"; then echo "empty"; fi
 }
 
+validate_role_set() {
+  local adapter="$1" dir suffix="" role file missing=0
+  case "$adapter" in
+    claude) dir="$TARGET/.claude/agents"; suffix=".md" ;;
+    cursor) dir="$TARGET/.cursor/agents"; suffix=".md" ;;
+    copilot) dir="$TARGET/.github/agents"; suffix=".agent.md" ;;
+    gemini) dir="$TARGET/.gemini/agents"; suffix=".md" ;;
+    codex) dir="$TARGET/.codex/agents"; suffix=".toml" ;;
+    windsurf) dir="$TARGET/.windsurf/workflows"; suffix=".md" ;;
+  esac
+  for role in planner reviewer code-reviewer builder helper designer scribe utility; do
+    local expected_tier expected_effort expected_model actual_model
+    case "$role" in
+      planner|reviewer|code-reviewer|builder) expected_tier=1; expected_effort=high ;;
+      helper|designer|scribe) expected_tier=2; expected_effort=medium ;;
+      utility) expected_tier=3; expected_effort=low ;;
+    esac
+    file="$dir/$role$suffix"
+    if [ ! -s "$file" ]; then
+      emit_fail "${file#"$TARGET/"}" "required native role entry missing or empty"
+      missing=$((missing + 1))
+      continue
+    fi
+    expected_model=""
+    if [ -f "$TARGET/.conductor/model-routing.json" ]; then
+      expected_model="$(node -e '
+        try {
+          const c=require(process.argv[1]), a=c.adapters[process.argv[2]], t=process.argv[3];
+          if(a&&a.tiers&&a.tiers[t]) process.stdout.write(a.tiers[t].resolved||"");
+        } catch { process.exit(1) }
+      ' "$TARGET/.conductor/model-routing.json" "$adapter" "$expected_tier" 2>/dev/null || true)"
+    fi
+    if [ "$adapter" = "codex" ]; then
+      local expected_sandbox="workspace-write"
+      case "$role" in planner|reviewer|code-reviewer) expected_sandbox="read-only" ;; esac
+      if ! /usr/bin/awk -v role="$role" -v sandbox="$expected_sandbox" -v expected_effort="$expected_effort" '
+        BEGIN { state="header"; name=0; desc=0; effort=0; box=0; opened=0; closed=0; bad=0 }
+        state=="header" && $0 == "developer_instructions = \"\"\"" { opened++; state="body"; next }
+        state=="header" && $0 ~ /^name = "[A-Za-z0-9_-]+"$/ {
+          if ($0 == "name = \"" role "\"") name=1; else bad=1; next
+        }
+        state=="header" && $0 ~ /^description = ".+"$/ { desc=1; next }
+        state=="header" && $0 ~ /^model = "[A-Za-z0-9._-]+"$/ { next }
+        state=="header" && $0 == "model_reasoning_effort = \"" expected_effort "\"" { effort=1; next }
+        state=="header" && $0 ~ /^sandbox_mode = "(read-only|workspace-write)"$/ {
+          if ($0 == "sandbox_mode = \"" sandbox "\"") box=1; else bad=1; next
+        }
+        state=="header" && $0 !~ /^[[:space:]]*$/ { bad=1; next }
+        state=="body" && $0 == "\"\"\"" { closed++; state="tail"; next }
+        state=="tail" && $0 !~ /^[[:space:]]*$/ { bad=1 }
+        END { exit !(name && desc && effort && box && opened==1 && closed==1 && !bad) }
+      ' "$file"; then
+        emit_fail "${file#"$TARGET/"}" "invalid Codex agent TOML contract or role sandbox"
+        missing=$((missing + 1))
+      fi
+      if [ -n "$expected_model" ] && ! /usr/bin/grep -qF "model = \"$expected_model\"" "$file"; then
+        emit_fail "${file#"$TARGET/"}" "model does not match saved Tier $expected_tier translation '$expected_model'"
+        missing=$((missing + 1))
+      fi
+    else
+      local fm_open fm_close desc name body_check
+      fm_open=$(fm_open_line "$file")
+      fm_close=$(fm_close_line "$file")
+      desc=$(fm_field "$file" "description")
+      name=$(fm_field "$file" "name")
+      body_check=""; [ -n "$fm_close" ] && body_check=$(body_sanity "$file" "$fm_close")
+      if [ "$fm_open" != "1" ] || [ -z "$fm_close" ] || [ -z "$desc" ] || [ "$body_check" != "OK" ]; then
+        emit_fail "${file#"$TARGET/"}" "invalid native role frontmatter or markdown body"
+        missing=$((missing + 1))
+      elif [ "$adapter" != "windsurf" ] && [ "$name" != "$role" ]; then
+        emit_fail "${file#"$TARGET/"}" "frontmatter name '$name' does not match role '$role'"
+        missing=$((missing + 1))
+      elif [ "$adapter" = "claude" ] && [ -z "$(fm_field "$file" "model")" ]; then
+        emit_fail "${file#"$TARGET/"}" "Claude role must declare its Tier-translated model"
+        missing=$((missing + 1))
+      elif [ "$adapter" = "cursor" ] && [ -z "$(fm_field "$file" "model")" ]; then
+        emit_fail "${file#"$TARGET/"}" "Cursor role must declare its saved Tier translation or inherit"
+        missing=$((missing + 1))
+      elif [ "$adapter" = "gemini" ] && [ -z "$(fm_field "$file" "model")" ]; then
+        emit_fail "${file#"$TARGET/"}" "Gemini role must declare inherit or an explicit Tier override"
+        missing=$((missing + 1))
+      fi
+      actual_model="$(fm_field "$file" "model")"
+      if [ -n "$expected_model" ] && [ "$adapter" != "windsurf" ] && [ "$actual_model" != "$expected_model" ]; then
+        emit_fail "${file#"$TARGET/"}" "model '$actual_model' does not match saved Tier $expected_tier translation '$expected_model'"
+        missing=$((missing + 1))
+      fi
+      if [ "$adapter" = "windsurf" ] && [ -n "$expected_model" ] \
+        && ! /usr/bin/grep -qF 'select **Adaptive**' "$file"; then
+        emit_fail "${file#"$TARGET/"}" "Windsurf workflow must disclose the saved Adaptive advisory requirement"
+        missing=$((missing + 1))
+      fi
+    fi
+    if [ -s "$file" ] && ! /usr/bin/grep -qE "CONDUCTOR difficulty contract:.*Tier ${expected_tier}([^0-9]|$)" "$file"; then
+      emit_fail "${file#"$TARGET/"}" "missing or drifted Tier $expected_tier difficulty contract"
+      missing=$((missing + 1))
+    fi
+  done
+  [ "$missing" -eq 0 ] && emit_pass "native role set ($adapter: 8 roles including Tier 3 utility)"
+}
+
+# Universal outputs for a non-Claude adapter must never teach Claude family
+# names as if they were portable difficulty labels.
+validate_no_claude_model_aliases() {
+  local adapter="$1" root file hit=""
+  local -a files=()
+  shift
+  for root in "$@"; do
+    [ -e "$root" ] || continue
+    if [ -f "$root" ]; then
+      files=("$root")
+    else
+      files=()
+      while IFS= read -r file; do files+=("$file"); done \
+        < <(find "$root" -type f ! -name '*.conductor-backup-*' -print 2>/dev/null)
+    fi
+    for file in "${files[@]}"; do
+      hit="$(/usr/bin/awk '
+        /^[[:space:]]*model[[:space:]]*[:=]/ { next }
+        /saved (Cursor|Copilot) translation/ { next }
+        tolower($0) ~ /(^|[^a-z])(opus|sonnet|haiku)([^a-z]|$)/ { print FILENAME ":" FNR ":" $0; exit }
+      ' "$file" 2>/dev/null || true)"
+      [ -z "$hit" ] || break 2
+    done
+  done
+  if [ -n "$hit" ]; then
+    emit_fail "$adapter model isolation" "Claude family alias leaked into non-Claude output: $hit"
+  else
+    emit_pass "$adapter model isolation (no Claude family aliases)"
+  fi
+}
+
 # Detect unsubstituted ${...} template placeholders OUTSIDE fenced code blocks.
 # Legit bash parameter expansions live inside ```...``` fences and are ignored.
 # Prints the first offending "line: text" or empty if clean.
@@ -269,6 +402,8 @@ run_gemini() {
       fi
     fi
   fi
+  validate_role_set gemini
+  validate_no_claude_model_aliases gemini "$TARGET/GEMINI.md" "$TARGET/.gemini/agents" "$TARGET/.gemini/styleguide.md"
 }
 
 # ---- codex mode ----------------------------------------------------------
@@ -284,10 +419,18 @@ run_codex() {
     return
   fi
 
-  local miss
-  miss=$(missing_rule_section "$main")
-  if [ -n "$miss" ]; then
-    emit_fail "AGENTS.md" "missing universal-rule section: $miss"
+  local bytes
+  bytes=$(wc -c < "$main" | tr -d ' ')
+  if [ "$bytes" -gt 24576 ]; then
+    emit_fail "AGENTS.md" "kernel is ${bytes} bytes; exceeds the 24576-byte CONDUCTOR safety budget"
+    return
+  fi
+
+  if ! grep -qF 'CONDUCTOR_KERNEL_END' "$main" \
+    || ! grep -q '^## Non-negotiable execution contract' "$main" \
+    || ! grep -q '^## Rule loading table' "$main" \
+    || ! grep -q '^## Native role routing' "$main"; then
+    emit_fail "AGENTS.md" "bounded runtime kernel is incomplete"
     return
   fi
 
@@ -305,7 +448,39 @@ run_codex() {
     return
   fi
 
-  emit_pass "AGENTS.md"
+  emit_pass "AGENTS.md (${bytes} bytes; bounded kernel)"
+
+  local refs_ok=true
+  local rule ref
+  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
+    ref="$TARGET/.codex/conductor/rules/$rule.md"
+    if [ ! -s "$ref" ]; then
+      emit_fail ".codex/conductor/rules/$rule.md" "complete universal-rule reference missing"
+      refs_ok=false
+    fi
+  done
+  $refs_ok && emit_pass ".codex/conductor/rules/ (5 complete references)"
+
+  validate_role_set codex
+  validate_no_claude_model_aliases codex "$TARGET/AGENTS.md" "$TARGET/.codex/conductor" "$TARGET/.codex/agents"
+  local hooks="$TARGET/.codex/hooks.json"
+  local manifest="$TARGET/.conductor/manifests/codex.json"
+  # The installer intentionally preserves a pre-existing user-owned registry.
+  # In that case it is absent from the Codex ownership manifest and must not be
+  # judged as if CONDUCTOR emitted it. The warning printed during installation
+  # remains the activation signal; this validator only certifies owned output.
+  if [ -s "$hooks" ] && [ -s "$manifest" ] \
+    && ! grep -q '"path"[[:space:]]*:[[:space:]]*"\.codex/hooks\.json"' "$manifest"; then
+    emit_pass ".codex/hooks.json (user-owned; preserved and excluded from CONDUCTOR output validation)"
+  elif [ ! -s "$hooks" ]; then
+    emit_fail ".codex/hooks.json" "native hook registry missing"
+  elif grep -q 'permissionDecision[^\n]*ask' "$hooks" || grep -q '\.Codex/' "$hooks"; then
+    emit_fail ".codex/hooks.json" "unsupported ask decision or case-drift path"
+  elif ! grep -q 'git rev-parse --show-toplevel' "$hooks"; then
+    emit_fail ".codex/hooks.json" "hook commands are not anchored to the Git root"
+  else
+    emit_pass ".codex/hooks.json"
+  fi
 }
 
 # ---- windsurf mode -------------------------------------------------------
@@ -364,6 +539,8 @@ run_windsurf() {
       validate_windsurf_file "$rf"
     fi
   done
+  validate_role_set windsurf
+  validate_no_claude_model_aliases windsurf "$TARGET/.windsurfrules" "$TARGET/.devin/rules" "$TARGET/.windsurf/workflows"
 }
 
 # ---- cursor mode ---------------------------------------------------------
@@ -437,6 +614,8 @@ run_cursor() {
   if [ "$found" -eq 0 ]; then
     emit_fail ".cursor/rules/" "no .mdc files found"
   fi
+  validate_role_set cursor
+  validate_no_claude_model_aliases cursor "$TARGET/.cursorrules" "$TARGET/.cursor/rules" "$TARGET/.cursor/agents"
 }
 
 # ---- copilot mode --------------------------------------------------------
@@ -521,6 +700,8 @@ run_copilot() {
       validate_copilot_instruction "$f"
     done
   fi
+  validate_role_set copilot
+  validate_no_claude_model_aliases copilot "$TARGET/.github/copilot-instructions.md" "$TARGET/.github/instructions" "$TARGET/.github/agents"
 }
 
 # ---- claude mode ---------------------------------------------------------
@@ -578,6 +759,7 @@ run_claude() {
   if [ "$found" -eq 0 ]; then
     emit_fail ".claude/rules/" "no .md files found"
   fi
+  validate_role_set claude
 }
 
 # ---- main ---------------------------------------------------------------

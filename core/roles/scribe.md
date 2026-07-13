@@ -1,7 +1,7 @@
 ---
 role: scribe
 purpose: "Documentation sync after implementation. No code edits."
-default_model: sonnet
+difficulty_tier: 2
 must_do:
   - read the implementation summary provided in the dispatch brief
   - read the docs that need updating before writing

@@ -6,7 +6,7 @@ Windsurf (the AI-IDE) is a T3 target because:
 - It supports a directory of additional rules at `.devin/rules/*.md` (preferred; legacy `.windsurf/rules/` is still read).
 - Its workflow is similar to Cursor's but with less per-pattern scoping.
 
-**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Windsurf / Devin Desktop ships hooks (12 events — but **no session/stop events**, the one real Stop-style-enforcement gap), sub-agent dispatch (Devin Local), custom agents, per-task model routing, commands, and built-in memory. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). Real tool-side caveats: no glob rule-scoping (all `.devin/rules/*.md` load together) and no desktop scheduler.
+**Tool capability vs CONDUCTOR emission (ADR-031/048/049):** CONDUCTOR emits eight Windsurf workflows as verified role entry points plus the opt-in Reflector workflow/rule. Each workflow carries the portable Tier and an explicit requirement to select Adaptive in Cascade. Because no workflow model field or selector-state API exists, enforcement is honestly recorded as advisory-session. Rule scoping and desktop scheduling remain limited.
 
 **Tier**: T3 (see `docs/COMPATIBILITY-MATRIX.md` — the missing session/stop hook events keep it below T2).
 
@@ -28,6 +28,10 @@ bash adapters/windsurf/transform.sh <target> --dry-run
 # Revert a previous install (manifest-based):
 bash adapters/windsurf/transform.sh <target> --uninstall
 ```
+
+The local `transform.sh` command requires Node.js and delegates to the same CLI,
+including the one-time project-saved Tier-model setup. It is not a model-routing
+bypass.
 
 ## What gets installed
 
@@ -59,16 +63,17 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 - ✅ Directory-based rule loading (`.devin/rules/`; legacy `.windsurf/rules/` still read).
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
+- ✅ Eight native invocable role workflows in `.windsurf/workflows/`, including Tier 3 utility.
 - ✅ Reflector loop (opt-in recipe).
 
-## Not emitted yet (Phase 2 — Windsurf supports most of these natively, ADR-031/034)
+## Capability boundary
 
 | Feature | Interim workaround |
 |---|---|
 | Per-pattern rule scoping | All rules in `.devin/rules/` load together. No glob filtering (tool-side). |
 | Enforcement guard hooks | Windsurf has hooks but **no session/stop events** (tool-side gap) — Stop-style enforcement isn't possible; self-police or pair with pre-commit git hooks. |
-| The 6 role agents (sub-agent dispatch) | Devin Local has native sub-agents; CONDUCTOR doesn't emit its role definitions yet. Human plays orchestrator. |
-| Per-call model-routing config | Pick the model per task via the tool's own model selection. |
+| Project-local custom-agent profiles | No stable contract is claimed; eight native role workflows provide explicit entry points instead. |
+| Difficulty/model translation | Workflow Tier is immutable; first setup saves Adaptive and every workflow displays the required session preflight. Automatic enforcement is unavailable. |
 | 4-type memory pattern | Self-managed at `.memory/` (gitignored); the tool's built-in memory is separate. |
 
 ## After install — first steps
@@ -80,15 +85,14 @@ bash adapters/windsurf/transform.sh <target> --uninstall
 5. Rename `docs/specs/_example.md` → `docs/specs/<your-area>.md`.
 6. Add `.memory/` to `.gitignore`.
 
-## Quirks / known issues (P3.5 will fill)
+## Quirks / known issues
 
-- TBD: confirm Windsurf reads ALL files under `.devin/rules/` (vs requiring a manifest); legacy `.windsurf/rules/` is still read.
+- `.devin/rules/` is the emitted current path; legacy `.windsurf/rules/` remains migration input only.
 - TBD: priority order when `.windsurfrules` and `.devin/rules/*.md` contain conflicting rules.
 
-## Status (P0 foundation)
+## Status
 
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
 - ✅ `transform.sh` (implemented)
-- ⏳ `notes.md` (P3.5)

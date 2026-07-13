@@ -1,7 +1,7 @@
 ---
 role: reflector
 purpose: "Read the period's session trajectories and propose atomic lesson deltas. Never applies changes."
-default_model: opus
+difficulty_tier: 1
 must_do:
   - read the trajectory index (.conductor/trajectories/index.jsonl) and follow its pointers to the session transcripts named there
   - read git history for the same period (git log --oneline + diffs of the referenced commits)

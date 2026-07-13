@@ -53,14 +53,17 @@ CURRENT_WORK.md MUST stay under 200 lines (target: 150). When it exceeds 200:
 - Leave only the most-recent 5-10 entries in CURRENT_WORK.md.
 - The session archive is a permanent reference but no longer auto-loaded.
 
-### 1.5 Stop-hook (Claude only)
+### 1.5 Stop-hook (Claude and Codex)
 
-`stop-session-log-check` (installed by the Claude adapter) blocks session-end if:
+`stop-session-log-check` is installed by the Claude and Codex adapters using each
+tool's verified Stop-hook dialect. It rejects session completion if:
 
 - Recent commits exist (≥ 1 in the last 30 minutes), AND
 - CURRENT_WORK.md was not modified in the last 30 minutes.
 
-The block emits a reason; orchestrator updates CURRENT_WORK.md and proceeds. On non-Claude tools, this rule's text serves as the reminder.
+The hook emits a reason; the orchestrator updates CURRENT_WORK.md and proceeds.
+Cursor, Copilot, Gemini, and Windsurf use this rule's completion checklist because
+CONDUCTOR does not emit an unverified equivalent guard for them.
 
 ---
 
@@ -154,9 +157,10 @@ The `recipes/branch-strategy.md` recipe also documents a "push timing" conventio
 
 | Mechanism | Tools that enforce automatically |
 |---|---|
-| `stop-session-log-check` (CURRENT_WORK staleness) | Claude Code |
+| `stop-session-log-check` (CURRENT_WORK staleness) | Claude Code, Codex |
 | Branch protection (force-push block, PR required) | GitHub branch protection (any tool) |
 | Pre-deploy CI checklist | CI pipeline (any tool) |
 | Rule text reminder | All tools |
 
-For non-Claude tools, the orchestrator self-checks at session start and session end.
+On adapters without this specific guard, the orchestrator self-checks at session
+start and session end.

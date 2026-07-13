@@ -145,9 +145,11 @@ Production case: a PR was merged with the pre-merge code review skipped. The orc
 
 | Mechanism | Tools that support it natively |
 |---|---|
-| Stop hook (auto-injects reminder when CURRENT_WORK is stale) | Claude Code |
+| Stop hook (auto-injects reminder when CURRENT_WORK is stale) | Claude Code, Codex |
 | PreToolUse hook (blocks invalid sub-agent dispatch) | Claude Code |
 | File-glob rule scoping (`paths:` / `globs:` / `applyTo:`) | Claude Code, Cursor, Copilot, Windsurf (dir-based) |
 | Rule text + LLM self-discipline | All tools |
 
-On tools without hook support, this file's text IS the enforcement. The `linked_rules` frontmatter and the cross-references (W6 → meta-discipline.md AMB triggers) keep the chain navigable manually.
+Where a particular guard is not emitted, this file's text and the completion
+checklist are the enforcement. The `linked_rules` frontmatter and cross-references
+(W6 → meta-discipline.md AMB triggers) keep the chain navigable manually.

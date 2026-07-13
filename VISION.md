@@ -75,9 +75,9 @@ CONDUCTOR is intentionally NOT:
 - **A project management tool.** No tickets, no sprints, no Kanban. CURRENT_WORK.md is a single text file, not a board.
 - **An enterprise team-management product.** No SSO, no admin UI, no audit log. Solo / small-team scope only.
 - **A self-improving / agentic auto-learner.** Memory accumulates only what the user (or the orchestrator on the user's behalf) writes. Nothing learns silently. An opt-in Reflector may *propose* memory/rule deltas from session trajectories, but nothing is applied without human approval — proposing is not silent learning.
-- **A model-router product.** Model routing is a *rule* text that travels via CONDUCTOR; the actual routing happens inside Claude Code (and only Claude Code). We do not run an inference proxy.
+- **An inference proxy or global model catalog.** CONDUCTOR saves the user's per-project Tier translations and generates native role fields, but each provider still serves inference and controls account availability. We do not proxy requests, silently downgrade unavailable models, or pretend Windsurf's session selector is project-enforced.
 - **A telemetry vendor.** No phone-home, no usage stats, no opt-in tracking. Files on disk only.
-- **A super-set of every tool's features.** Sub-agent dispatch only exists in Claude. We refuse to fake it on Cursor by spawning shell processes — that is fragile and confusing. Layer 3 acknowledges these gaps openly.
+- **A super-set of every tool's features.** Native agents, hooks, reload behavior, and model enforcement differ by product. CONDUCTOR emits each verified native contract and refuses shell-process or undocumented-schema imitations. Layer 3 records the remaining gaps openly.
 
 ## Why this can win
 

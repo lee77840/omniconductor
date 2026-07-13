@@ -1,18 +1,20 @@
-# `core/roles/` — 6 universal roles + 1 opt-in (reflector)
+# `core/roles/` — 8 universal roles + 1 opt-in (reflector)
 
-Per ADR-013, CONDUCTOR ships 6 universal role definitions; per ADR-030 it also ships one opt-in role, `reflector`, emitted only with the `self-improvement` recipe. Adapters that support sub-agent dispatch (Claude Code as of v0.2) compile these into native role files. Adapters without native sub-agent support (Cursor / Copilot / Gemini / Codex / Windsurf) operate in **Single-Agent Mode**: the orchestrator absorbs all roles, and the role files are read as discipline references rather than dispatched.
+Per ADR-013/045/049, CONDUCTOR ships 8 universal role definitions; per ADR-030 it also ships one opt-in role, `reflector`, emitted only with the `self-improvement` recipe. `reviewer` is the pre-implementation plan/design gate; `code-reviewer` is the independent post-implementation correctness gate; `utility` is the bounded Tier 3 execution path. Each adapter compiles roles only when its project-scoped native agent format is verified; otherwise the primary rule text remains an explicit fallback.
 
-## The roles (6 universal + `reflector`, opt-in)
+## The roles (8 universal + `reflector`, opt-in)
 
-| Role | Purpose | Default model tier |
+| Role | Purpose | Required difficulty |
 |---|---|---|
-| `planner` | Architecture, gap analysis, ADRs, trade-off decisions. No code. | Opus |
-| `builder` | Multi-file or cross-cutting code implementation (3+ files). | Opus |
-| `reviewer` | Plan validation before implementation begins. Read-only. | Opus |
-| `helper` | Single-file or 1-2-file work where the pattern is established. | Sonnet |
-| `designer` | UI / UX work. Visual components, design tokens. | Sonnet |
-| `scribe` | Documentation sync after implementation. No code. | Sonnet |
-| `reflector` *(opt-in)* | Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply. Shipped only with the `self-improvement` recipe (ADR-030). | Opus |
+| `planner` | Architecture, gap analysis, ADRs, trade-off decisions. No code. | Tier 1 — conceptual / complex |
+| `builder` | Multi-file or cross-cutting code implementation (3+ files). | Tier 1 — conceptual / complex |
+| `reviewer` | Plan validation before implementation begins. Read-only. | Tier 1 — conceptual / complex |
+| `code-reviewer` | Post-implementation correctness, security, regression, and test review. Read-only. | Tier 1 — conceptual / complex |
+| `helper` | Single-file or 1-2-file work where the pattern is established. | Tier 2 — routine |
+| `designer` | UI / UX work. Visual components, design tokens. | Tier 2 — routine |
+| `scribe` | Documentation sync after implementation. No code. | Tier 2 — routine |
+| `utility` | Direct lookup, one-file rename, or trivial text edit; returns for reclassification if scope grows. | Tier 3 — trivial |
+| `reflector` *(opt-in)* | Reads session trajectories; proposes atomic lesson deltas for human approval. No code, no auto-apply. Shipped only with the `self-improvement` recipe (ADR-030). | Tier 1 — conceptual / complex |
 
 Project-specific roles (e.g., a translator role for multi-locale work, a mailer role for transactional email) live in `core/recipes/` and are opt-in.
 
@@ -24,7 +26,7 @@ Every role file uses the same frontmatter:
 ---
 role: builder
 purpose: "Multi-file or cross-cutting code implementation"
-default_model: opus
+difficulty_tier: 1
 must_do:
   - read AGENT.md (project rules)
   - update specs/*.md in same turn
@@ -49,6 +51,11 @@ The orchestrator dispatches a role with a dispatch brief (≤ 2K tokens). The br
 
 See `docs/HOW-IT-WORKS-PER-TOOL.md` for the per-tool dispatch mechanism. On Single-Agent-Mode tools, the brief becomes a section header inside the human's chat message rather than a separate dispatch.
 
+`difficulty_tier` is the portable contract. Adapters translate it into their own
+native controls using the project-saved Tier mapping (model-family/semantic alias,
+exact native model, reasoning effort, or an honestly advisory session selector);
+role sources never name a vendor model.
+
 ## Flat-with-leader topology
 
 Roles do NOT dispatch each other. Multi-step work returns intermediate results to the orchestrator, which decides the next dispatch. Full rationale in `universal-rules/meta-discipline.md` section 7.
@@ -58,4 +65,6 @@ Roles do NOT dispatch each other. Multi-step work returns intermediate results t
 | Adapter | Output |
 |---|---|
 | Claude | `.claude/agents/<role>.md` with native frontmatter (`name`, `description`, `model`). |
-| Cursor / Copilot / Gemini / Codex / Windsurf | Role text concatenated into the tool's primary rule file under a "Roles" section. Single-Agent Mode: the operator reads role contracts as discipline reference. |
+| Codex | `.codex/agents/<role>.toml` with sandbox and reasoning-effort profiles. |
+| Cursor / Copilot / Gemini | Native project agent files when emitted by that adapter; otherwise role-text fallback is stated explicitly. |
+| Windsurf | Rule/workflow fallback until a stable project-scoped custom-agent contract is verified. |

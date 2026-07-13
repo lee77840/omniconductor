@@ -11,9 +11,9 @@ Detailed matrix of which CONDUCTOR features Cursor supports natively.
 | **Custom slash commands (project)** | ⚠️ Partial | `.cursor/commands/*.md` (where Cursor version supports) | Not as flexible as Claude slash commands; usable but limited. |
 | **MCP servers** | ✅ Native | Cursor settings | Not used by CONDUCTOR; project may add own. |
 | **In-IDE chat / completion** | ✅ Native | Cursor's primary feature set | Inline completion + chat — Cursor's strength. |
-| **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.cursor/agents/*.md` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
-| **Hooks (stop)** | ✅ Native (2026) | `.cursor/hooks.json` | ADR-031. CONDUCTOR currently emits only the Reflector hook (ADR-032); broader hook-set emission is Phase 2. |
-| **Per-task model routing** | ✅ Native (2026) | Per-agent `model` config in agent definitions | ADR-031. |
+| **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.cursor/agents/*.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
+| **Hooks (stop)** | ✅ Native (2026) | `.cursor/hooks.json` | CONDUCTOR emits the verified Reflector hook; other guard translations remain excluded until their contracts are verified. |
+| **Per-task model routing** | ✅ Configured native | Emitted agents use the saved Tier model | Cursor may still apply account, plan, Max Mode, or administrator fallback; `doctor` does not misreport that as guaranteed. |
 | **Custom agent personas** | ✅ Native (2026) | `.cursor/agents/*.md` named agents | Previously a `.cursorrules` paste-in workaround; now first-class. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Native | Plain markdown; Cursor reads on demand | Universal across all adapters. |
@@ -51,23 +51,19 @@ alwaysApply: false
 
 `alwaysApply: true` overrides `globs:` and forces always-on. CONDUCTOR uses this for `spec-as-you-go.mdc` and `token-economy.mdc` (always-on is the safer behavior even though their `applies_to:` in `core/` is `**`).
 
-## Model tier mapping
+## Difficulty translation
 
-CONDUCTOR's universal `model-routing.md` rubric describes Opus / Sonnet / Haiku tiers. Cursor users:
-
-- Pick the heaviest model for Plan / Architecture / Large Refactor sessions.
-- Pick the standard model for routine implementation.
-- Pick the cheap model for trivial reads / variable renames.
-
-Cursor's UI exposes the model picker. CONDUCTOR's rule text serves as the rubric for the human's selection.
+CONDUCTOR preserves Tier 1 (conceptual/complex), Tier 2 (routine), and Tier 3
+(trivial) in every role. First setup saves three Cursor model values and regenerates
+the role files. A provider fallback does not change the declared Tier.
 
 ## What Cursor DOES NOT support (and CONDUCTOR doesn't fake)
 
-> **2026 reconciliation (first-party verified):** the limitations previously listed here are stale. Cursor now natively supports hooks (`.cursor/hooks.json`), sub-agent dispatch with custom named agents (`.cursor/agents/*.md`), per-task model routing (per-agent `model` config), and project commands/skills — see `docs/COMPATIBILITY-MATRIX.md` / ADR-031.
+> **2026 reconciliation:** Cursor supports hooks, project agents, and project commands/skills. CONDUCTOR writes the user-approved mapping while distinguishing configuration from account/plan enforcement — see ADR-031/048/049.
 
 What remains true on the CONDUCTOR side:
 
-- CONDUCTOR does not yet emit a Claude-parity hook set for Cursor. It currently emits only the self-improvement Reflector hook (ADR-032, opt-in — see below). Broader hook-set emission (commit-blocking, spec enforcement) is Phase 2.
+- CONDUCTOR emits eight native role profiles, including Tier 3 utility. Hook emission remains limited to the verified self-improvement Reflector lifecycle hook; unsupported Claude hook contracts are not copied.
 - Until then, commit-blocking enforcement still relies on project-level pre-commit git hooks, and orchestration discipline remains partly a human practice.
 
 ## Self-improvement (Reflector) — opt-in

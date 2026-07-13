@@ -6,10 +6,12 @@ This document is the fallback for when you want to understand exactly what the a
 
 For each tool there are two paths:
 
-- **Adapter (recommended)** — `npx omniconductor init --target=<tool> <dir>` or a single `bash transform.sh <target>` invocation. Available for **all six tools** (Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf).
+- **Guided installer (recommended, Node.js required)** — `npx omniconductor init --target=<tool> <dir>` or the cloned-repository wrapper `bash transform.sh <target>`. Both enter the same CLI transaction and perform the same one-time project-saved Tier-model setup. Available for **all six tools** (Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf).
 - **Manual file copy (fallback)** — explicit `cp` / `cat` commands and frontmatter cheat sheet.
 
-> **Read first**: [`README.md`](../README.md) Quick Start. The Claude adapter has a guided wizard that handles 90% of installs. Manual install is for the remaining 10%.
+> **Read first**: [`README.md`](../README.md) Quick Start. The six-tool
+> `omniconductor` CLI performs the guided one-time model setup; manual install is
+> the fallback for constrained environments.
 
 ---
 
@@ -37,7 +39,7 @@ For each tool there are two paths:
 | Codex (OpenAI) | ✅ | `npx omniconductor init --target=codex <target>` |
 | Windsurf | ✅ | `npx omniconductor init --target=windsurf <target>` |
 
-> All six adapters ship `transform.sh` and the npm CLI has existed since v0.2. Prefer the adapter — it handles backups, the install manifest, and `--uninstall`. Use the manual sections below only for constrained environments.
+> All six adapters ship `transform.sh`; each public wrapper now requires Node.js and delegates to the same guided CLI before adapter emission. Prefer either guided command — both handle model setup, backups, the install manifest, and `--uninstall`. Use the manual sections below only for constrained or no-Node environments.
 
 ---
 
@@ -409,7 +411,7 @@ Most likely causes (in order):
 
 ### "I need to update Conductor — do I re-copy everything?"
 
-Yes — that is exactly what `bash transform.sh <target>` does. Manual install means you re-do the manual steps after `git pull` in `~/conductor`. This is the main reason to use the adapter when one is available.
+Yes — that is exactly what `bash transform.sh <target>` does through the Node CLI. Manual file-copy installation means you re-do the manual steps after `git pull` in `~/conductor`. This is the main reason to use a guided command when Node.js is available.
 
 ### "Can I mix manual install with the adapter?"
 

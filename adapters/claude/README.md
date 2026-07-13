@@ -23,6 +23,10 @@ bash adapters/claude/transform.sh <target> [--dry-run]
 npx omniconductor init --target=claude [target-dir]
 ```
 
+The local `transform.sh` command requires Node.js and delegates to the same CLI,
+including the one-time project-saved Tier-model setup. It is not a model-routing
+bypass.
+
 ## What gets installed
 
 ```
@@ -67,7 +71,7 @@ npx omniconductor init --target=claude [target-dir]
 - ✅ Sub-agent dispatch (`Agent` tool with named persona).
 - ✅ Hooks (Stop, PreToolUse) for ABSOLUTE rule enforcement.
 - ✅ Lazy rule loading (`paths:` front-matter, glob-matched).
-- ✅ Per-call model routing (`model: "opus" | "sonnet" | "haiku"`).
+- ✅ Per-call Tier routing through Claude family aliases (`opus` / `sonnet` / `haiku` by default); exact IDs are optional Tier overrides.
 - ✅ Custom slash commands.
 - ✅ Built-in memory directory.
 - ✅ Always-loaded baseline (`CLAUDE.md`).
@@ -84,16 +88,9 @@ None relevant to CONDUCTOR's scope. Claude is the reference implementation.
 4. Restart Claude Code in the project directory. Verify with `/help` that the new agents are recognized.
 5. Add your first entry to `docs/CURRENT_WORK.md`.
 
-## Quirks / known issues
+## Status
 
-To be filled in `notes.md` after P1 real-install verification.
-
-## Status (P0 foundation)
-
-- ✅ `README.md` (this file)
-- ✅ `SUPPORTED-FEATURES.md`
-- ✅ `transform-spec.md`
-- ⏳ `transform.sh` (P1)
-- ⏳ `notes.md` (P1 — after first real verification)
-
-The v0.1 `install.sh` (under `archive/v0.1/`) provides equivalent output today and continues to work until the v0.2 Claude adapter ships in P1.
+The Claude adapter ships a working `transform.sh`, eight base roles, the full
+verified guard set, project-saved Tier routing, manifest-safe uninstall, and the
+opt-in Reflector runtime. The frozen `archive/v0.1/` scaffold is historical only;
+new installs use the current adapter or `npx omniconductor`.

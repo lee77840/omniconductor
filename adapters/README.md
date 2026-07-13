@@ -88,13 +88,19 @@ Each adapter MAY also install tool-native artifacts that have no `core/` source 
 
 - **Claude adapter** also installs `.claude/agents/*.md`, `.claude/hooks/*.sh`, and a generated `.claude/settings.json` (written by `transform.sh`).
 - **Cursor adapter** also installs `.cursor/commands/*.md` (project commands, where applicable).
-- **Other adapters** typically do NOT have tool-native extensions to install.
+- **Cursor / Copilot / Gemini / Codex / Windsurf adapters** emit their verified
+  native agent/workflow, command, hook, and model-routing surfaces as documented in
+  each adapter README. Unsupported contracts remain explicit omissions.
 
 These tool-native artifacts live IN THE ADAPTER (not in `core/`) and are documented in the adapter's `transform-spec.md`.
 
 ## Running an adapter
 
-The Claude, Cursor, and Copilot adapters ship a runnable `transform.sh`. Gemini, Codex, and Windsurf are manual-install (see `docs/MANUAL-INSTALL.md`); their `transform-spec.md` documents the intended mapping.
+All six adapters ship a runnable `transform.sh`. Every public direct invocation
+requires Node.js and delegates to `omniconductor init --target=<tool>` so it
+performs the same one-time project-saved model setup before the CLI dispatches
+back to the adapter child. `npx omniconductor` remains recommended because it
+needs no repository clone.
 
 Usage (shipping adapters):
 
@@ -109,13 +115,13 @@ bash adapters/<tool>/transform.sh <target> [--dry-run]
 npx omniconductor init --target=<tool> [target-dir]
 ```
 
-## Status (P0 foundation)
+## Status
 
 All 6 adapter directories have:
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
-- ⏳ `transform.sh` (P1+)
+- ✅ `transform.sh` (implemented; public invocation delegates through the Node CLI)
 - ⏳ `notes.md` (P1+ when real-install quirks discovered)
 
 See `ROADMAP.md` for which adapter ships in which phase.

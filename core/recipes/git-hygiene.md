@@ -15,7 +15,7 @@ linked_rules:
 
 ## Why this exists
 
-Left undisciplined, an agent can turn a healthy repo into one where merged work looks stranded: it spins up `git worktree`s nobody asked for and never cleans them up, hoards commits locally instead of pushing, and never deletes branches after their PRs merge. The classic collapse — dozens of stale local branches, a pile of local-only commits, orphan worktrees — loses *nothing* (it's all merged), but it makes finished work read as **unmerged / lost**, triggers a false "it's only backed up, not applied" scramble, and burns large reconciliation time and trust. Prose alone gets forgotten, so this recipe is backed by a Claude Stop hook (below).
+Left undisciplined, an agent can turn a healthy repo into one where merged work looks stranded: it spins up `git worktree`s nobody asked for and never cleans them up, hoards commits locally instead of pushing, and never deletes branches after their PRs merge. The classic collapse — dozens of stale local branches, a pile of local-only commits, orphan worktrees — loses *nothing* (it's all merged), but it makes finished work read as **unmerged / lost**, triggers a false "it's only backed up, not applied" scramble, and burns large reconciliation time and trust. Claude and Codex add a verified Stop-hook reminder; every adapter installs the obligations below.
 
 ## The 7 obligations
 
@@ -47,8 +47,14 @@ Before finishing a session: **0 orphan worktrees · 0 local-only commits (all on
 
 ## Conductor Integration
 
-- **Claude** — a Stop hook `stop-git-hygiene-guard` (from `core/hooks/`) fires a **non-blocking reminder** when it detects the collapse states: extra worktrees, local-only commits, or an abnormally high local-branch count. It always exits 0 (observation only, never blocks a session), self-gates on this recipe being installed, cools down between reminders, and honors `CONDUCTOR_SKIP_GIT_HYGIENE=1` (silence) and `CONDUCTOR_GIT_HYGIENE_BRANCH_MAX` (branch-count threshold, default 20).
-- **Cursor / Copilot / Gemini / Codex / Windsurf** — the hook is Claude-only (per `docs/DESIGN-DECISIONS.md` ADR-034; Windsurf also lacks Stop-style events). On these tools this recipe's rule text is the enforcement: run the G7 checklist manually at session end.
+- **Claude / Codex** — `stop-git-hygiene-guard` fires a **non-blocking
+  reminder** in the product's verified Stop-hook dialect when it detects extra
+  worktrees, local-only commits, or an abnormal local-branch count. It self-gates
+  on this recipe, cools down, always fails open, and honors the documented
+  environment overrides.
+- **Cursor / Copilot / Gemini / Windsurf** — CONDUCTOR does not emit an unverified
+  equivalent Stop guard. The installed G7 checklist is the enforcement floor;
+  Windsurf also lacks a Stop-style event.
 - **Target branch** — G2/G3/G4 reference your *integration/target branch* (commonly `main`, or `develop` if you also install the `branch-strategy` recipe). Substitute your project's value.
 
 ## Cross-References

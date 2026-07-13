@@ -11,7 +11,9 @@ How to add a new tool adapter, fix a bug, or improve a universal rule.
 3. Make your changes following the conventions below.
 4. Open a PR against `main`. Describe WHAT changed and WHY.
 
-We do not yet have a CI pipeline (P4 will add one). Until then, please test your adapter changes locally per the verification steps below.
+Validation is local-first. Run the verification steps below and the integrated
+`npm run release:verify:local` gate. GitHub workflow definitions are retained only
+as disabled, manual release checks; pushes and pull requests do not invoke them.
 
 ---
 
@@ -168,7 +170,7 @@ For each PR:
 2. **Idempotency check** — run twice on the same target; second run should report "skipped, already exists".
 3. **Path collision check** — install alongside other adapters; verify no collisions.
 4. **Doc sync check** — matrix + HOW-IT-WORKS updated.
-5. **Code style** — Bash strict mode, quoted expansions, no shellcheck warnings (when CI lands).
+5. **Code style** — Bash strict mode, quoted expansions, and no shellcheck warnings when shellcheck is available locally.
 
 Do NOT merge if:
 - Adapter introduces telemetry.

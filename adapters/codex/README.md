@@ -5,7 +5,11 @@ OpenAI Codex (the modern shell-driven agent — not the deprecated original Code
 - It supports a single project rules file at `AGENTS.md` (project root — the established cross-agent convention), auto-loaded on session start.
 - It excels at shell-driven scripting and agentic terminal work.
 
-**Tool capability vs CONDUCTOR emission (ADR-031):** as of 2026 Codex ships hooks (default-on), sub-agent dispatch, custom agents, per-task model routing, commands, and built-in managed memory. What is limited today is what CONDUCTOR **emits** for it — rule text + docs + the opt-in Reflector loop; the enforcement guard hooks, role agents, and model-routing config are Phase-2 emission (ADR-034). That is a CONDUCTOR gap, not a Codex limitation. Real tool-side caveat: rules scope by nested-file hierarchy, not glob — the adapter bundles everything into one `AGENTS.md`.
+**Tool capability vs CONDUCTOR emission (ADR-031/045):** Codex supports hooks, sub-agent dispatch,
+custom agents, per-task model routing, commands, and managed memory. CONDUCTOR emits eight native
+role profiles and the verified commit/session/review hook subset. Its project file has a bounded
+input budget, so the adapter keeps a compact non-negotiable kernel in `AGENTS.md` and installs the
+complete universal rules and selected recipes as explicitly routed on-demand references.
 
 **Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md`). Live-verified via the automated headless probe (`tools/live-verify.sh` — current status in `docs/ADAPTER-LIVE-VERIFICATION.md`).
 
@@ -21,11 +25,21 @@ bash adapters/codex/transform.sh <target> --dry-run --no-prompt    # preview, wr
 bash adapters/codex/transform.sh <target> --uninstall              # revert (manifest-based)
 ```
 
+The local `transform.sh` command requires Node.js and delegates to the same CLI,
+including the one-time project-saved Tier-model setup. It is not a model-routing
+bypass.
+
 ## What gets installed
 
 ```
 <target>/
-├── AGENTS.md                                   # Codex-flavored intro + 5 universal rules + compressed workflow + selected recipes + memory note
+├── AGENTS.md                                   # Bounded always-loaded runtime kernel
+├── .codex/
+│   ├── conductor/rules/*.md                    # Complete universal-rule references
+│   ├── conductor/recipes/*.md                  # Complete selected recipes
+│   ├── agents/*.toml                           # Eight native role profiles
+│   ├── hooks/*.sh
+│   └── hooks.json
 └── docs/
     ├── CURRENT_WORK.md                         # Universal templates
     ├── REMAINING_TASKS.md
@@ -40,19 +54,21 @@ bash adapters/codex/transform.sh <target> --uninstall              # revert (man
 ## Native features supported (emitted today)
 
 - ✅ Always-loaded baseline (`AGENTS.md`).
-- ✅ All universal rule TEXT.
+- ✅ Compact always-loaded execution contract plus complete on-demand universal rule text.
 - ✅ All doc templates.
+- ✅ Eight native `.codex/agents/*.toml` role profiles, including Tier 3 utility.
+- ✅ Verified Codex-native commit/session/review guards.
 - ✅ Reflector loop (opt-in recipe).
 - ✅ Strong shell-task execution (Codex's primary strength).
 
-## Not emitted yet (Phase 2 — Codex supports these natively, ADR-031/034)
+## Capability boundary
 
 | Feature | Interim workaround |
 |---|---|
-| Per-pattern rule scoping | All rules always-loaded in one `AGENTS.md` (Codex scopes by nested-file hierarchy, not globs). |
-| Enforcement guard hooks | Self-police, or pair with project pre-commit git hooks. Only the Reflector session-end hook is emitted today (`--recipes=self-improvement`). |
-| The 6 role agents (sub-agent dispatch) | Codex has native sub-agents; CONDUCTOR doesn't emit its role definitions for Codex yet. Human plays orchestrator. |
-| Per-call model-routing config | Pick the model per invocation via Codex's own model selection. |
+| Per-pattern rule scoping | `AGENTS.md` routes to complete `.codex/conductor/` references; Codex still scopes by hierarchy, not globs. |
+| Claude-only Agent/Read hook contracts | Not translated. Codex receives only hooks with verified Codex event/input/output behavior. |
+| Unsupported `permissionDecision: "ask"` | Never active; non-blocking warnings use `additionalContext`. |
+| Difficulty/model translation | First setup recommends and saves Sol/Terra/Luna; Tier 1/2/3 independently compiles to high/medium/low reasoning. Local catalog availability is validated when available. Every real install reloads this saved mapping and ignores inherited model overrides. |
 | 4-type memory pattern | Self-managed at `.memory/` (gitignored); Codex's built-in managed memory is separate. |
 
 ## Best fit use cases
@@ -63,21 +79,23 @@ bash adapters/codex/transform.sh <target> --uninstall              # revert (man
 
 ## After install — first steps
 
-1. Verify Codex reads `AGENTS.md` (auto-loaded from project root on session start).
-2. Customize `AGENTS.md` for your project as needed.
-3. Add `.memory/` to `.gitignore`.
+1. Verify Codex reads the compact `AGENTS.md` kernel (auto-loaded from the project root).
+2. Keep `AGENTS.md` below the validator budget; put detailed additions in linked project docs.
+3. Run `/hooks`, review and trust the project hook definitions.
+4. Add `.memory/` to `.gitignore` if using the project-local memory convention.
 
 ## Quirks / known issues
 
 - Output is `AGENTS.md` at the project root (the established cross-agent convention adopted by
   OpenAI Codex / Codex CLI), superseding the early-design `.codex/codex.md` guess.
-- Single-file model: everything Cursor splits across `.cursor/rules/*.mdc` is concatenated into
-  `AGENTS.md`. All rules are always-on — Codex has no per-pattern scoping.
+- Codex truncates oversized project instructions. The validator caps the generated kernel at
+  24 KiB, doctor fails files above the default 32 KiB budget, and complete text remains under
+  `.codex/conductor/` for explicit loading.
 
 ## Status
 
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`
-- ✅ `transform.sh` (implemented — single-file `AGENTS.md` bundle, recipes, dry-run, manifest-based uninstall)
+- ✅ `transform.sh` (implemented — bounded kernel, complete references, recipes, dry-run, manifest-based uninstall)
 - ✅ Live-verified (auto-probe `tools/live-verify.sh` — see `docs/ADAPTER-LIVE-VERIFICATION.md`)

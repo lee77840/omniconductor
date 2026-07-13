@@ -12,9 +12,9 @@ Detailed matrix of which CONDUCTOR features Copilot supports natively.
 | **Inline completion + chat** | ✅ Native | Copilot's primary feature | |
 | **PR review automation** | ✅ Native | Copilot's PR review feature (configurable per repo) | Useful Stage B analog. |
 | **MCP servers** | ⚠️ Partial | Copilot has limited MCP support depending on version | CONDUCTOR doesn't depend; project may add own. |
-| **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.github/agents/*.agent.md` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
-| **Hooks (agentStop)** | ✅ Native (2026) | `.github/hooks/*.json` | ADR-031. CONDUCTOR currently emits only the Reflector hook (ADR-032); broader hook-set emission is Phase 2. |
-| **Per-task model routing** | ✅ Native (2026) | Per-agent `model` in agent front-matter | ADR-031. |
+| **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.github/agents/*.agent.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
+| **Hooks (agentStop)** | ✅ Native (2026) | `.github/hooks/*.json` | CONDUCTOR emits the verified Reflector hook; other guard translations remain excluded until their contracts are verified. |
+| **Per-task model routing** | ✅ Configured native (2026) | Saved Tier model in each repository agent | Availability remains dependent on plan, client, and organization policy. |
 | **Custom slash commands** | ✅ Native (2026) | Prompt files at `.github/prompts/*.prompt.md` | Was unavailable as of late 2025; supported now (ADR-031). |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Universal | Plain markdown; Copilot Chat reads on demand | |
@@ -46,7 +46,14 @@ applyTo: '<csv-glob-list>'
 Still true:
 
 - No built-in memory directory — DIY at `.memory/` (gitignored).
-- CONDUCTOR does not yet emit a Claude-parity hook set for Copilot. It currently emits only the self-improvement Reflector hook (ADR-032, opt-in — see below); broader hook-set emission (commit-blocking, spec enforcement) is Phase 2. Until then, pair with project pre-commit git hooks.
+- CONDUCTOR emits eight repository agents, including Tier 3 utility. Hook emission remains limited to the verified self-improvement Reflector lifecycle hook; pair with repository CI or pre-commit hooks for other mechanical gates.
+
+## Difficulty translation
+
+Every repository agent carries the invariant CONDUCTOR Tier and its project-saved
+model. Initial setup recommends an available current triplet when it can be verified,
+or clearly records syntax-only validation. Repository or organization policy may
+still restrict the requested model; CONDUCTOR never silently changes the Tier.
 
 ## Strengths to lean into
 

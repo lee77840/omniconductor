@@ -42,7 +42,7 @@ The file content itself enters the conversation history. Once it is in the histo
 
 Cost estimate (Anthropic pricing reference):
 - 50 full-file Reads × 30K tokens = 1.5M tokens of context bloat
-- At Sonnet output rate (~$15/M) the *response* tokens about that file alone can hit $20+ over a session.
+- The repeated response tokens about that file can dominate session cost and context, regardless of provider pricing.
 
 **Reference-adopter P1.5 measurement**: average tool calls per turn = 0.61. The two largest sessions had 7K-8K tool calls. If even 10% were full-file Reads on files > 500 lines, that is the root cause of multi-MB session JSONLs.
 

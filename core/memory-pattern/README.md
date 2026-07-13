@@ -24,13 +24,15 @@ CONDUCTOR's memory pattern. Tool-agnostic in *intent*; tool-native in *mechanism
 | Tool | Built-in directory? | Recommended path |
 |---|---|---|
 | Claude Code | ✅ | `~/.claude/projects/<encoded-project-path>/memory/` |
-| Cursor | ❌ | `.memory/` at project root (gitignored) — DIY |
-| Copilot | ❌ | `.memory/` (DIY) |
-| Gemini CLI | ❌ | `.memory/` (DIY) |
-| Codex | ❌ | `.memory/` (DIY) |
-| Windsurf | ❌ | `.memory/` (DIY) |
+| Cursor | ⚠️ current native status unverified | `.memory/` at project root (gitignored) as the portable fallback |
+| Copilot | ✅ provider-managed preview | Copilot Memory; optional gitignored `.memory/` export for portable files |
+| Gemini CLI | ⚠️ hierarchical context + experimental Auto Memory | `.memory/` fallback; do not assume the removed `save_memory` mechanism |
+| Codex | ✅ opt-in | `~/.codex/memories/` |
+| Windsurf / Devin Desktop | ✅ | `~/.codeium/windsurf/memories/` |
 
-The pattern is the same. The directory location varies. On non-Claude tools, add `.memory/` to your `.gitignore` so personal memory entries don't leak into the repo.
+The four semantic types are the same; persistence, expiry, and file ownership vary
+by product. When using the portable `.memory/` fallback, add it to `.gitignore` so
+personal entries do not leak into the repository.
 
 ## File structure
 
@@ -118,16 +120,19 @@ Before recommending FROM memory, verify it's still true:
 
 The two are complementary. `docs/` is the project's brain; memory is YOUR brain on top of the project.
 
-## Tool-specific enforcement
+## Tool-specific loading
 
-> **Claude-only mechanism**: Claude Code auto-loads `MEMORY.md` at session start (when configured) and surfaces relevant `*.md` files based on the user's question.
-
-> **Other tools**: paste relevant memory entries into your prompt manually, or use the tool's "include this file" feature (Cursor: @-mention; Copilot: workspace context).
+- **Claude Code** loads its configured project memory index and retrieves relevant
+  files.
+- **Copilot, Codex, and Windsurf** provide native managed-memory mechanisms, but
+  their storage, expiry, and opt-in policies differ; use the product-native control
+  and do not represent server-managed memory as a repository file.
+- **Cursor and Gemini CLI** retain the gitignored `.memory/` fallback unless the
+  project's currently installed version documents and enables a native equivalent.
+- On every tool, verify a remembered claim against the repository before acting.
 
 ## Examples
 
 See `EXAMPLES.md` for tool-agnostic worked examples of each memory type.
 
-## Status (P0 foundation)
-
-`EXAMPLES.md` is a placeholder. P1 fills with sanitized real examples derived from the reference adopter.
+`EXAMPLES.md` contains tool-neutral examples for the four memory types.

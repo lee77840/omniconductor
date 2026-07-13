@@ -1,6 +1,6 @@
-# Memory pattern — worked examples (PLACEHOLDER — P1 fills with sanitized real examples)
+# Memory pattern — worked examples
 
-> **Status (P0 foundation)**: this file shows the SHAPE of each memory type via skeleton examples. P1 will fill with sanitized real examples derived from the reference adopter's accumulated memory.
+> These skeletons show the supported shape of each memory type. Replace the example values with adopter-specific facts; never store credentials or secrets.
 
 ## Example 1 — type: `user`
 

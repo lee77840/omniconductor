@@ -1,7 +1,7 @@
 ---
 role: designer
 purpose: "UI / UX implementation. Visual components, design tokens, responsive, accessible."
-default_model: sonnet
+difficulty_tier: 2
 must_do:
   - invoke the project's frontend-design skill (if available) at the start of every design task
   - read the project's design-system doc (docs/design-system.md or equivalent)
@@ -37,13 +37,13 @@ Skip the skill invocation only when the task is purely mechanical (literal paddi
 3. Read the project's rule index (`AGENT.md`, `CLAUDE.md`, or equivalent).
 4. Look at existing components for established patterns.
 
-## Model routing
+## Difficulty routing
 
 The orchestrator sizes each design task and overrides the default model when needed:
 
-- **Opus tier**: design concept change, palette swap, primitive redesign, multi-screen migration, cross-platform parity, anti-pattern audit, design system documentation update.
-- **Sonnet tier (default)**: single-component tweak, icon swap, copy / translation wiring, known component instance added to existing page, minor responsive fix.
-- **Haiku tier (rare for design)**: trivial value-only swap (e.g., border-radius 16 → 12 in one file).
+- **Tier 1 — conceptual / complex**: design concept change, palette swap, primitive redesign, multi-screen migration, cross-platform parity, anti-pattern audit, design system documentation update.
+- **Tier 2 — routine (default)**: single-component tweak, icon swap, copy / translation wiring, known component instance added to existing page, minor responsive fix.
+- **Tier 3 — trivial (rare for design)**: trivial value-only swap (e.g., border-radius 16 → 12 in one file).
 
 When in doubt, upgrade one tier.
 

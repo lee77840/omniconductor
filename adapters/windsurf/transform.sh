@@ -23,17 +23,55 @@
 #   <synthesized>                  →  <target>/.windsurfrules        (always-loaded baseline)
 #   core/recipes/*.md (selected)   →  <target>/.devin/rules/*.md     (front-matter stripped)
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
-#   core/hooks/*.sh.template       →  SKIPPED (Reflector hook emitted via --recipes=self-improvement, ADR-032; other guards Claude-only, ADR-034)
-#   core/roles/*.md                →  SKIPPED (role emission is Claude-only today; Windsurf supports sub-agents natively — ADR-031)
+#   core/hooks/*.sh.template       →  Windsurf-verified lifecycle/recipe subset only; Claude/Codex have additional verified guards
+#   core/roles/*.md                →  <target>/.windsurf/workflows/*.md (native invocable role workflows)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
 # This adapter emits no per-pattern glob scoping (all files in .devin/rules/ load
-# together) and no agent personas — Windsurf supports hooks/sub-agents natively
-# (ADR-031); full emission is Phase 2. CONDUCTOR emits the Reflector hook when
-# --recipes=self-improvement (ADR-032); other guards remain Claude-only emission
+# together). Windsurf has no verified project-local custom-agent profile contract,
+# so CONDUCTOR emits native, manually invocable role workflows instead. It emits the Reflector hook when
+# --recipes=self-improvement (ADR-032); unverified guard ports are not emitted
 # (ADR-034) and are noted in .windsurfrules.
 
 set -eu
+
+# Direct adapter calls enter through the CLI so one-time Tier-model setup runs
+# before role emission. Array forwarding preserves exact shell argument
+# boundaries; the CLI marks its adapter child to prevent wrapper recursion.
+ORIGINAL_ARGS=("$@")
+CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDUCTOR_DELEGATE_TO_CLI="true"
+[ "${#ORIGINAL_ARGS[@]}" -gt 0 ] || CONDUCTOR_DELEGATE_TO_CLI="false"
+if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    case "$_conductor_arg" in --help|-h) CONDUCTOR_DELEGATE_TO_CLI="false" ;; esac
+  done
+fi
+CONDUCTOR_CLI_CHILD="false"
+conductor_file_identity() {
+  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
+    stat -f '%i:%z' "$1"
+  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
+    stat -c '%i:%s' "$1"
+  else
+    return 1
+  fi
+}
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
+  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
+    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
+    && [ -n "$_conductor_dispatch_identity" ] \
+    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+    CONDUCTOR_CLI_CHILD="true"
+  fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required for one-time CONDUCTOR model setup." >&2
+    exit 127
+  }
+  exec node "$CONDUCTOR_ROOT/bin/omniconductor.js" init --target=windsurf "${ORIGINAL_ARGS[@]}"
+fi
 
 # ----- arg parsing --------------------------------------------------------
 
@@ -78,8 +116,8 @@ Options:
 Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene, loop-engineering
 
 What this adapter does NOT install (per ADR-004 honesty + ADR-021):
-  - Hook guards (CONDUCTOR emits the Reflector hook when --recipes=self-improvement, ADR-032; other guards remain Claude-only, ADR-034)
-  - Sub-agent personas (not yet emitted for Windsurf — the tool supports sub-agents natively, ADR-031; agent emission is Phase 2)
+  - Unverified guard ports (CONDUCTOR emits only Windsurf contracts verified by this adapter; Reflector is opt-in)
+  - Unverified project-local custom-agent profile files (role workflows are emitted instead)
   - Per-pattern glob scoping (all .devin/rules/*.md load together)
   - Hookify rule templates (Claude-only plugin)
 EOF
@@ -118,8 +156,7 @@ if [ "$MODE" = "recipes-only" ] && [ -z "$RECIPES" ] && [ "$UNINSTALL" != "true"
   exit 1
 fi
 
-# Resolve CONDUCTOR root (where this script lives: adapters/windsurf/).
-CONDUCTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Resolve CONDUCTOR assets (root was resolved by the invocation wrapper).
 CORE_ROOT="$CONDUCTOR_ROOT/core"
 [ -d "$CORE_ROOT" ] || { echo "Error: core/ not found at $CORE_ROOT" >&2; exit 1; }
 
@@ -132,6 +169,16 @@ if [ "$DRY_RUN" = "true" ]; then
   mkdir -p "$TARGET"
 fi
 TARGET_ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "Error: target directory does not exist or is not a directory: $TARGET" >&2; exit 1; }
+
+if [ "$UNINSTALL" != "true" ] && [ "$DRY_RUN" != "true" ] && [ "$MODE" != "recipes-only" ]; then
+  _conductor_models=()
+  while IFS= read -r _conductor_model; do _conductor_models+=("$_conductor_model"); done \
+    < <(node "$CONDUCTOR_ROOT/bin/model-routing.js" resolve "$TARGET_ABS" windsurf)
+  [ "${#_conductor_models[@]}" -eq 3 ] || { echo "Error: valid Windsurf Tier routing is required before installation." >&2; exit 2; }
+  export CONDUCTOR_WINDSURF_MODEL_TIER_1="${_conductor_models[0]}"
+  export CONDUCTOR_WINDSURF_MODEL_TIER_2="${_conductor_models[1]}"
+  export CONDUCTOR_WINDSURF_MODEL_TIER_3="${_conductor_models[2]}"
+fi
 
 # ----- helpers ------------------------------------------------------------
 
@@ -183,7 +230,8 @@ backup_if_exists() {
 #
 # Format identical to Claude/Cursor adapters' manifest. POSIX shell + sed only — no jq.
 
-MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+LEGACY_MANIFEST_PATH="$TARGET_ABS/.conductor-manifest.json"
+MANIFEST_PATH="$TARGET_ABS/.conductor/manifests/windsurf.json"
 MANIFEST_STAGE_PATH=""
 MANIFEST_TS=""
 MANIFEST_LAST_BACKUP=""
@@ -191,15 +239,22 @@ MANIFEST_LAST_BACKUP=""
 # shellcheck source=../../tools/manifest-safety.sh
 . "$CONDUCTOR_ROOT/tools/manifest-safety.sh"
 
+WINDSURF_TIER_1_MODEL="${CONDUCTOR_WINDSURF_MODEL_TIER_1:-adaptive}"
+WINDSURF_TIER_2_MODEL="${CONDUCTOR_WINDSURF_MODEL_TIER_2:-adaptive}"
+WINDSURF_TIER_3_MODEL="${CONDUCTOR_WINDSURF_MODEL_TIER_3:-adaptive}"
+for model in "$WINDSURF_TIER_1_MODEL" "$WINDSURF_TIER_2_MODEL" "$WINDSURF_TIER_3_MODEL"; do
+  [ "$model" = "adaptive" ] || { echo "Error: Windsurf workflows cannot pin '$model'; configure Adaptive session routing" >&2; exit 1; }
+done
+conductor_manifest_prepare "windsurf"
+
 init_manifest() {
   if [ "$DRY_RUN" = "true" ]; then
     log "would init manifest staging at $MANIFEST_PATH.staging"
     return
   fi
   MANIFEST_TS="$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)"
-  MANIFEST_STAGE_PATH="$TARGET_ABS/.conductor-manifest.json.staging"
-  /bin/rm -f "$MANIFEST_STAGE_PATH"
-  : > "$MANIFEST_STAGE_PATH"
+  MANIFEST_STAGE_PATH="$MANIFEST_PATH.staging"
+  conductor_manifest_init_stage
 }
 
 record_emit() {
@@ -210,6 +265,7 @@ record_emit() {
   local had_backup="false"
   [ -n "$backup" ] && had_backup="true"
   local esc_path esc_src esc_backup emitted_sha
+  conductor_manifest_stage_drop_path "$relpath"
   esc_path="$(printf '%s' "$relpath" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_src="$(printf '%s' "$src" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
   esc_backup="$(printf '%s' "$backup" | /usr/bin/sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -259,6 +315,8 @@ finalize_manifest() {
 
   /bin/cat > "$MANIFEST_PATH" <<EOF
 {
+  "schema_version": 2,
+  "manifest_scope": "adapter",
   "version": "v$CONDUCTOR_VERSION",
   "adapter": "windsurf",
   "mode": "$MODE",
@@ -272,6 +330,7 @@ $entries
 EOF
   /bin/rm -f "$MANIFEST_STAGE_PATH"
   log "  wrote manifest $MANIFEST_PATH"
+  conductor_manifest_publish_projection
 }
 
 backup_and_remember() {
@@ -345,6 +404,12 @@ do_uninstall() {
     local abs_backup=""
     [ -n "$backup_path" ] && abs_backup="$TARGET_ABS/$backup_path"
 
+    if conductor_manifest_path_needed_elsewhere "$rel_path"; then
+      log "  preserve shared $rel_path (required by another active adapter)"
+      preserved=$((preserved + 1))
+      continue
+    fi
+
     if [ -f "$abs_dest" ] && ! conductor_manifest_file_matches "$abs_dest" "$expected_sha"; then
       if [ -z "$expected_sha" ]; then
         log "  WARNING: preserving $rel_path (legacy manifest has no checksum)"
@@ -400,6 +465,7 @@ do_uninstall() {
     done
     log "  deleted $MANIFEST_PATH"
   fi
+  conductor_manifest_refresh_projection
 
   # Try to clean up empty Conductor-emitted dirs left behind.
   for d in .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor; do
@@ -520,6 +586,7 @@ fi
 # ----- step 1: synthesize .windsurfrules (always-loaded baseline) --------
 
 init_manifest
+conductor_install_project_profile
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
@@ -530,11 +597,13 @@ if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
 elif true; then
 log "Step 1/4: synthesize .windsurfrules (always-loaded baseline)"
 
-if [ -f "$WINDSURFRULES_DEST" ]; then
-  log "  $WINDSURFRULES_DEST exists — SKIP (exists), leaving in place"
+if [ -f "$WINDSURFRULES_DEST" ] \
+  && [ -z "$(conductor_manifest_entry_for_path ".windsurfrules" 2>/dev/null || true)" ]; then
+  log "  $WINDSURFRULES_DEST is user-owned — SKIP (exists), leaving in place"
 elif [ "$DRY_RUN" = "true" ]; then
   log "would write $WINDSURFRULES_DEST (orchestrator intro + ABSOLUTE rules summary + pointers)"
 else
+  backup_and_remember "$WINDSURFRULES_DEST"
   /bin/cat > "$WINDSURFRULES_DEST" <<'EOF'
 # Project Orchestrator Manual (installed by CONDUCTOR)
 # CONDUCTOR 가 설치한 프로젝트 오케스트레이터 매뉴얼
@@ -547,12 +616,11 @@ else
 You are the orchestrator: plan first, act deliberately, verify before declaring done.
 당신은 오케스트레이터입니다: 먼저 계획하고, 신중하게 실행하고, 완료 선언 전에 검증하세요.
 
-Windsurf supports sub-agent dispatch natively (ADR-031), but CONDUCTOR does not
-emit agent personas here yet (Phase 2). You play
-both planner and implementer; keep the plan explicit so it survives context resets.
-Windsurf 는 서브에이전트 디스패치를 네이티브로 지원하지만 (ADR-031), CONDUCTOR 는 아직
-에이전트 페르소나를 생성하지 않습니다 (Phase 2). 여기서는 계획자와 구현자 역할을 모두
-수행하며, 계획을 명시적으로 유지해 컨텍스트 리셋에도 살아남게 하세요.
+CONDUCTOR installs eight native role workflows under `.windsurf/workflows/`.
+Invoke the appropriate workflow before planning, implementation, or review so
+planner, builder, reviewer, and code-reviewer responsibilities remain separate.
+CONDUCTOR 는 `.windsurf/workflows/` 아래에 8개 역할 워크플로를 설치합니다.
+계획·구현·리뷰 전에 해당 워크플로를 호출해 책임을 분리하세요.
 
 ## ABSOLUTE rules / 절대 규칙 (read before every change)
 
@@ -601,17 +669,13 @@ per-pattern glob scoping). Selected recipes are emitted there too.
 
 ## Not enforced on Windsurf / Windsurf 에서 미강제
 
-Windsurf supports hooks and sub-agents natively (ADR-031), but CONDUCTOR's
-Windsurf adapter currently emits rule text only — full hook/agent emission is
-Phase 2. The following are self-policed
-reminders here (on Claude Code they are enforced by CONDUCTOR-emitted hooks):
-Windsurf 는 훅과 서브에이전트를 네이티브로 지원하지만 (ADR-031), CONDUCTOR 의 Windsurf
-adapter 는 현재 rule 텍스트만 생성합니다 (hook/agent 자동 생성은 Phase 2). 다음 항목은
-여기서는 자율 준수 사항입니다 (Claude Code 에서는 CONDUCTOR 가 생성한 훅으로 강제됨):
+CONDUCTOR emits verified Windsurf surfaces only: rules, role workflows, and the
+optional Reflector lifecycle hook. The following remain explicit obligations
+because this adapter has no verified native guard contract for them:
 
 - Spec-as-you-go same-turn update — CONDUCTOR emits no Stop hook here yet to block stale docs.
 - Two-stage code review (pre-commit / pre-merge) — pair with a git pre-commit hook for mechanical enforcement.
-- Model routing — Windsurf supports per-task model choice natively (ADR-031); CONDUCTOR does not automate it here yet — choose deliberately.
+- Model routing — the saved CONDUCTOR requirement is **Adaptive** for all three immutable Tiers. Select Adaptive in Cascade before starting work. Windsurf exposes no project workflow model field or selector-state API, so this is advisory-session rather than falsely reported as enforced.
 EOF
   record_emit ".windsurfrules" "<synthesized>" "$MANIFEST_LAST_BACKUP"
   log "  wrote $WINDSURFRULES_DEST"
@@ -634,8 +698,9 @@ elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
       echo "Warning: $src not found; skipping" >&2
       continue
     fi
-    if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ]; then
-      log "  $dest exists — SKIP (exists)"
+    if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ] \
+      && [ -z "$(conductor_manifest_entry_for_path ".devin/rules/$rule.md" 2>/dev/null || true)" ]; then
+      log "  $dest is user-owned — SKIP (exists)"
       continue
     fi
     backup_and_remember "$dest"
@@ -662,8 +727,9 @@ if [ -n "$RECIPES" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
     fi
-    if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ]; then
-      log "  $dest exists — SKIP (exists)"
+    if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ] \
+      && [ -z "$(conductor_manifest_entry_for_path ".devin/rules/$r.md" 2>/dev/null || true)" ]; then
+      log "  $dest is user-owned — SKIP (exists)"
       INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
       continue
     fi
@@ -684,6 +750,31 @@ if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_
   exit 1
 fi
 
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  log "Step 3.4/4: role workflows → .windsurf/workflows/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.windsurf/workflows"
+    for role in planner reviewer code-reviewer builder helper designer scribe utility; do
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      case "$role" in
+        planner) desc="Architecture, gap analysis, and trade-off planning without implementation." ;;
+        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks." ;;
+        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests." ;;
+        builder) desc="Primary implementation owner for cross-cutting or high-risk changes." ;;
+        helper) desc="Focused implementation owner for bounded, independent changes." ;;
+        designer) desc="UI and interaction implementation owner with design-system discipline." ;;
+        scribe) desc="Documentation, changelog, index, and session-state maintenance." ;;
+        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." ;;
+      esac
+      wf="$TARGET_ABS/.windsurf/workflows/$role.md"
+      backup_and_remember "$wf"
+      { printf -- '---\ndescription: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant. Required routing: select **Adaptive** in Cascade before invoking this workflow; Windsurf cannot enforce a workflow-local model.\n\n' "$desc" "$tier_label"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$wf"
+      record_emit ".windsurf/workflows/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
+    done
+  fi
+fi
+
 if [ "$MODE" = "minimal" ]; then
   RECIPES_FOR_RUNTIME=""
   log "Step: self-improvement runtime — skipped (--mode=minimal ships text only)"
@@ -695,8 +786,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     log "Step: self-improvement (Reflector) → hook/workflow/rule"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.windsurf/workflows" "$TARGET_ABS/.devin/rules"
-      gi="$TARGET_ABS/.gitignore"
-      grep -qxF '.conductor/' "$gi" 2>/dev/null || printf '\n# CONDUCTOR runtime (local trajectories/lessons)\n.conductor/\n' >> "$gi"
+      conductor_install_trajectory_ignore
       for s in trajectory-log prune-lessons run-weekly; do
         d="$TARGET_ABS/.conductor/reflect/$s.sh"
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
@@ -709,20 +799,21 @@ case ",$RECIPES_FOR_RUNTIME," in
         record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
       done
       hc="$TARGET_ABS/.windsurf/hooks.json"
-      if [ ! -f "$hc" ]; then
+      hc_entry="$(conductor_manifest_entry_for_path ".windsurf/hooks.json" 2>/dev/null || true)"
+      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
         backup_and_remember "$hc"
         /bin/cat > "$hc" <<'HOOK'
 {
   "hooks": {
     "post_cascade_response_with_transcript": [
-      { "command": "./.conductor/reflect/trajectory-log.sh", "show_output": false }
+      { "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "show_output": false }
     ]
   }
 }
 HOOK
         record_emit ".windsurf/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
       else
-        log "  .windsurf/hooks.json exists — add a post_cascade_response_with_transcript hook calling ./.conductor/reflect/trajectory-log.sh manually"
+        log "  WARNING: .windsurf/hooks.json is user-owned — preserved; merge the CONDUCTOR transcript hook manually"
       fi
       wf="$TARGET_ABS/.windsurf/workflows/reflect.md"
       backup_and_remember "$wf"
@@ -730,7 +821,9 @@ HOOK
       record_emit ".windsurf/workflows/reflect.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
       rl="$TARGET_ABS/.devin/rules/reflector.md"
       backup_and_remember "$rl"
-      { printf -- '---\ntrigger: manual\ndescription: Reflector persona — propose lesson deltas, apply nothing.\n---\n\n'; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$rl"
+      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
+      tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      { printf -- '---\ntrigger: manual\ndescription: Reflector persona — propose lesson deltas, apply nothing.\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant. Required routing: select **Adaptive** in Cascade; enforcement is advisory-session.\n\n' "$tier_label"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$rl"
       record_emit ".devin/rules/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;
@@ -795,9 +888,13 @@ else
 fi
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
-echo " Skipped (per ADR-004 honesty):"
-echo "  - Hooks: CONDUCTOR emits the Reflector hook when --recipes=self-improvement (ADR-032); other guards remain Claude-only (ADR-034)."
-echo "  - Sub-agent personas: not yet emitted for Windsurf (tool supports sub-agents natively — ADR-031; Phase 2)."
+echo " Runtime / capability boundary:"
+echo "  - Hooks: only verified Windsurf contracts are emitted; the Reflector hook is opt-in (ADR-032/045)."
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  echo "  - Role entry points: 8 native workflows in .windsurf/workflows/."
+else
+  echo "  - Role entry points: omitted by --mode=$MODE."
+fi
 echo "  - Per-pattern glob scoping: all .devin/rules/*.md load together."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""

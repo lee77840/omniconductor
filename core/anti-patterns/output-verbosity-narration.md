@@ -31,7 +31,7 @@ Unlike Anti-Pattern 06 (tool-call spam), which is about too many *tool calls*, t
 
 ## 2. Why it costs
 
-- **Output is the expensive token.** Across the current lineup output is priced ~5× input (e.g. Opus 4.8 $5 in / $25 out per MTok). A turn that could answer in 150 output tokens but spends 900 costs 6× more on the priciest side of the meter.
+- **Output is a controllable expense.** Pricing ratios vary by provider, but a turn that could answer in 150 output tokens and spends 900 still uses 6× the output, latency, and context.
 - **It compounds into input next turn.** Every verbose response becomes conversation history that is re-read (cache-read, but still billed) on every subsequent turn until compaction. Bloated output today is bloated input for the rest of the session.
 - **Re-printed file bodies are the worst offender** — a single re-printed 180-line file after an edit can be 2K+ output tokens that the Edit tool already captured for free.
 

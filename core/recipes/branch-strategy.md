@@ -65,7 +65,9 @@ GitHub branch protection (or equivalent) enforces the FORBIDDEN rows. Force push
 
 Every code PR to `develop`, `release`, or `main` requires Q2 pre-merge code review per `quality-gates.md`. Docs-only PRs are exempt.
 
-The orchestrator runs the slash command (Claude Code) or its equivalent on PR open. The Stop-hook (Claude Code) reminds if the orchestrator forgets.
+The orchestrator runs the installed review entry point on PR open. Claude and Codex
+add a verified Stop reminder; the other adapters use their native review surface and
+the installed completion checklist.
 
 ## 6. Push timing
 

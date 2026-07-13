@@ -4,9 +4,10 @@
 
 CONDUCTOR's CI + `tools/validate-adapter-output.sh` verify that each adapter **emits
 the correct files** (right paths, the 5 universal rules present, no unsubstituted
-placeholders, no reference-product leakage). They do **NOT** verify that the target
-tool actually *loads and follows* those files in a live session — that requires the
-tool installed and a real prompt. This guide is that last mile.
+placeholders, no reference-product leakage). Most tools still require an installed,
+authenticated CLI and a real prompt to prove consumption. Codex additionally exposes
+a local native prompt-input renderer, so its exact model-visible kernel can be checked
+without sending repository content to a model. This guide covers that last mile.
 
 Status legend: ✅ = automated (CI/validator) · 🧪 = needs a live session (this guide).
 
@@ -17,7 +18,7 @@ Status legend: ✅ = automated (CI/validator) · 🧪 = needs a live session (th
 | Cursor | ✅ | 🧪 not yet run |
 | Copilot | ✅ | 🧪 per-IDE — see docs/IDE-SMOKE-TESTING.md |
 | Gemini CLI | ✅ | 🧪 not yet run |
-| Codex | ✅ | ✅ **live-verified 2026-07-09** — codex-cli 0.144.0 headless probe listed 4/5 rules + read-CURRENT_WORK-first |
+| Codex | ✅ | ✅ **live-verified 2026-07-13** — codex-cli 0.144.0 native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand |
 | Windsurf | ✅ | 🧪 not yet run |
 <!-- /generated:live-verification-table -->
 
@@ -48,7 +49,7 @@ equivalent). A generic answer that ignores the installed file = FAIL (tool didn'
 | Tool | File the tool must auto-load | Check |
 |---|---|---|
 | Gemini CLI | `GEMINI.md` (project root) + `.gemini/styleguide.md` | Does Gemini cite GEMINI.md content? Does it apply the styleguide on a code task? |
-| Codex | `AGENTS.md` (project root) | Auto-probed by `tools/live-verify.sh` (`codex exec`) — current result in the status table above |
+| Codex | bounded `AGENTS.md` kernel (project root) | Auto-probed locally by `tools/live-verify.sh` using `codex debug prompt-input`; requires the kernel end marker and rule routing |
 | Windsurf / Devin Desktop | `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/`) | Does Windsurf show the rules in its Rules panel? Does it follow them? |
 | Claude Code | `CLAUDE.md` + `.claude/rules/*.md` + agents/hooks | Rules panel + a Stop-hook fires on a stale-docs commit |
 | Cursor | `.cursor/rules/*.mdc` | Settings → Rules tab shows the 5 rules |
@@ -63,7 +64,9 @@ file-location** issue, not an emission bug — check the tool's current rules-fi
 convention (they change), update the adapter's output path, re-run CI, then re-test.
 
 ## Why this is separate from CI
-Running six AI coding tools headlessly in CI is impractical (each needs auth + a model).
+Running every AI coding tool headlessly in CI is impractical (most need auth + a model).
+Codex is the exception: its local `debug prompt-input` renderer verifies the exact
+model-visible project instructions without sending repository content to a model.
 So CONDUCTOR's CI guarantees *correct output*; live consumption is verified **locally**
 by `tools/live-verify.sh` (ADR-043): it installs into a throwaway dir, probes the tool's
 headless CLI with the prompt above, grades deterministically (>=3 of 5 rule names +
