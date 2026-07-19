@@ -7,7 +7,7 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CURRENT_PACKAGE="${1:-}"
 PREVIOUS_PACKAGE="${2:-}"
-PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-1.0.1}"
+PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-1.1.1}"
 
 [ -n "$CURRENT_PACKAGE" ] && [ -f "$CURRENT_PACKAGE" ] || {
   echo "Usage: $0 <current-package.tgz> <previous-package.tgz>" >&2
@@ -76,6 +76,14 @@ npm_config_cache="$CACHE" npm install --prefix "$CONSUMER" "$PREVIOUS_PACKAGE" \
   --ignore-scripts --no-audit --no-fund >/dev/null
 CLI="$CONSUMER/node_modules/.bin/omniconductor"
 [ "$($CLI --version)" = "$PREVIOUS_VERSION" ] || fail "previous package version is not $PREVIOUS_VERSION"
+PREVIOUS_INIT_MODEL_ARG=""
+if node -e '
+  const [major,minor]=process.argv[1].replace(/^v/, "").split(".").map(Number);
+  process.exit(major>1 || (major===1 && minor>=1) ? 0 : 1);
+' "$PREVIOUS_VERSION"; then
+  # v1.1+ requires an explicit non-interactive choice before role emission.
+  PREVIOUS_INIT_MODEL_ARG="--accept-model-defaults"
+fi
 
 # Prepare six independent existing-user projects, including a user edit to the
 # primary managed surface, before replacing the installed npm package.
@@ -83,20 +91,23 @@ for tool in $TOOLS; do
   project="$BASE/single-$tool"
   mkdir -p "$project"
   printf 'KEEP-%s\n' "$tool" > "$project/KEEP.txt"
-  "$CLI" init --target="$tool" "$project" --no-prompt --recipes="$RECIPES" >/dev/null 2>&1 \
+  "$CLI" init --target="$tool" "$project" --no-prompt \
+    ${PREVIOUS_INIT_MODEL_ARG:+"$PREVIOUS_INIT_MODEL_ARG"} --recipes="$RECIPES" >/dev/null 2>&1 \
     || fail "$tool $PREVIOUS_VERSION fixture install"
   baseline="$(baseline_for "$tool")"
   sentinel="USER-UPGRADE-SENTINEL-$tool"
   printf '\n%s\n' "$sentinel" >> "$project/$baseline"
 done
 
-# Also reproduce a legacy project where all six v1.0.1 adapters were installed
-# sequentially and therefore shared the historical root manifest.
+# Also reproduce a project where all six adapters from the previous published
+# version were installed sequentially. For pre-1.1 fixtures this also covers the
+# historical shared-root-manifest migration; v1.1+ covers the current manifests.
 MULTI="$BASE/multi"
 mkdir -p "$MULTI"
 printf 'KEEP-MULTI\n' > "$MULTI/KEEP.txt"
 for tool in $TOOLS; do
-  "$CLI" init --target="$tool" "$MULTI" --no-prompt --recipes="$RECIPES" >/dev/null 2>&1 \
+  "$CLI" init --target="$tool" "$MULTI" --no-prompt \
+    ${PREVIOUS_INIT_MODEL_ARG:+"$PREVIOUS_INIT_MODEL_ARG"} --recipes="$RECIPES" >/dev/null 2>&1 \
     || fail "multi-project $tool $PREVIOUS_VERSION fixture install"
 done
 ok "prepared published $PREVIOUS_VERSION single-tool and six-tool fixtures"
@@ -111,15 +122,15 @@ CURRENT_VERSION="$($CLI --version)"
 [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] || fail "npm did not replace the previous package"
 ok "npm replaced $PREVIOUS_VERSION with $CURRENT_VERSION in place"
 
-# A preview of an old shared-manifest project must not eagerly migrate ownership
-# or create model state. The actual migration belongs to the real install below.
+# A preview of a previous-version all-tool project must not migrate ownership,
+# rewrite model state, or otherwise mutate the tree.
 BEFORE_DRY_RUN="$(tree_fingerprint "$MULTI")"
 "$CLI" init --target=all "$MULTI" --dry-run --no-prompt --accept-model-defaults \
-  --recipes="$RECIPES" >/dev/null 2>&1 || fail "six-tool legacy project dry-run"
+  --recipes="$RECIPES" >/dev/null 2>&1 || fail "six-tool previous-version project dry-run"
 AFTER_DRY_RUN="$(tree_fingerprint "$MULTI")"
 [ "$BEFORE_DRY_RUN" = "$AFTER_DRY_RUN" ] \
-  || fail "six-tool legacy dry-run changed files or directories"
-ok "legacy six-tool dry-run is byte- and path-zero-write"
+  || fail "six-tool previous-version dry-run changed files or directories"
+ok "previous-version six-tool dry-run is byte- and path-zero-write"
 
 for tool in $TOOLS; do
   project="$BASE/single-$tool"
@@ -162,6 +173,6 @@ node -e 'const c=require(process.argv[1]); if (Object.keys(c.adapters || {}).len
 "$CLI" init --target=all "$MULTI" --uninstall >/dev/null 2>&1 || fail "six-tool post-upgrade uninstall"
 [ "$(/bin/cat "$MULTI/KEEP.txt")" = "KEEP-MULTI" ] || fail "six-tool user sentinel changed"
 [ -s "$MULTI/.conductor/model-routing.json" ] || fail "six-tool model choices were not retained"
-ok "legacy six-tool project upgrades and uninstalls without losing user data"
+ok "previous-version six-tool project upgrades and uninstalls without losing user data"
 
 echo "npm upgrade suite: PASS ($BASE)"

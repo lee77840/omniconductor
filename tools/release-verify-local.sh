@@ -5,7 +5,7 @@ set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$ROOT/package.json")"
-PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-1.0.1}"
+PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-1.1.1}"
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/conductor-release-$VERSION.XXXXXX")"
 ARTIFACT_DIR="${CONDUCTOR_RELEASE_DIR:-$BASE/artifact}"
 CACHE="${CONDUCTOR_NPM_CACHE:-${TMPDIR:-/tmp}/conductor-npm-cache}"
@@ -19,6 +19,12 @@ echo "[release] full local regression suite"
 npm test
 
 echo "[release] static, metadata, generated-doc, and source checks"
+for required_tracked_file in bin/claude-hookify.js; do
+  git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
+    echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
+    exit 1
+  }
+done
 bash tools/check-stale-tokens.sh
 bash tools/check-adapter-metadata.sh
 node tools/generate-adapter-docs.js --check

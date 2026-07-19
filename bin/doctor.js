@@ -31,6 +31,7 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const modelRouting = require('./model-routing.js');
 const pathSafety = require('./path-safety.js');
+const claudeHookify = require('./claude-hookify.js');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -350,7 +351,7 @@ function run(targetDir, opts) {
   }
 
   // ---- D5 hook validity ---------------------------------------------------------
-  let hookProblems = 0, hookChecked = 0;
+  let hookProblems = 0, hookWarnings = 0, hookChecked = 0;
   let bashAvailable = true;
   for (const ef of manifest.emitted_files) {
     if (!ef || typeof ef.path !== 'string') continue;
@@ -449,7 +450,73 @@ function run(targetDir, opts) {
       }
     }
   }
-  if (hookProblems === 0) add('D5', 'OK', `hook/config surfaces sane (${hookChecked} .json/.sh file(s) checked)`);
+  const claudeSource = manifestSources.find(({ adapter }) => adapter === 'claude');
+  const hookifyRules = manifest.emitted_files.filter((entry) => entry._adapter === 'claude'
+    && /^\.claude\/hookify\.[A-Za-z0-9._-]+\.local\.md$/.test(entry.path));
+  if (claudeSource && hookifyRules.length) {
+    const settingsPath = path.join(targetAbs, '.claude', 'settings.json');
+    let projectState = 'absent';
+    try {
+      projectState = claudeHookify.configuredState(settingsPath);
+      const missingHooks = claudeHookify.missingCoreHooks(settingsPath);
+      if (missingHooks.length) {
+        hookProblems++;
+        add('D5', 'FAIL', `${missingHooks.length} Claude core hook(s) are emitted but not registered in .claude/settings.json: ${missingHooks.slice(0, 4).join(', ')}${missingHooks.length > 4 ? ', …' : ''}`);
+      }
+    }
+    catch (error) {
+      projectState = 'invalid';
+      hookProblems++;
+      add('D5', 'FAIL', `Hookify rules are installed but project plugin settings are invalid: ${error.message}`);
+    }
+    if (projectState === 'invalid') {
+      // The parse failure above is the actionable diagnostic.
+    } else if (projectState !== 'enabled' && projectState !== 'absent') {
+      hookProblems++;
+      add('D5', 'FAIL', `${hookifyRules.length} Hookify rule(s) are installed but ${claudeHookify.HOOKIFY_PLUGIN_ID} is ${projectState} in .claude/settings.json`);
+    } else if (projectState === 'absent') {
+      hookProblems++;
+      add('D5', 'FAIL', `${hookifyRules.length} Hookify rule(s) are installed but .claude/settings.json is absent`);
+    } else {
+      let localState = 'absent';
+      try { localState = claudeHookify.localOverrideState(targetAbs); }
+      catch (error) {
+        hookWarnings++;
+        add('D5', 'WARN', `cannot verify the local Hookify override: ${error.message}`);
+      }
+      if (localState === 'disabled') {
+        hookWarnings++;
+        add('D5', 'WARN', `${claudeHookify.HOOKIFY_PLUGIN_ID} is disabled by .claude/settings.local.json; ${hookifyRules.length} project rule(s) will not fire on this machine`);
+      } else {
+        const pluginList = spawnSync('claude', ['plugin', 'list', '--json'], {
+          cwd: targetAbs, encoding: 'utf8', timeout: 5000,
+        });
+        if (pluginList.error && pluginList.error.code === 'ENOENT') {
+          hookWarnings++;
+          add('D5', 'WARN', 'Hookify is declared at project scope, but the Claude CLI is unavailable for a live plugin check');
+        } else if (pluginList.error || pluginList.status !== 0) {
+          hookWarnings++;
+          add('D5', 'WARN', 'Hookify is declared at project scope, but `claude plugin list --json` could not confirm the local runtime');
+        } else {
+          let plugins = null;
+          try { plugins = JSON.parse(pluginList.stdout); } catch { /* handled below */ }
+          const active = Array.isArray(plugins) && plugins.some((plugin) => {
+            if (!plugin || plugin.id !== claudeHookify.HOOKIFY_PLUGIN_ID || plugin.enabled !== true) return false;
+            // User/managed plugins legitimately have no projectPath. Whenever the CLI
+            // supplies one, however, it must identify this checkout regardless of scope.
+            if (!Object.prototype.hasOwnProperty.call(plugin, 'projectPath')) return true;
+            return typeof plugin.projectPath === 'string' && plugin.projectPath.length > 0
+              && path.resolve(targetAbs, plugin.projectPath) === targetAbs;
+          });
+          if (!active) {
+            hookWarnings++;
+            add('D5', 'WARN', `Hookify is configured but not active in this checkout; run \`claude plugin install ${claudeHookify.HOOKIFY_PLUGIN_ID} --scope project\`, then \`/reload-plugins\``);
+          }
+        }
+      }
+    }
+  }
+  if (hookProblems === 0) add('D5', 'OK', `hook/config surfaces structurally sane (${hookChecked} .json/.sh file(s) checked)`);
 
   // ---- D6 doc-link liveness -------------------------------------------------------
   let deadLinks = 0, docsChecked = 0;

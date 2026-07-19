@@ -1503,3 +1503,60 @@ reload or next session.
   its choice explicit with `--accept-model-defaults` or provision reviewed config.
 - *Pretend Windsurf Adaptive is an exact workflow pin.* Rejected — the selector state
   is neither encoded nor readable from the documented workflow surface.
+
+## ADR-050 — Hookify rules require a declared and observable plugin runtime
+
+**Status**: Accepted (2026-07-18)
+
+**Context**: A real Claude adopter had 12 enabled
+`.claude/hookify.*.local.md` rule files and the Hookify plugin cached on the
+machine, yet none fired. The plugin was installed with local scope for another
+project and was absent from the adopter project's `enabledPlugins`. CONDUCTOR's
+installer, validator, and doctor treated rule-file presence as success, so this
+runtime-null state was invisible. The same audit found three wired hooks missing
+from the synthesized `CLAUDE.md` inventory.
+
+**Decision**: Full and strict Claude installs declare
+`hookify@claude-plugins-official: true` in project-level
+`.claude/settings.json`. Fresh settings include it directly. For an existing valid
+settings object, a dedicated Node helper adds only a missing plugin key and missing
+CONDUCTOR core-hook registrations, writes atomically, and participates in the manifest
+backup/checksum lifecycle so uninstall restores the byte-exact original. Existing
+hook entries/options are deduplicated by command and preserved; an explicit project
+`false` remains an adopter opt-out. Hookify rule files remain customization-wins.
+
+The adapter validator now requires valid `name`/boolean `enabled`/supported `event`
+frontmatter, the
+project plugin declaration, and all 10 core-hook registrations whenever Hookify
+definitions exist. An adopter's `enabled: false` rule is structurally valid and
+therefore produces a non-failing validator warning rather than contradicting the
+customization-wins policy. Doctor treats
+definitions without that declaration as a failure, detects a local settings
+override, and probes `claude plugin list --json` to distinguish configured from
+actually active on the current checkout. A configured-but-not-installed plugin is
+a warning with the exact project-scope install and `/reload-plugins` commands.
+The generated hook table now lists all 10 registered core hooks.
+
+Post-acceptance hardening also keeps D5's checked-file summary visible when live
+runtime warnings exist, and treats any plugin-list `projectPath` as authoritative
+regardless of reported scope. A path belonging to another checkout can therefore
+never satisfy the live activation probe. User- or managed-scope entries without a
+`projectPath` remain valid global installations.
+
+**Consequences**: Cloning a project carries the dependency declaration, but does
+not bypass Claude Code's plugin trust boundary. A collaborator who lacks the
+official plugin must approve the prompt or run the documented install command once.
+The framework no longer reports Hookify or core-hook enforcement from file existence
+alone, and existing customized settings are changed only through a reversible narrow merge.
+If the adopter edits that merged settings file afterward, checksum-safe uninstall
+preserves the complete edited file (and therefore may leave the merged Hookify/core-hook
+entries); the migration guide makes this tradeoff explicit instead of risking data loss.
+
+**Alternatives considered**:
+- *Silently run `claude plugin install` from `omniconductor init`.* Rejected — it
+  downloads and activates external code beyond the installer's filesystem scope and
+  bypasses the user's explicit plugin-consent boundary.
+- *Only print a post-install reminder.* Rejected — reminders caused the original
+  silent-null state and are not machine-verifiable.
+- *Overwrite every existing settings file with the generated template.* Rejected —
+  it would destroy project permissions, hooks, environment values, and plugin choices.

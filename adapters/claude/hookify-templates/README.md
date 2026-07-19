@@ -70,9 +70,18 @@ bash adapters/claude/transform.sh <target-project> [--recipes=...]
 
 Step 4.5 of the pipeline copies these templates to `<target>/.claude/hookify.<name>.local.md` with placeholders substituted. Existing files in `<target>/.claude/hookify.*` are NOT overwritten — adopter customizations win.
 
+In full/strict mode, the adapter also declares
+`hookify@claude-plugins-official: true` in project-level
+`.claude/settings.json`. If that file already exists, only a missing plugin key
+and missing CONDUCTOR core-hook registrations are added; uninstall can restore
+the byte-exact original. Existing keys/hook options remain intact. A project-level
+`false` remains an explicit opt-out. New machines must still approve/install the
+official plugin once, then run `/reload-plugins`; `omniconductor doctor` detects
+the difference between a configured dependency and a locally active plugin.
+
 ## Adopting / removing individual rules
 
-After install, every emitted file has `enabled: true` in frontmatter. To disable a rule without deleting it, flip to `enabled: false`. To delete entirely, remove the file. Adopters MAY add their own `hookify.<custom-name>.local.md` — the framework-emitted templates are namespaced clearly enough to coexist (no collisions expected, but check before adding).
+After install, every emitted file has `enabled: true` in frontmatter. To disable a rule without deleting it, flip to `enabled: false`; the output validator reports that intentional choice as `WARN` but still exits successfully. Malformed or unsupported values remain failures. To delete entirely, remove the file. Adopters MAY add their own `hookify.<custom-name>.local.md` — the framework-emitted templates are namespaced clearly enough to coexist (no collisions expected, but check before adding).
 
 ## Why hookify-only (no Cursor / Copilot equivalent)
 

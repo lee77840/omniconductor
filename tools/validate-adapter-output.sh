@@ -11,7 +11,7 @@
 # Adapters: cursor | copilot | claude | gemini | codex | windsurf
 #
 # Exit codes:
-#   0  all files PASS
+#   0  no structural failures (adopter-disabled optional rules may WARN)
 #   1  one or more files FAIL
 #   2  invocation error (bad args / missing dir)
 #
@@ -64,6 +64,8 @@
 
 set -eu
 
+SCRIPT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 TARGET="${1:-}"
 ADAPTER="${2:-}"
 
@@ -83,6 +85,7 @@ case "$ADAPTER" in
 esac
 
 PASS=0
+WARN=0
 FAIL=0
 FAILED_FILES=""
 
@@ -95,6 +98,11 @@ emit_fail() {
   printf "  FAIL  %s :: %s\n" "$1" "$2"
   FAIL=$((FAIL + 1))
   FAILED_FILES="$FAILED_FILES\n  $1 — $2"
+}
+
+emit_warn() {
+  printf "  WARN  %s :: %s\n" "$1" "$2"
+  WARN=$((WARN + 1))
 }
 
 # ---- shared helpers ------------------------------------------------------
@@ -759,6 +767,36 @@ run_claude() {
   if [ "$found" -eq 0 ]; then
     emit_fail ".claude/rules/" "no .md files found"
   fi
+  local hookify_count=0 hookify_file hookify_bad=0 hookify_disabled=0
+  for hookify_file in "$TARGET"/.claude/hookify.*.local.md; do
+    [ -e "$hookify_file" ] || continue
+    hookify_count=$((hookify_count + 1))
+    local hookify_enabled hookify_event
+    hookify_enabled="$(fm_field "$hookify_file" "enabled")"
+    hookify_event="$(fm_field "$hookify_file" "event")"
+    if [ "$(fm_open_line "$hookify_file")" != "1" ] \
+      || [ -z "$(fm_close_line "$hookify_file")" ] \
+      || [ -z "$(fm_field "$hookify_file" "name")" ] \
+      || { [ "$hookify_enabled" != "true" ] && [ "$hookify_enabled" != "false" ]; } \
+      || ! printf '%s\n' "$hookify_event" | /usr/bin/grep -Eq '^(bash|file|stop|prompt|all)$'; then
+      emit_fail "${hookify_file#"$TARGET/"}" "invalid Hookify rule frontmatter (name, boolean enabled, and supported event required)"
+      hookify_bad=$((hookify_bad + 1))
+    elif [ "$hookify_enabled" = "false" ]; then
+      hookify_disabled=$((hookify_disabled + 1))
+      emit_warn "${hookify_file#"$TARGET/"}" "valid Hookify rule intentionally disabled by adopter"
+    fi
+  done
+  if [ "$hookify_count" -gt 0 ]; then
+    if node -e '
+      const helper=require(process.argv[1]);
+      const settings=process.argv[2];
+      process.exit(helper.configuredState(settings)==="enabled" && helper.missingCoreHooks(settings).length===0 ? 0 : 1)
+    ' "$SCRIPT_ROOT/bin/claude-hookify.js" "$TARGET/.claude/settings.json" 2>/dev/null; then
+      [ "$hookify_bad" -ne 0 ] || emit_pass "Hookify dependency + $hookify_count valid rule definition(s) ($hookify_disabled disabled)"
+    else
+      emit_fail ".claude/settings.json" "$hookify_count Hookify rules exist but the plugin/core-hook runtime registry is incomplete"
+    fi
+  fi
   validate_role_set claude
 }
 
@@ -781,7 +819,7 @@ esac
 
 echo ""
 echo "------------------------------------------"
-echo " Aggregate: PASS=$PASS  FAIL=$FAIL"
+echo " Aggregate: PASS=$PASS  WARN=$WARN  FAIL=$FAIL"
 if [ "$FAIL" -gt 0 ]; then
   printf " Failures:%b\n" "$FAILED_FILES"
 fi

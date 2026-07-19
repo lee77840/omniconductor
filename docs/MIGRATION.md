@@ -82,7 +82,7 @@ memory while keeping the same eight-role topology already available in Cursor.
    ```
    Generates `CLAUDE.md`, `.claude/agents/*`, `.claude/rules/*`, `.claude/hooks/*`, and `.claude/settings.json`.
 
-2. **Review the generated `.claude/settings.json` and customize if needed.** It is written directly by `transform.sh` with a permissions allowlist + hooks registry; the Stop hooks for spec-as-you-go and two-stage code review are wired here. Per-user overrides go in `.claude/settings.local.json` (gitignored).
+2. **Review the generated `.claude/settings.json` and customize if needed.** It is written directly by `transform.sh` with the official Hookify project dependency, a permissions allowlist, and the core hook registry; the Stop hooks for spec-as-you-go and two-stage code review are wired here. Existing valid settings receive only the missing Hookify key and missing core-hook registrations through a reversible merge; existing keys and hook options stay intact. Per-user overrides go in `.claude/settings.local.json` (gitignored). On a new machine, approve/install Hookify once and run `/reload-plugins`. If this project settings file is edited after installation, checksum-safe uninstall preserves the whole edited file; consequently the merged Hookify key/core-hook entries may remain and should be removed manually if they are no longer wanted.
 
 3. **Restart Claude Code.** Verify with `/help` that the new agents are recognized.
 

@@ -32,28 +32,32 @@ core/memory-pattern/README.md
 core/memory-pattern/EXAMPLES.md
 core/roles/*.md                                        # 8 base roles → .claude/agents/ (including code-reviewer + utility)
 core/hooks/*.sh.template                               # 10 hook templates
-adapters/claude/_native/CLAUDE.md.tpl                  # Claude-specific orchestrator manual template
+adapters/claude/hookify-templates/*.local.md.template # Hookify rule definitions
 ```
 
-> `.claude/settings.json` is synthesized by `transform.sh` via a heredoc (permissions allowlist + hooks registry) — there is no checked-in `settings.template.json`.
+> `.claude/settings.json` is synthesized by `transform.sh` via a heredoc (Hookify project dependency + permissions allowlist + hooks registry) — there is no checked-in `settings.template.json`. For a pre-existing valid file, the installer semantically adds only a missing Hookify key/core-hook registrations and records a reversible backup.
 
 ## Outputs
 
-Writes to `<target-dir>` at conventional paths. NEVER overwrites existing files at those paths — skip and report.
+Writes to `<target-dir>` at conventional paths. Managed rules, roles, hooks, and
+the synthesized baseline use manifest-backed replacement. Existing Hookify rule
+files are preserved. Existing valid settings receive only the missing Hookify
+dependency/core-hook registrations through a reversible semantic merge.
 
 ```
 <target-dir>/
 ├── CLAUDE.md                                  # From CLAUDE.md.tpl, with placeholders preserved
 ├── .claude/
-│   ├── agents/<6 .md files>                   # From core/roles/ (planner/builder/reviewer/helper/designer/scribe)
+│   ├── agents/<8 .md files>                   # From core/roles/ (all baseline roles)
 │   ├── rules/
 │   │   ├── meta-discipline.md                 # Translated from core/universal-rules/meta-discipline.md
 │   │   ├── operations.md                      # Translated from core/universal-rules/operations.md
 │   │   ├── quality-gates.md                   # Translated
 │   │   ├── spec-as-you-go.md                  # Translated
 │   │   └── workflow.md                        # Translated
-│   ├── hooks/<7 .sh files>                    # From core/hooks/*.sh.template, chmod +x
-│   └── settings.json                          # Synthesized (permissions allowlist + hooks registry)
+│   ├── hooks/<10 .sh files>                   # From core/hooks/*.sh.template, chmod +x
+│   ├── hookify.*.local.md                     # 12 always-on + selected recipe-scoped definitions
+│   └── settings.json                          # Hookify dependency + permissions allowlist + hooks registry
 └── docs/
     ├── CURRENT_WORK.md                        # Verbatim copy from core/docs-templates/
     ├── REMAINING_TASKS.md
@@ -118,9 +122,10 @@ test -d "<target>/.claude/hooks"                       || echo "MISSING hooks di
 test -f "<target>/.claude/settings.json"               || echo "MISSING settings.json"
 test -d "<target>/docs/specs"                          || echo "MISSING docs/specs"
 test -x "<target>/.claude/hooks/stop-session-log-check.sh" || echo "HOOK NOT EXECUTABLE"
+node -e 'const s=require(process.argv[1]); process.exit(s.enabledPlugins?.["hookify@claude-plugins-official"]===true?0:1)' "<target>/.claude/settings.json" || echo "HOOKIFY NOT PROJECT-ENABLED"
 
 # Open Claude Code in <target> and run /help
-# Verify: 8 universal agents listed; rules load on file-pattern match; hooks fire on Stop.
+# Verify: 8 universal agents listed; rules load on file-pattern match; core hooks fire; `claude plugin list --json` reports Hookify enabled for this checkout.
 ```
 
 ## Diff parity vs v0.1
@@ -135,6 +140,6 @@ Before merging the P1 Claude adapter PR, run a diff between v0.1 and v0.2 instal
 
 - Bilingual placeholder substitution (`{{PROJECT_NAME_KO}}`).
 - Per-stack auto-detection (web vs mobile vs library).
-- Auto-installing the user's `.claude/settings.json` from the template (security-sensitive; requires user edit).
+- Silently downloading or force-installing the Hookify plugin. The project dependency is declared in settings, but Claude Code retains its one-time plugin trust/install prompt.
 
 These are deferred to post-v1.0 and tracked in `ROADMAP.md` Out-of-scope section.

@@ -6,7 +6,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-> **Status (v1.1.0 — 2026-07-13)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status remains in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.1.2 — 2026-07-19)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Claude full/strict installs now also verify that emitted Hookify/core-hook files have their required project runtime registration without rejecting deliberate per-rule opt-outs. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status remains in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
 > **New in 1.1.0**: the first CLI install now asks once for Tier 1/2/3 models, saves a revisioned project mapping, regenerates native roles on explicit reconfiguration, fails closed in unconfigured CI, and distinguishes configured, provider-controlled, and advisory routing. It also includes the six-adapter runtime/ownership and bounded Codex-kernel hardening. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
@@ -387,6 +387,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | Tool-native agent/workflow files | Backed up + overwritten when CONDUCTOR owns the path |
 | Verified hook scripts/config | Manifest-managed; user-owned hook config is preserved when safe merge is unavailable |
 | `.claude/hookify.*.local.md` | **Preserved** (adopter customizations win) |
+| `.claude/settings.json` Claude runtime entries | Missing Hookify key and core hook registrations are merged with a reversible backup; other keys, existing hook options, and an explicit plugin `false` are preserved |
 | `docs/CURRENT_WORK.md` etc. | **Preserved** (never overwritten) |
 
 ---

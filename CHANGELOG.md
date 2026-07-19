@@ -5,6 +5,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [1.1.2] — 2026-07-19
+
+### Fixed
+
+- **Hookify customization and diagnostics agree** — the Claude output validator now
+  accepts the plugin's documented `enabled: false` rule toggle as a non-failing warning,
+  while still rejecting malformed booleans and unsupported events. Doctor retains its
+  D5 checked-file summary during warning-only runs and refuses to treat a plugin-list
+  entry with another checkout's `projectPath` as locally active, regardless of scope.
+- **Modified-settings uninstall behavior is explicit** — the migration guide now states
+  that checksum-safe uninstall preserves a post-install edited `.claude/settings.json`,
+  which can intentionally leave the semantically merged Hookify/core-hook entries.
+- **Release comparison follows the registry** — the local release gate now exercises
+  upgrades from the actual latest published `1.1.1` package to the `1.1.2` candidate;
+  its fixture setup is version-aware for the v1.1+ explicit model-routing contract
+  and remains safe under Bash 3.2 `set -u` when testing pre-1.1 releases.
+- **Required runtime source cannot be omitted from a commit** — the release gate now
+  fails before packing unless `bin/claude-hookify.js`, required by doctor and the
+  validator, is present in the Git index.
+
+## [1.1.1] — 2026-07-18
+
+### Fixed
+
+- **Claude Hookify activation is no longer a silent false positive** — full/strict
+  installs declare `hookify@claude-plugins-official` at project scope, safely merge
+  the missing key and missing core-hook registrations into existing valid settings
+  with lossless uninstall, and preserve explicit opt-outs and existing hook options.
+  The validator rejects rule files or hook scripts without their runtime registry;
+  doctor also distinguishes project configuration, local override, and the plugin's
+  live CLI state.
+- **Generated Claude hook inventory is complete** — the synthesized `CLAUDE.md`
+  table now includes `pretool-loop-guard`, `stop-trajectory-log`, and
+  `stop-git-hygiene-guard`, matching all 10 registered core hooks.
+
 ## [1.1.0] — 2026-07-13
 
 ### Added — one-time six-tool model setup

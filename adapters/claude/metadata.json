@@ -8,7 +8,7 @@
     { "path": ".claude/rules", "kind": "rules", "validated": true },
     { "path": ".claude/agents", "kind": "agents", "validated": true },
     { "path": ".claude/hooks", "kind": "hooks", "validated": false },
-    { "path": ".claude/settings.json", "kind": "config", "validated": false },
+    { "path": ".claude/settings.json", "kind": "config", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [

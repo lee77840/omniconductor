@@ -70,6 +70,97 @@ if run_adapter "$d" --no-prompt --recipes=tdd,self-improvement >/dev/null 2>&1 \
   ok "full: install + validator + manifest mode stamp"
 else bad "full mode"; fi
 
+if [ "$TOOL" = "claude" ]; then
+  d="$BASE/full-hookify-existing"; mkdir -p "$d/.claude"
+  printf '{"customSetting":"preserve-me","hooks":{"PreToolUse":[{"matcher":"Custom","hooks":[{"type":"command","command":"custom-hook"},{"type":"command","command":"$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-agent-routing.sh"}]}]}}\n' > "$d/.claude/settings.json"
+  before="$(/usr/bin/cksum < "$d/.claude/settings.json")"
+  if run_adapter "$d" --no-prompt >/dev/null 2>&1 \
+    && node -e '
+      const s=require(process.argv[1]), h=require(process.argv[2]);
+      const custom=s.hooks.PreToolUse.some(g=>g.hooks?.some(x=>x.command==="custom-hook"));
+      process.exit(s.customSetting==="preserve-me" && custom && s.enabledPlugins?.["hookify@claude-plugins-official"]===true && h.missingCoreHooks(process.argv[1]).length===0 ? 0 : 1)
+    ' "$d/.claude/settings.json" "$(pwd)/bin/claude-hookify.js" \
+    && bash tools/validate-adapter-output.sh "$d" claude >/dev/null 2>&1; then
+    ok "full: semantically enables Hookify without losing existing settings"
+  else bad "full Hookify settings merge"; fi
+  run_adapter "$d" --uninstall >/dev/null 2>&1
+  after="MISSING"; [ -f "$d/.claude/settings.json" ] && after="$(/usr/bin/cksum < "$d/.claude/settings.json")"
+  [ "$before" = "$after" ] \
+    && ok "full: uninstall restores the exact pre-Hookify settings" \
+    || bad "full Hookify settings merge was not losslessly reversible"
+
+  d="$BASE/full-hookify-disabled-rule"; mkdir -p "$d"
+  run_adapter "$d" --no-prompt >/dev/null 2>&1
+  disabled_rule="$d/.claude/hookify.warn-console-direct.local.md"
+  /usr/bin/sed -i.bak 's/^enabled: true$/enabled: false/' "$disabled_rule" && /bin/rm -f "$disabled_rule.bak"
+  validator_output="$(bash tools/validate-adapter-output.sh "$d" claude 2>&1)"
+  if [ "$?" -eq 0 ] \
+    && printf '%s\n' "$validator_output" | /usr/bin/grep -q 'WARN.*valid Hookify rule intentionally disabled by adopter' \
+    && printf '%s\n' "$validator_output" | /usr/bin/grep -q 'FAIL=0'; then
+    ok "full: validator accepts adopter-disabled Hookify rules with a warning"
+  else bad "full Hookify disabled-rule validator policy"; fi
+
+  d="$BASE/full-hookify-optout"; mkdir -p "$d/.claude"
+  printf '{"enabledPlugins":{"hookify@claude-plugins-official":false}}\n' > "$d/.claude/settings.json"
+  run_adapter "$d" --no-prompt >/dev/null 2>&1
+  if node -e 'const s=require(process.argv[1]); process.exit(s.enabledPlugins["hookify@claude-plugins-official"]===false ? 0 : 1)' "$d/.claude/settings.json" \
+    && ! bash tools/validate-adapter-output.sh "$d" claude >/dev/null 2>&1 \
+    && node bin/omniconductor.js doctor "$d" --json 2>/dev/null | node -e '
+      let s=""; process.stdin.on("data",d=>s+=d); process.stdin.on("end",()=>{
+        const r=JSON.parse(s); process.exit(r.checks.some(x=>x.id==="D5"&&x.status==="FAIL"&&/Hookify/.test(x.detail))?0:1)
+      })
+    '; then
+    ok "full: explicit Hookify opt-out is preserved and validator/doctor report degraded enforcement"
+  else bad "full Hookify explicit opt-out handling"; fi
+
+  d="$BASE/full-hookify-doctor-scope"; mkdir -p "$d/fake-bin"
+  run_adapter "$d" --no-prompt >/dev/null 2>&1
+  printf '%s\n' '#!/bin/sh' \
+    'if [ "$1 $2 $3" = "plugin list --json" ]; then' \
+    '  printf '\''[%s]\\n'\'' '\''{"id":"hookify@claude-plugins-official","scope":"user","enabled":true,"projectPath":"/tmp/not-this-checkout"}'\''' \
+    '  exit 0' \
+    'fi' \
+    'exit 2' > "$d/fake-bin/claude"
+  chmod +x "$d/fake-bin/claude"
+  doctor_output="$(PATH="$d/fake-bin:$PATH" node bin/omniconductor.js doctor "$d" --json 2>/dev/null || true)"
+  if printf '%s\n' "$doctor_output" | node -e '
+    let s=""; process.stdin.on("data",d=>s+=d); process.stdin.on("end",()=>{
+      const r=JSON.parse(s), d5=r.checks.filter(x=>x.id==="D5");
+      const mismatch=d5.some(x=>x.status==="WARN"&&/not active in this checkout/.test(x.detail));
+      const summary=d5.some(x=>x.status==="OK"&&/structurally sane \([1-9][0-9]* \.json\/\.sh file\(s\) checked\)/.test(x.detail));
+      process.exit(mismatch&&summary?0:1)
+    })
+  '; then
+    ok "full: doctor rejects mismatched plugin projectPath and keeps the D5 checked-count summary"
+  else bad "full Hookify live-scope/summary doctor diagnostics"; fi
+
+  d="$BASE/full-hookify-invalid"; mkdir -p "$d/.claude"
+  printf '{"enabledPlugins":[]}\n' > "$d/.claude/settings.json"
+  before="$(/usr/bin/cksum < "$d/.claude/settings.json")"
+  run_adapter "$d" --no-prompt >/dev/null 2>&1
+  rc=$?
+  after="$(/usr/bin/cksum < "$d/.claude/settings.json")"
+  if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] \
+    && [ -z "$(find "$d/.claude" -type f ! -name settings.json -print -quit 2>/dev/null)" ]; then
+    ok "full: invalid plugin settings fail before Claude runtime files are emitted"
+  else bad "full invalid Hookify settings preflight (rc=$rc)"; fi
+
+  d="$BASE/full-hookify-user-edit-settings"; mkdir -p "$d/.claude"
+  printf '{"customSetting":"before"}\n' > "$d/.claude/settings.json"
+  run_adapter "$d" --no-prompt >/dev/null 2>&1
+  node -e '
+    const fs=require("fs"), p=process.argv[1], s=JSON.parse(fs.readFileSync(p,"utf8"));
+    s.customSetting="after"; fs.writeFileSync(p, JSON.stringify(s,null,2)+"\n");
+  ' "$d/.claude/settings.json"
+  run_adapter "$d" --uninstall >/dev/null 2>&1
+  if node -e '
+    const s=require(process.argv[1]);
+    process.exit(s.customSetting==="after"&&s.enabledPlugins?.["hookify@claude-plugins-official"]===true?0:1)
+  ' "$d/.claude/settings.json"; then
+    ok "full: uninstall preserves post-install settings edits, including the merged Hookify entries"
+  else bad "full Hookify user-edited settings uninstall preservation"; fi
+fi
+
 # ---- manifest safety: repeat install + user edits -------------------------
 # Re-running a full install must retain the original pre-CONDUCTOR baseline
 # for uninstall, and uninstall must never delete a post-install user edit.
