@@ -44,4 +44,4 @@ Per [ADR-023](https://github.com/lee77840/conductor_lfamily/blob/main/docs/DESIG
 
 ## License
 
-Apache License 2.0 — © LFamily Labs LLC. Free and open (commercial use included); the CONDUCTOR name is a trademark. See [LICENSE](./LICENSE).
+Apache License 2.0 — © LFamily Labs LLC. Free and open (commercial use included); the CONDUCTOR name is a trademark. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).

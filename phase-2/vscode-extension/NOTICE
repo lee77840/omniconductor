@@ -1,0 +1,18 @@
+CONDUCTOR — Visual Studio Code extension
+Copyright 2026 LFamily Labs LLC.
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+TRADEMARK: "CONDUCTOR" is a trademark of LFamily Labs LLC. As stated in
+Section 6 of the License, the Apache License does not grant rights to use
+these trade names or trademarks. If you fork, modify, or redistribute this
+software, you must (a) retain the attribution in this NOTICE file, and
+(b) NOT use the "CONDUCTOR" name, or any confusingly similar name, to market
+or pass off your version as the original.
+
+In short: take the code, not the name.
+
+This extension is a thin wrapper that invokes the CONDUCTOR framework's
+validated bash adapters. Third-party material bundled with the framework
+itself (e.g. methodology adapted from the MIT-licensed Superpowers project,
+© 2025 Jesse Vincent) is attributed in the framework's THIRD_PARTY_NOTICES.md.

@@ -17,7 +17,7 @@ trademark rights.
 - Name your fork, product, or service "CONDUCTOR" or a confusingly similar name.
 - Use the CONDUCTOR name/logo in a way that implies it is the official project,
   or that LFamily Labs endorses your version.
-- Remove or alter the copyright/attribution in `NOTICE` / `LICENSE`.
+- Remove or alter the copyright/attribution in `NOTICE`.
 
 In short: **take the code, not the name.** This is the same model used by many
 open-source projects to stay open while preventing others from passing off a
