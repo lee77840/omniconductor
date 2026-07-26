@@ -52,7 +52,10 @@ bypass.
     ├── PLANS.md
     ├── TASKS.md
     ├── INDEX.md
-    └── specs/_example.md
+    ├── specs/_example.md
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 - `--recipes=self-improvement` additionally emits the Reflector loop: trajectory hook config (`.windsurf/hooks.json`, riding `post_cascade_response_with_transcript` — Windsurf has no session/stop event), the `/reflect` workflow (`.windsurf/workflows/reflect.md`), a reflector persona rule (`.devin/rules/reflector.md`, `trigger: manual`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).

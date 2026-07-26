@@ -60,7 +60,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/anti-patterns/skill-eager-load.md` | Loading skills / context that isn't needed yet. |
 | `core/anti-patterns/tool-call-spam.md` | Many small tool calls instead of batched / structured ones. |
 | `core/anti-patterns/output-verbosity-narration.md` | Over-explaining / re-printing files — output tokens cost ~5× input. |
-| `core/hooks/README.md` | Hook template overview (10 templates). |
+| `core/hooks/README.md` | Hook template overview (11 templates). |
 | `core/hooks/pretool-agent-routing.sh.template` | PreToolUse — validate Agent dispatch. |
 | `core/hooks/pretool-commit-current-work-check.sh.template` | PreToolUse — block commit when CURRENT_WORK is stale. |
 | `core/hooks/pretool-commit-test-coverage-check.sh.template` | PreToolUse — block commit when test coverage out of sync. |
@@ -71,10 +71,12 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/hooks/stop-trajectory-log.sh.template` | Stop — upsert a trajectory pointer for the Reflector (self-improvement recipe; opt-in gated). |
 | `core/hooks/stop-git-hygiene-guard.sh.template` | Stop — remind on git-hygiene collapse (orphan worktrees / local-only commits / stale branches; git-hygiene recipe). |
 | `core/hooks/pretool-loop-guard.sh.template` | PreToolUse — soft-warn on loop oscillation / runaway (same action repeated or session tool-call budget; loop-engineering recipe). |
+| `core/hooks/output-cap.sh.template` | Claude PostToolUse / Gemini BeforeTool output-size cap (ADR-051). |
 | `core/workflow/README.md` | Workflow phase overview (P0 deliverable). |
 | `core/workflow/PHASES.md` | Plan → Architecture → Tasks → Implementation → Review → Spec. |
 | `core/docs-templates/*.md` | CURRENT_WORK / TASKS / REMAINING_TASKS / PLANS / INDEX templates. |
 | `core/docs-templates/specs/_example.md` | Spec template. |
+| `core/docs-templates/{plans,architecture,research}/README.md` | Canonical artifact-location and naming precedents (ADR-052). |
 | `core/memory-pattern/README.md` | 4-type memory schema (user / feedback / project / reference). |
 | `core/memory-pattern/EXAMPLES.md` | Memory entry examples. |
 
@@ -104,6 +106,8 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `tools/validate-adapter-output.sh` | Per-tool structural validator for adapter output (frontmatter / sections / placeholders). CI job `adapters`. |
 | `tools/check-stale-tokens.sh` + `tools/stale-tokens.txt` | **v0.7.0 (ADR-039).** Known-false-claim + version-stamp guard over living docs. CI job `stale-tokens`. |
 | `tools/check-adapter-metadata.sh` | **v0.7.0 (ADR-040).** Asserts `adapters/*/metadata.json` agrees with transform.sh / validator / matrix / live-verification doc. CI job `adapter-metadata`. |
+| `tools/test-doc-path-policy.sh` | Six-adapter canonical-document emission plus doctor legacy/override regression suite (ADR-052). |
+| `tools/check-release-version.js` + `tools/test-release-version.js` | Fail-closed npm candidate uniqueness/order guard and its regressions (ADR-053). |
 
 ## `docs/` — Repo-internal documentation
 
@@ -112,7 +116,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-049. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-053. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |
@@ -129,6 +133,8 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/IDE-SMOKE-TESTING.md` | Per-IDE smoke-test procedure. |
 | `docs/specs/` | Spec documents (spec-as-you-go outputs). |
 | `docs/plans/` | Phase / track implementation plans. |
+| `docs/plans/2026-07-25-cross-adapter-review-and-doc-paths.md` | Independent branch review and canonical-path remediation plan. |
+| `docs/research/` | Time-stamped research notes when present. |
 | `docs/data/` | KPI baseline raw CSV data. |
 | `docs/INDEX.md` | This file. |
 

@@ -19,6 +19,7 @@ Detailed matrix of which CONDUCTOR features Claude Code supports natively.
 | **Spec-as-you-go ABSOLUTE enforcement** | ✅ Stop hook | `stop-session-log-check.sh` blocks session-end if code commit is detected without spec update | Strongest CONDUCTOR feature. |
 | **Two-stage code review enforcement** | ✅ Stop hook | `stop-r6-review-check.sh` reminds about Stage A pre-commit + Stage B pre-merge PR | |
 | **Token economy enforcement** | ⚠️ Rule reminder | `meta-discipline.md` rule + agent self-discipline | No mechanical enforcement; relies on agent following the rule. |
+| **Tool-output cap (store-time)** | ✅ Native (`PostToolUse`) | `.claude/hooks/output-cap.sh` returns a **shape-preserving** `hookSpecificOutput.updatedToolOutput` (object responses keep their structure; oversized string leaves are clipped head 70% + marker + tail 30%) above `CONDUCTOR_OUTPUT_CAP_TOKENS` (default 12000; ~4 chars/token heuristic). Measured on Claude Code 2.1.215: −59.9% noisy-turn cache-creation tokens on a 166 KB Read (3 pairs, sd ≈ 30). | Requires Claude Code ≥v2.1.121 — `updatedToolOutput` silently no-ops below that floor; `doctor` D5 warns only when a below-floor version is actually detected. Claude validates the replacement against the tool's output schema (a non-shape-preserving swap is silently discarded). Current Claude Code natively persists large **Bash** output to a ~2 KB stub, so this cap's value accrues to large non-persisted results (multi-line Read, MCP/WebFetch-class). Opt-out: `CONDUCTOR_SKIP_OUTPUT_CAP=1`. See ADR-051 limitations 10–13. |
 
 ## Model tier mapping
 
@@ -37,7 +38,7 @@ override the saved project mapping during a real install.
 
 ## Hook execution model
 
-CONDUCTOR ships 10 hooks, all registered in the generated `.claude/settings.json` (written directly by `transform.sh` — there is no `settings.template.json`):
+CONDUCTOR ships 11 hooks, all registered in the generated `.claude/settings.json` (written directly by `transform.sh` — there is no `settings.template.json`):
 
 | Hook | Event | Purpose |
 |---|---|---|
@@ -46,13 +47,14 @@ CONDUCTOR ships 10 hooks, all registered in the generated `.claude/settings.json
 | `pretool-commit-test-coverage-check.sh` | `PreToolUse` (Bash commit) | Block a commit that adds code without matching test coverage. |
 | `pretool-large-file-read-guard.sh` | `PreToolUse` (Read) | Warn / guard against reading very large files wholesale (token economy). |
 | `pretool-loop-guard.sh` | `PreToolUse` (all tools) | Warn on repeated no-progress actions or a blown session tool budget when loop-engineering is selected. |
+| `output-cap.sh` | `PostToolUse` (all tools) | Truncate an oversized tool result (head+tail+marker) before it re-enters context (ADR-051). Opt-out: `CONDUCTOR_SKIP_OUTPUT_CAP=1`. |
 | `stop-session-log-check.sh` | `Stop` | Block session end if code commits detected without matching spec update. |
 | `stop-r6-review-check.sh` | `Stop` (session end) | Inject reminder to run Stage B `/code-review` slash command if a feature/fix branch has open PR + cool-down. |
 | `stop-cache-hit-baseline-check.sh` | `Stop` | Flag prompt-cache baseline regressions at session end. |
 | `stop-trajectory-log.sh` | `Stop` | Record a bounded trajectory pointer when self-improvement is selected. |
 | `stop-git-hygiene-guard.sh` | `Stop` | Remind on orphan worktrees, local-only commits, or branch sprawl when git-hygiene is selected. |
 
-`transform.sh` registers all 10 in `.claude/settings.json` (5 `PreToolUse` + 5 `Stop`). Users customize paths and conditions in that generated file, or override per-user in `settings.local.json` (gitignored).
+`transform.sh` registers all 11 in `.claude/settings.json` (5 `PreToolUse` + 1 `PostToolUse` + 5 `Stop`). Users customize paths and conditions in that generated file, or override per-user in `settings.local.json` (gitignored).
 
 ## Hookify activation contract
 
@@ -89,7 +91,7 @@ The Claude adapter ships a working `transform.sh`. Verified by fresh-target inst
 | `transform.sh` emits 8 base roles, 5 rules, verified hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
 | Sub-agent dispatch works | ✅ | `.claude/agents/{planner,builder,reviewer,helper,designer,scribe}.md` recognized by `/help` |
 | Lazy / always-loaded rules present | ✅ | `.claude/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md` |
-| Hooks registered in settings.json | ✅ | `.claude/settings.json` `hooks:` block lists 5 PreToolUse + 5 Stop |
+| Hooks registered in settings.json | ✅ | `.claude/settings.json` lists 5 PreToolUse + 1 PostToolUse + 5 Stop |
 | Hookify rules have an active engine contract | ✅ | validator requires the project declaration and accepts deliberate per-rule disablement with a warning; doctor probes the local Claude plugin list and checkout path |
 | Stop hook blocks on missing spec update | ✅ | commit code without spec → `stop-session-log-check.sh` fires |
 | Idempotent re-run | ✅ | second run reports "SKIP (exists)" for every emitted file |

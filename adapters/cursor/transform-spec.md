@@ -20,6 +20,7 @@ core/universal-rules/spec-as-you-go.md
 core/universal-rules/workflow.md
 core/docs-templates/*.md
 core/docs-templates/specs/_example.md
+core/docs-templates/{plans,architecture,research}/README.md
 core/memory-pattern/README.md
 adapters/cursor/_native/cursorrules.tpl                # Cursor-specific orchestrator manual template
 adapters/cursor/_native/commands/*.md                  # (optional) project commands
@@ -44,7 +45,10 @@ adapters/cursor/_native/commands/*.md                  # (optional) project comm
     ├── PLANS.md
     ├── TASKS.md
     ├── INDEX.md
-    └── specs/_example.md
+    ├── specs/_example.md
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 ## Universal-rules → Cursor `.mdc` translation

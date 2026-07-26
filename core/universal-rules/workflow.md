@@ -56,6 +56,38 @@ Before any tool call that writes code:
 
 If any box is unchecked → STOP, complete the missing step, then proceed.
 
+### 1.4 Canonical document locations and precedence
+
+Use the following defaults for CONDUCTOR work artifacts:
+
+| Artifact | Canonical default |
+|---|---|
+| Session state | `docs/CURRENT_WORK.md` |
+| Active task tracker | `docs/TASKS.md` |
+| Strategic / phase roadmap | `docs/PLANS.md` |
+| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
+| Long-lived domain specification | `docs/specs/<area>.md` |
+| Architecture overview | `docs/architecture/README.md` |
+| Architecture decision record | `docs/architecture/NNNN-<topic>.md` |
+| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
+
+These are artifact-specific defaults, not a ban on other documentation. Project
+README files, changelogs, runbooks, legal/compliance documents, session archives,
+and other clearly named project docs may live in their established locations.
+
+**Precedence rule:** an existing file or plugin-created directory is not a policy.
+If its location conflicts with the table above, the CONDUCTOR default wins. Do not
+copy the conflicting precedent. A project may intentionally override a default only
+when `docs/INDEX.md` explicitly names the artifact class and replacement path. If a
+conflict exists and `docs/INDEX.md` does not resolve it, STOP and ask before writing.
+
+Examples:
+
+- `docs/superpowers/plans/` or a root `specs/` directory does not override the
+  canonical paths merely because it already exists.
+- A row in `docs/INDEX.md` stating “Implementation plans: `engineering/plans/`”
+  is an explicit project override and therefore wins.
+
 ---
 
 ## 2. Docs-First for Ad-Hoc Work (W2)

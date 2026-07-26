@@ -1560,3 +1560,288 @@ entries); the migration guide makes this tradeoff explicit instead of risking da
   silent-null state and are not machine-verifiable.
 - *Overwrite every existing settings file with the generated template.* Rejected —
   it would destroy project permissions, hooks, environment values, and plugin choices.
+
+## ADR-051 — Tool-output / context-size cap (three-tool store-time cap)
+
+**Status**: Accepted (2026-07-23)
+
+**Context**: `docs/KPI.md` F1 records aggregate cache-hit at **100.0%** across 9 real
+sessions (~11 uncached tokens/turn) — prompt caching is already saturated, so the
+measured remaining levers are output tokens, tool calls, and **cache-write /
+context size**. The largest everyday source of context bloat is un-capped shell/tool
+output (test/build logs, `git diff`, wide `grep`, stack traces): each un-capped dump
+is re-written to cache on every subsequent turn, so the cost compounds. Two
+independent adversarial reviews, given the same fact base, both rejected porting
+`pretool-loop-guard` to the other five tools as a *vanity metric* — it fires ≈never
+in a normal session and is opt-in, so everyday saving is near-zero — and both ranked
+a tool-result size cap highest, because it attacks the measured lever on every
+turn. Full design: `docs/specs/2026-07-22-tool-output-cap-design.md`.
+
+**Decision**: Cap store-time tool-result size on the three tools that expose a
+mechanism to do it, and leave the other three honestly N/A rather than fake
+enforcement:
+
+| Tool | Mechanism | Where |
+|---|---|---|
+| Codex | Native `tool_output_token_limit = 12000` baked into config (Codex's real tokenizer) | `.codex/config.toml`, full/strict, only-if-absent/manifest-owned |
+| Claude | `PostToolUse` hook returns `hookSpecificOutput.updatedToolOutput` (head 70% + marker + tail 30%) above `CONDUCTOR_OUTPUT_CAP_TOKENS` (default 12000; ~4 chars/token heuristic) | `.claude/hooks/output-cap.sh`, registered via both the fresh-install settings heredoc and `bin/claude-hookify.js`'s semantic merge |
+| Gemini | `BeforeTool` hook rewrites `run_shell_command`'s `tool_input.command` to merge stdout+stderr and pipe the combined stream through a byte-capping `awk` truncator (head-only; preserves the original command's exit status via a double-subshell pipefail) | `.gemini/hooks/output-cap.sh` + a unified `.gemini/settings.json` (composes with the optional self-improvement `SessionEnd` hook) |
+| Cursor / Windsurf / Copilot | — | N/A: no verified per-tool-call, store-time output-edit hook contract exists on any of the three (Cursor hooks are post-hooks/observe-only; Copilot's extensibility beyond `agentStop` is MCP, not a tool-output rewrite surface; Windsurf's only verified hook is `post_cascade_response_with_transcript`, after the full response, not per tool call) |
+
+Both the Claude and Gemini hooks are compiled from one dialect-aware template,
+`core/hooks/output-cap.sh.template` (`CONDUCTOR_HOOK_DIALECT=claude|gemini`),
+following the existing `pretool-loop-guard.sh.template` pattern. `large-file-read-guard`
+is **retained** — this cap is complementary, not a subsumption: the guard trips
+pre-read on line count, the cap trips post-run on emitted size; different trigger
+domains. Reach is stated as 3/6, not rounded up.
+
+**Consequences**:
+- First always-on Claude `PostToolUse` hook bucket — `bin/claude-hookify.js`
+  gained a `PostToolUse` entry in `CORE_HOOK_GROUPS`, and its two hardcoded
+  `['PreToolUse', 'Stop']` event lists (`readSettings`, `registeredCoreHooks`)
+  became `['PreToolUse', 'PostToolUse', 'Stop']`.
+- First `.codex/config.toml` emission from any adapter (previously Codex config was
+  hooks/agents/rules only).
+- Gemini's `.gemini/settings.json` write is no longer reflector-only: it is now
+  composed from whichever of {cap, reflector} apply, gated the same way native
+  roles are (full/strict only).
+- `bin/path-safety.js` gained `.codex` config-file coverage and `.gemini/hooks` to
+  its MANAGED/MANIFEST_DIRS allowlists (both were required for reinstall/uninstall
+  to not hard-fail).
+- `tools/validate-adapter-output.sh` and `bin/doctor.js` (new D5 blocks) gained
+  structural checks for all three new surfaces.
+
+**Honest limitations (recorded here deliberately rather than smoothed over —
+some were stated up front in the design spec, others only surfaced during
+implementation review or live measurement; items 1, 2, 8 and 11–13 are
+implementation/measurement-time findings)**:
+
+1. **Marker asymmetry.** The Claude marker includes an elided-token count and a
+   re-run hint (`…[CONDUCTOR] output truncated — {N} tokens elided; re-run scoped
+   (a filter/range/head) to see more…`); the Gemini awk marker is a shorter,
+   count-less `…[CONDUCTOR] output truncated; re-run scoped…` — a streaming byte
+   cap cannot compute elided tokens without buffering the whole stream first, which
+   would defeat the point of a streaming cap. Both share the `…[CONDUCTOR]` prefix
+   the Gemini idempotency guard keys on (so the rewrite is never double-applied).
+   The spec's "one unified marker" is therefore honestly a *shared-prefix family*,
+   not one identical string.
+2. **bash/zsh-only pipefail assumption (Gemini).** gemini-cli runs
+   `run_shell_command` via `bash -c` on non-Windows platforms (verified in its
+   source) — the exit-status-preserving rewrite deliberately assumes that bash
+   execution context. Under a strict POSIX `sh` (e.g. dash), `set -o pipefail` is
+   an illegal option that **aborts the subshell** rather than degrading
+   gracefully; this is documented in the template comment as an accepted
+   assumption, not a handled case.
+3. **Codex recognition is unverifiable.** Codex silently ignores unknown TOML
+   keys and exposes no config echo — `codex doctor --json`'s `config.load` check
+   reports a fixed detail set (model/provider/mcp/log dir), never arbitrary keys.
+   No independently verified Codex release floor for `tool_output_token_limit`'s
+   introduction exists, so none was fabricated. Doctor emits exactly one scoped
+   WARN when a Codex CLI is present but cannot confirm recognition, and an
+   informational OK when no Codex CLI is present (so a CLI-less CI install stays
+   green rather than flipping to WARN on every run). This is a deliberate
+   narrowing of the design's "documented version floor" aspiration — Codex simply
+   doesn't expose one to document.
+4. **Claude version floor.** `updatedToolOutput` requires Claude Code
+   **≥ v2.1.121**. Doctor does a patch-level version check and WARNs only when a
+   below-floor version is actually detected; an unrunnable/absent `claude` CLI
+   stays a quiet informational OK (warn-when-below, not warn-when-unknown, per the
+   same CLI-less-CI-stays-green reasoning as Codex).
+5. **Gemini effective reach precondition.** The `.gemini/settings.json` write is
+   only-if-absent: an adopter with a pre-existing `.gemini/settings.json` gets the
+   *entire* hook set (cap included) skipped with a manual-merge log line, so
+   Gemini's cap reach is **0 until they merge by hand**. The "3/6" figure assumes
+   the Gemini settings write isn't skipped.
+6. **Heuristic ≠ tokenizer.** The Claude/Gemini hooks estimate ~4 chars/token
+   (and the Gemini awk cap counts `length($0)` characters, not a guaranteed byte
+   count under UTF-8); Codex uses its real tokenizer. The same nominal `12000`
+   therefore cuts at different real points on each tool — an intentional
+   asymmetry, not a bug to reconcile.
+7. **Elision shape differs by tool.** The Claude path elides the *middle* of the
+   payload (head+tail, marker in between) — the marker's re-run hint is the
+   safety net for what's lost. The Gemini shell path is **head-only**: the
+   streaming `awk` truncator keeps the head and drops the tail entirely, because
+   it cannot buffer the full stream to compute a tail without also defeating the
+   cap's purpose.
+8. **Exit-status preservation (Gemini) is a deliberate addition, not the naive
+   design.** A plain `cmd | awk` pipe reports awk's status (~always 0), so a
+   *failing* command whose output happened to get capped would silently look like
+   success to the agent. The shipped rewrite wraps the user command in its own
+   subshell with `set -o pipefail` applied only to the added pipe (and
+   `set +o pipefail` restored before the user's own command runs, so its internal
+   pipe semantics — e.g. `yes | head` exiting 0 — stay byte-identical to before
+   this cap existed).
+9. **`large-file-read-guard` is retained, not replaced.** Different trigger
+   domain (pre-read line count vs. post-run output size) — this cap is
+   complementary, not a subsumption.
+10. **Measurement status (2026-07-23): Claude MEASURED; Codex/Gemini un-measured.**
+    Controlled fixture: a fresh full-mode Claude install, Claude Code 2.1.215,
+    `claude -p` (haiku), reading a deterministic 166 KB high-entropy file via the
+    Read tool (`CONDUCTOR_ALLOW_LARGE_READ=1` in BOTH arms), capped vs.
+    `CONDUCTOR_SKIP_OUTPUT_CAP=1`, comparing the noisy turn's
+    `cache_creation_input_tokens` (not whole-session totals). Three pairs:
+    capped 9,430 / 9,393 / 9,395 vs. uncapped 23,475 / 23,483 / 23,430 —
+    **mean delta −14,057 tokens (−59.9%) per capped noisy turn**, sd ≈ 30
+    (deterministic fixture). A behavioral oracle confirmed the mechanism: a
+    unique secret placed in the elided mid-body zone is invisible to the model
+    when capped (model reports the `[CONDUCTOR] output truncated` marker and
+    cannot answer) and found verbatim when skipped. A post-redesign
+    confirmation pair reproduced the delta (−14,060). **The fixture is Read,
+    not Bash — see limitation 12 for why.** Codex and Gemini ship entirely
+    un-measured, pending the cross-tool measurement spec.
+11. **Claude schema-validates the replacement — the swap MUST be
+    shape-preserving (found live; the first implementation never actually
+    applied).** Claude Code validates `updatedToolOutput` against the TOOL's own
+    output schema (`outputSchema.safeParse` gate, verified in the 2.1.215
+    bundle, with a "does not match <tool>'s output shape" discard path) and
+    silently keeps the original on mismatch. Tasks 1–3 as first shipped emitted
+    `json.dumps(dict)` — a STRING — for object-shaped responses (Bash
+    `{stdout}`, Read `{file:{content}}`), which always failed that gate: the
+    hook ran, emitted, and was discarded on every object-shaped result. Fixed
+    by a shape-preserving replacement (the same object/list with its largest
+    string leaves clipped in place, single-pass with exact marker accounting;
+    only plain-string responses are replaced by strings), then re-proven
+    end-to-end (limitation 10's oracle + pairs). The docs' own
+    `"updatedToolOutput": "modified result"` string example is misleading for
+    structured tools.
+12. **Native persisted-output already bounds Bash on current Claude Code.** On
+    2.1.215, Bash output beyond ~30 K chars is natively persisted to a session
+    file and only a ~2.2 KB `<persisted-output>` stub enters context (measured:
+    noisy-turn cache_creation ≈ 1.5 K tokens for a 390 KB command) — and in our
+    probes raising `BASH_MAX_OUTPUT_LENGTH` did not disable the stub behavior.
+    Below that, inline Bash output (≤ ~30 K chars ≈ 7.5 K tokens) sits UNDER the
+    cap's default 48 K-char trigger. Net: **at default thresholds this cap adds
+    ~nothing for Bash on current Claude Code** — its Claude-side value accrues
+    to large NON-persisted results (multi-line Read, MCP tool outputs,
+    WebFetch-class), which is exactly where it was measured (limitation 10),
+    plus older CLI versions in the ≥ 2.1.121 window. The spec's "dominant
+    offender is shell output" framing therefore holds for Gemini (shell rewrite)
+    and Codex (native, all outputs) but NOT for the Claude hook on current CLIs.
+13. **Shape-preserving replacement cannot elide JSON structure.** For payloads
+    whose size is dominated by structural overhead (thousands of small items:
+    keys, braces, quotes) rather than string content, the cap shrinks string
+    leaves substantially (never grows the payload) but the result may still
+    exceed the nominal token budget — the structure itself is untouchable
+    without breaking the tool's output schema. Test-pinned contract:
+    `min(input, max(budget × 1.15, input × 0.45))`.
+14. **Gemini stdout/stderr are merged by the fallback.** The first shipped
+    rewrite piped stdout through the cap but left stderr untouched, so an
+    error-heavy command could still flood context. The corrected rewrite applies
+    `2>&1` to the completed command subshell before the added pipe. This bounds
+    stderr-only and mixed output while preserving the original command's status,
+    but the BeforeTool fallback can no longer expose stdout and stderr as separate
+    channels. That is an accepted limitation of a portable pre-execution stream
+    cap, covered by runtime regression tests.
+
+**Alternatives considered**:
+- *Port `pretool-loop-guard` to the other five tools.* Rejected by two
+  independent adversarial reviews — the guard fires only on repeated no-progress
+  loops, which is rare in a normal session and is itself opt-in; porting it would
+  have produced a wide reach number with near-zero everyday saving.
+- *A cache-stability validator.* Rejected — `docs/KPI.md` F1 already shows
+  cache-hit at 100%; a validator here would be regression insurance, not a saving.
+- *Broaden `large-file-read-guard` across tools instead of a new cap.* Rejected —
+  that guard's contract is clean only on tools with a pre-read hook; the broader
+  cap concept subsumes the need without replacing the guard, which is kept as-is.
+- *A single identical marker string across Claude and Gemini.* Rejected once
+  implementation showed the Gemini path is a streaming byte cap with no token
+  count available — forcing one string would have meant fabricating a count on
+  Gemini or omitting the count on Claude; kept as a shared-prefix family instead
+  (limitation 1).
+
+## ADR-052 — Canonical document paths beat incidental repository precedent
+
+**Status**: Accepted (2026-07-25)
+
+**Context**: An adopter agent had the `docs/specs/<area>.md` rule in context but
+still created planning/specification material under a plugin-shaped legacy path.
+The error was not missing prose alone: CONDUCTOR specified the spec directory but
+did not specify an implementation-plan or research directory, generated manuals
+did not state which source wins on conflict, and new installs created
+`docs/specs/` but not the other canonical directories. Existing files therefore
+formed a stronger visible precedent than the incomplete policy.
+
+**Decision**:
+
+1. Define one portable artifact map in `core/universal-rules/workflow.md`:
+   session state, active tasks, strategic roadmap, implementation plans,
+   long-lived domain specs, architecture/ADRs, and research notes.
+2. Make precedence explicit: existing files and plugin-created directories do
+   not override CONDUCTOR defaults. Only an artifact-class override declared in
+   `docs/INDEX.md` does; unresolved conflicts require STOP + ASK.
+3. Seed visible canonical precedents on all six adapters:
+   `docs/plans/README.md`, `docs/architecture/README.md`, and
+   `docs/research/README.md`, in addition to `docs/specs/_example.md`.
+4. Require the shared seeds in `validate-adapter-output.sh`. Require the exact
+   precedence text for fresh generated output, while reporting a preserved
+   pre-ADR-052 adopter `docs/INDEX.md` as a non-failing warning during upgrade.
+   Add read-only doctor D12 to distinguish an undeclared legacy root from an
+   explicit project override.
+5. Keep enforcement scoped. Ordinary README, changelog, runbook,
+   legal/compliance, and session/archive documents remain valid outside the
+   four artifact directories.
+
+**Why no universal Write/Edit blocker**: A blanket “deny every markdown file
+outside plans/specs/architecture/research” policy is incorrect and would block
+valid project documentation. A narrower cross-tool blocker still needs
+provider-specific tool-input parsing, safe merge behavior for six independent
+hook registries, and a stable machine-readable override contract. Shipping only
+the Claude version would recreate the provider bias this framework is designed
+to avoid. The current release therefore uses common always-loaded policy,
+visible filesystem precedent, post-install validation, and read-only runtime
+diagnosis. A future native blocker may be added only when the same recognized
+artifact classification and override semantics are regression-tested across all
+six adapters.
+
+**Consequences**:
+
+- Fresh and upgraded installs gain three skip-if-existing, manifest-owned files;
+  user modifications remain protected by the existing checksum/uninstall rules.
+- A pre-ADR-052 `docs/INDEX.md` is not overwritten on upgrade. The validator
+  reports its missing map as a warning; the always-loaded workflow rule and
+  canonical directory seeds still carry the operative policy.
+- Doctor override recognition requires an exact backticked directory root such
+  as `` `plans/` ``. A canonical `` `docs/plans/` `` entry must never suppress
+  diagnosis of the unrelated top-level `plans/` legacy root.
+- Existing adopter documents are never moved or rewritten automatically.
+- `docs/INDEX.md` becomes both the human document map and the explicit
+  project-override registry.
+- The originally proposed broad hook is deliberately rejected; the framework
+  does not claim mechanical coverage it cannot safely provide.
+
+## ADR-053 — Release candidates are checked against the live npm registry
+
+**Status**: Accepted (2026-07-25)
+
+**Context**: The feature branch still carried the already-published `1.1.2`
+version while the local release gate hard-coded `1.1.1` as its upgrade source.
+That combination allowed the expensive install and upgrade suite to exercise a
+stale baseline and left duplicate-version rejection to npm's final dry-run.
+Separately, piping `npm pack` into `tail` could report the pipeline consumer's
+status instead of the registry command's failure under Bash without `pipefail`.
+
+**Decision**:
+
+1. Before the regression suite, query npm's live `latest` and full published
+   version list. The candidate must be a stable SemVer, absent from the registry,
+   and strictly greater than `latest`.
+2. Use live `latest` as the mandatory upgrade baseline. An explicit
+   `CONDUCTOR_PREVIOUS_VERSION` remains available only for deliberate legacy
+   compatibility runs.
+3. Let `test-npm-upgrade.sh` derive the prior version from the supplied tarball
+   when no expected version is provided; no release number is hard-coded there.
+4. Capture `npm pack` output first and apply `tail` only after the npm command
+   succeeds, preserving fail-closed exit status on Bash 3.2.
+5. Keep `npm publish --dry-run` as a second signal. Registry uniqueness is an
+   explicit gate and does not depend on npm dry-run behavior.
+
+**Consequences**:
+
+- Routine release verification tracks the actual npm latest release without a
+  source edit after every publication.
+- A duplicate or stale candidate fails before the multi-minute test suite.
+- Registry access is intentionally required for release verification. Tests can
+  inject recorded registry values, but publication readiness cannot be claimed
+  from those overrides alone.
+- Publishing, tagging, syncing, and CI dispatch remain manual and outside this
+  local guard.

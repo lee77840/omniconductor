@@ -468,7 +468,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty Conductor-emitted dirs left behind.
-  for d in .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor; do
+  for d in .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -657,6 +657,19 @@ Read `docs/CURRENT_WORK.md` FIRST every session before touching code.
 
 Lazy-load on demand: `docs/specs/<area>.md` when touching that area's code;
 `docs/PLANS.md` / `docs/TASKS.md` for planning context.
+
+## Canonical artifact paths / 정본 문서 경로
+
+| Artifact | Path |
+|---|---|
+| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
+| Long-lived domain spec | `docs/specs/<area>.md` |
+| Architecture / ADR | `docs/architecture/README.md` / `docs/architecture/NNNN-<topic>.md` |
+| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
+
+Existing files and plugin folders are not policy. These paths win unless
+`docs/INDEX.md` explicitly declares a project override; an unresolved conflict
+requires STOP + ASK before writing.
 
 ## Additional rules / 추가 규칙
 
@@ -866,6 +879,21 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
     fi
   fi
 fi
+
+for doc_rel in plans/README.md architecture/README.md research/README.md; do
+  src="$CORE_ROOT/docs-templates/$doc_rel"
+  dest="$TARGET_ABS/docs/$doc_rel"
+  [ -f "$src" ] || continue
+  mkdir_if_real "$TARGET_ABS/docs/${doc_rel%/*}"
+  if [ -f "$dest" ]; then
+    log "  $dest exists — leaving in place"
+  elif [ "$DRY_RUN" = "true" ]; then
+    log "would copy $src -> $dest"
+  else
+    /bin/cp "$src" "$dest"
+    record_emit "docs/$doc_rel" "core/docs-templates/$doc_rel" ""
+  fi
+done
 
 # Finalize manifest after all emits.
 fi

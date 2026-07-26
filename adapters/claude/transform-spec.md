@@ -28,10 +28,13 @@ core/docs-templates/PLANS.md
 core/docs-templates/TASKS.md
 core/docs-templates/INDEX.md
 core/docs-templates/specs/_example.md
+core/docs-templates/plans/README.md
+core/docs-templates/architecture/README.md
+core/docs-templates/research/README.md
 core/memory-pattern/README.md
 core/memory-pattern/EXAMPLES.md
 core/roles/*.md                                        # 8 base roles → .claude/agents/ (including code-reviewer + utility)
-core/hooks/*.sh.template                               # 10 hook templates
+core/hooks/*.sh.template                               # 11 hook templates
 adapters/claude/hookify-templates/*.local.md.template # Hookify rule definitions
 ```
 
@@ -55,7 +58,7 @@ dependency/core-hook registrations through a reversible semantic merge.
 │   │   ├── quality-gates.md                   # Translated
 │   │   ├── spec-as-you-go.md                  # Translated
 │   │   └── workflow.md                        # Translated
-│   ├── hooks/<10 .sh files>                   # From core/hooks/*.sh.template, chmod +x
+│   ├── hooks/<11 .sh files>                   # From core/hooks/*.sh.template, chmod +x
 │   ├── hookify.*.local.md                     # 12 always-on + selected recipe-scoped definitions
 │   └── settings.json                          # Hookify dependency + permissions allowlist + hooks registry
 └── docs/
@@ -64,7 +67,10 @@ dependency/core-hook registrations through a reversible semantic merge.
     ├── PLANS.md
     ├── TASKS.md
     ├── INDEX.md
-    └── specs/_example.md
+    ├── specs/_example.md
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 ## Universal-rules → Claude-rules translation

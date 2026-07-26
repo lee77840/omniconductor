@@ -20,6 +20,7 @@
  *   D9 Git tracking          — durable runtime files are version-controlled
  *   D10 work-state drift     — CURRENT_WORK branch/base/head vs real Git state
  *   D11 model routing        — saved Tier mappings, adapter coverage, enforcement truth
+ *   D12 document paths       — canonical seeds + undeclared legacy precedents
  *
  * Severity: FAIL = broken install · WARN = degraded/attention · OK.
  * Exit codes: 0 = all OK · 1 = warnings only · 2 = failures (or unusable target).
@@ -40,9 +41,24 @@ function readPkgVersion() {
   catch { return null; }
 }
 
-function versionAtLeast(value, major, minor) {
-  const match = String(value || '').replace(/^v/, '').match(/^(\d+)\.(\d+)/);
-  return !!match && (Number(match[1]) > major || (Number(match[1]) === major && Number(match[2]) >= minor));
+// Claude Code version at/after which PostToolUse `updatedToolOutput` is honored for all tools
+// (AC7). Single source of truth — referenced by both the numeric compare and the human-readable
+// "vX.Y.Z" text below, so a future floor bump only needs to change this one literal.
+const CLAUDE_OUTPUT_CAP_MIN = { major: 2, minor: 1, patch: 121 };
+const CLAUDE_OUTPUT_CAP_MIN_LABEL = `v${CLAUDE_OUTPUT_CAP_MIN.major}.${CLAUDE_OUTPUT_CAP_MIN.minor}.${CLAUDE_OUTPUT_CAP_MIN.patch}`;
+
+// major.minor comparison when `patch` is omitted (existing D11 call sites); a patch-level
+// 3-part compare when supplied (needed for the Claude output-cap floor, CLAUDE_OUTPUT_CAP_MIN).
+function versionAtLeast(value, major, minor, patch) {
+  const match = String(value || '').replace(/^v/, '').match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
+  if (!match) return false;
+  const [va, vi, vp] = [Number(match[1]), Number(match[2]), Number(match[3] || 0)];
+  if (patch === undefined) {
+    return va > major || (va === major && vi >= minor);
+  }
+  if (va !== major) return va > major;
+  if (vi !== minor) return vi > minor;
+  return vp >= patch;
 }
 
 function loadAdapterMetadata(adapter) {
@@ -516,6 +532,54 @@ function run(targetDir, opts) {
       }
     }
   }
+  // Claude output-cap version floor (AC7). `updatedToolOutput` (the PostToolUse mechanism
+  // output-cap.sh relies on) silently no-ops below CLAUDE_OUTPUT_CAP_MIN — warn only when a
+  // below-floor version is actually detected. AC7 says "warn when below the floor", not "warn
+  // when unknown"; an unrunnable/absent `claude` CLI is left quiet (informational OK) so a
+  // CLI-less CI install does not flip green -> WARN on every run.
+  const claudeCapEmitted = manifest.emitted_files.some((ef) => ef && ef._adapter === 'claude' && ef.path === '.claude/hooks/output-cap.sh');
+  if (claudeCapEmitted && fs.existsSync(path.join(targetAbs, '.claude', 'hooks', 'output-cap.sh'))) {
+    const claudeVersion = spawnSync('claude', ['--version'], { encoding: 'utf8', timeout: 5000 });
+    if (claudeVersion.error || claudeVersion.status !== 0) {
+      add('D5', 'OK', `Claude CLI unavailable — output-cap version floor (>=${CLAUDE_OUTPUT_CAP_MIN_LABEL} for updatedToolOutput) is unverifiable here`);
+    } else {
+      const raw = String(claudeVersion.stdout || '').trim();
+      if (!/^v?\d+\.\d+\.\d+/.test(raw)) {
+        add('D5', 'OK', `Claude CLI version output '${raw}' did not parse — output-cap version floor is unverifiable here`);
+      } else if (!versionAtLeast(raw, CLAUDE_OUTPUT_CAP_MIN.major, CLAUDE_OUTPUT_CAP_MIN.minor, CLAUDE_OUTPUT_CAP_MIN.patch)) {
+        add('D5', 'WARN', `Claude CLI ${raw} is below the ${CLAUDE_OUTPUT_CAP_MIN_LABEL} floor for PostToolUse 'updatedToolOutput' — output-cap.sh is installed but silently will not trim large tool results until Claude Code is upgraded`);
+      } else {
+        add('D5', 'OK', `Claude CLI ${raw} meets the output-cap 'updatedToolOutput' floor (>=${CLAUDE_OUTPUT_CAP_MIN_LABEL})`);
+      }
+    }
+  }
+
+  // Codex tool_output_token_limit recognition (AC1). Codex silently ignores unknown TOML keys,
+  // and exposes no `codex config get`/echo subcommand to confirm a key was recognized (verified:
+  // `codex doctor --json`'s config.load check reports a fixed detail set — model/provider/mcp/log
+  // dir — never arbitrary config keys). CONDUCTOR also has no independently-verified Codex release
+  // floor for this key's introduction, so a present CLI can only ever fail to positively confirm
+  // it, never confirm it. Per AC1 ("warns when the version is below the floor or the echo is
+  // unavailable — never asserts recognition it cannot observe"): an ABSENT/unrunnable `codex` CLI
+  // means recognition can't be observed in EITHER direction, so that case stays an informational
+  // OK (not a WARN) — the alternative would flip every CLI-less install from green to WARN on
+  // every run. A PRESENT-but-unconfirming CLI gets exactly one scoped WARN.
+  const codexCapPath = manifest.emitted_files.find((ef) => ef && ef._adapter === 'codex' && ef.path === '.codex/config.toml');
+  if (codexCapPath) {
+    const cfgAbs = path.join(targetAbs, '.codex', 'config.toml');
+    let hasLimitKey = false;
+    try { hasLimitKey = /^tool_output_token_limit\s*=/m.test(fs.readFileSync(cfgAbs, 'utf8')); } catch { /* D3 already reports missing */ }
+    if (hasLimitKey) {
+      const codexVersion = spawnSync('codex', ['--version'], { encoding: 'utf8', timeout: 5000 });
+      if (codexVersion.error || codexVersion.status !== 0) {
+        add('D5', 'OK', 'Codex CLI unavailable — tool_output_token_limit recognition is unverifiable here (config-only emission; no live echo to confirm either way)');
+      } else {
+        const raw = String(codexVersion.stdout || '').trim();
+        add('D5', 'WARN', `Codex CLI ${raw || '(detected)'} is present but exposes no config echo to confirm 'tool_output_token_limit' recognition — verify against the Codex config-reference (silently-ignored unknown keys are possible)`);
+      }
+    }
+  }
+
   if (hookProblems === 0) add('D5', 'OK', `hook/config surfaces structurally sane (${hookChecked} .json/.sh file(s) checked)`);
 
   // ---- D6 doc-link liveness -------------------------------------------------------
@@ -700,6 +764,62 @@ function run(targetDir, opts) {
         if (advisory.length) add('D11', 'WARN', `${advisory.join(', ')} routing is advisory-session; confirm Adaptive in the tool UI`);
       }
     }
+  }
+
+  // ---- D12 canonical document paths -----------------------------------------
+  const canonicalDocs = [
+    'docs/plans/README.md',
+    'docs/architecture/README.md',
+    'docs/research/README.md',
+  ];
+  const emittedPaths = new Set(manifest.emitted_files
+    .map((entry) => entry && entry.path)
+    .filter(Boolean));
+  const expectedCanonical = canonicalDocs.filter((rel) => emittedPaths.has(rel));
+  const missingCanonical = expectedCanonical.filter((rel) => !fs.existsSync(path.join(targetAbs, rel)));
+  if (missingCanonical.length) {
+    add('D12', 'FAIL', `canonical document-location seed(s) are missing: ${missingCanonical.join(', ')}`);
+  } else if (expectedCanonical.length) {
+    add('D12', 'OK', `${expectedCanonical.length} canonical document-location seed(s) are present`);
+  } else {
+    add('D12', 'OK', 'canonical document-location seeds are not part of this install mode/version');
+  }
+
+  let indexSource = '';
+  try { indexSource = fs.readFileSync(path.join(targetAbs, 'docs', 'INDEX.md'), 'utf8'); }
+  catch { /* D3 reports a missing managed INDEX. */ }
+  const containsMarkdown = (rel) => {
+    const abs = path.join(targetAbs, rel);
+    if (!fs.existsSync(abs)) return false;
+    const rootStat = fs.lstatSync(abs);
+    if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) return false;
+    const stack = [abs];
+    while (stack.length) {
+      const dir = stack.pop();
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) stack.push(path.join(dir, entry.name));
+        else if (entry.isFile() && entry.name.endsWith('.md')) return true;
+      }
+    }
+    return false;
+  };
+  const legacyDocRoots = [
+    'docs/superpowers/plans',
+    'docs/superpowers/specs',
+    'docs/superpowers/research',
+    'plans',
+    'specs',
+  ];
+  // Only an exact backticked directory root is an explicit override. A loose
+  // substring check makes the stock `docs/plans/` and `docs/specs/` entries
+  // accidentally declare the unrelated top-level `plans/` and `specs/` roots.
+  const hasDeclaredDocOverride = (rel) => indexSource.includes(`\`${rel}/\``);
+  const undeclaredLegacy = legacyDocRoots.filter((rel) => containsMarkdown(rel)
+    && !hasDeclaredDocOverride(rel));
+  if (undeclaredLegacy.length) {
+    add('D12', 'WARN', `undeclared legacy document root(s) may override visible CONDUCTOR precedent: ${undeclaredLegacy.join(', ')} — migrate them or declare an intentional artifact-class override in docs/INDEX.md`);
+  } else {
+    add('D12', 'OK', 'no undeclared legacy plan/spec/research roots detected');
   }
 
   return finish();

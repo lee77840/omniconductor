@@ -19,6 +19,7 @@ Detailed matrix of which CONDUCTOR features Cursor supports natively.
 | **In-repo doc templates** | ✅ Native | Plain markdown; Cursor reads on demand | Universal across all adapters. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `.cursorrules` + `.cursor/rules/spec-as-you-go.mdc` | Self-policed. Pair with pre-commit git hook for mechanical enforcement. |
 | **Two-stage code review enforcement** | ❌ rule reminder only | Rule text reminds; user runs review prompts manually in Cursor chat | |
+| **Tool-output cap (store-time)** | ❌ N/A | — | Cursor's only verified hook contract is the Reflector's `stop` event; Cursor hook events are post-hooks (observe-only), so no verified store-time output-rewrite surface exists to cap tool results before they're stored. CONDUCTOR does not fake enforcement here. See ADR-051. |
 
 ## Cursor-specific extensions
 

@@ -3,7 +3,76 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] — 2026-07-25
+
+### Added
+
+- **Tool-output / context-size cap (ADR-051)** — bounds how many tokens a single
+  tool result writes into turn context, on the three tools that expose a
+  store-time mechanism (honest reach: 3/6, no fake enforcement elsewhere):
+  - **Codex** — native `tool_output_token_limit = 12000` baked into
+    `.codex/config.toml` (full/strict, only-if-absent/manifest-owned).
+  - **Claude** — a new always-on `PostToolUse` hook, `.claude/hooks/output-cap.sh`,
+    truncates oversized results via `hookSpecificOutput.updatedToolOutput`
+    (head 70% + elision marker + tail 30%); requires Claude Code ≥v2.1.121.
+    The replacement is **shape-preserving** (Claude validates it against the
+    tool's own output schema and silently discards a mismatched swap — object
+    responses come back as the same structure with their string leaves clipped).
+    Note: current Claude Code natively persists large Bash output to a stub, so
+    this hook's value accrues to large non-persisted results (multi-line Read,
+    MCP/WebFetch-class outputs) — see ADR-051 limitations 11–13.
+  - **Gemini** — a new `BeforeTool` hook, `.gemini/hooks/output-cap.sh`, rewrites
+    `run_shell_command` to merge stdout+stderr and pipe the combined stream
+    through a byte-capping `awk` truncator (head-only, exit status preserved),
+    composed into a unified
+    `.gemini/settings.json` write.
+  - Cursor / Windsurf / Copilot remain explicit N/A — none has a verified
+    per-tool-call, store-time output-edit hook contract.
+  - Shared threshold `CONDUCTOR_OUTPUT_CAP_TOKENS` (default 12000; does not
+    apply to Codex's native config) and opt-out `CONDUCTOR_SKIP_OUTPUT_CAP=1`.
+  - `omniconductor doctor` warns when a below-floor Claude CLI is detected and
+    when a present-but-unconfirming Codex CLI can't positively confirm config
+    recognition (Codex exposes no config echo). `validate-adapter-output.sh`
+    structurally checks all three new surfaces.
+  - **Claude: MEASURED.** Three controlled pairs on Claude Code 2.1.215
+    (deterministic 166 KB Read fixture, capped vs `CONDUCTOR_SKIP_OUTPUT_CAP=1`):
+    noisy-turn `cache_creation_input_tokens` **23,463 → 9,406 (mean −14,057,
+    −59.9%, sd ≈ 30)**, plus a behavioral oracle (mid-body content invisible when
+    capped, found verbatim when skipped). **Codex and Gemini ship un-measured.**
+    See ADR-051 for the full honest-limitations list (marker asymmetry, head-only
+    Gemini truncation, bash/zsh pipefail assumption, Gemini's only-if-absent
+    settings precondition, shape-preserving/schema-gate contract, native Bash
+    persisted-output interplay, structural-overhead floor).
+
+- **Canonical document locations across all six adapters (ADR-052)** — fresh
+  full/minimal installs now seed `docs/plans/README.md`,
+  `docs/architecture/README.md`, and `docs/research/README.md` beside the
+  existing spec template. The universal workflow and every primary instruction
+  surface state that an incidental legacy/plugin path is not policy; only an
+  explicit artifact-class override in `docs/INDEX.md` can replace the defaults.
+  The validator requires the shared seeds and reports a preserved pre-ADR-052
+  adopter INDEX as a non-failing upgrade warning; fresh output still requires
+  the exact current map. Read-only doctor D12 warns when known legacy plan/spec
+  roots exist without a declared override. This is not a blanket ban on ordinary
+  README, changelog, runbook, legal, compliance, or session documents.
+
+### Fixed
+
+- **Gemini stderr no longer bypasses the output cap** — the shell rewrite now
+  bounds the combined stdout+stderr stream. Regression coverage includes
+  stderr-only and mixed-output commands plus non-zero exit preservation. The
+  fallback necessarily merges the two channels; ADR-051 records that tradeoff.
+- **Doctor D12 no longer confuses canonical and top-level document roots** —
+  stock `` `docs/plans/` `` and `` `docs/specs/` `` INDEX entries cannot
+  silently declare the unrelated top-level `plans/` or `specs/` legacy roots.
+  Overrides now require an exact backticked directory declaration, with positive
+  and negative regression coverage.
+- **Release verification no longer uses a stale hard-coded npm baseline
+  (ADR-053)** — it resolves the live npm `latest`, rejects duplicate or
+  non-increasing candidates before the expensive suite, and uses that release
+  for the mandatory six-tool upgrade matrix. `npm pack` output parsing now
+  preserves the npm command's failure status instead of allowing `tail` to mask
+  it.
 
 ## [1.1.2] — 2026-07-19
 

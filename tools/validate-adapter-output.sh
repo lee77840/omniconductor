@@ -410,6 +410,34 @@ run_gemini() {
       fi
     fi
   fi
+  # output-cap.sh (Spec E, token-economy): only emitted in full/strict mode.
+  # When present it must be executable AND registered as a BeforeTool entry
+  # in the combined (only-if-absent) .gemini/settings.json, which must remain
+  # valid JSON (ADR-045 dialect boundary: this hook is gemini-dialect only).
+  local gcap="$TARGET/.gemini/hooks/output-cap.sh"
+  if [ -e "$gcap" ]; then
+    if [ ! -x "$gcap" ]; then
+      emit_fail ".gemini/hooks/output-cap.sh" "hook exists but is not executable (chmod +x)"
+    else
+      local gsettings="$TARGET/.gemini/settings.json"
+      if [ ! -s "$gsettings" ]; then
+        emit_fail ".gemini/settings.json" "output-cap hook exists but settings.json is missing"
+      elif node -e '
+        const fs = require("fs");
+        try {
+          const s = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+          const before = (s.hooks && s.hooks.BeforeTool) || [];
+          const ok = before.some((g) => (g.hooks || []).some((h) => /output-cap\.sh/.test(h.command || "")));
+          process.exit(ok ? 0 : 1);
+        } catch { process.exit(1); }
+      ' "$gsettings" 2>/dev/null; then
+        emit_pass ".gemini/settings.json (valid JSON; BeforeTool -> output-cap.sh registered)"
+      else
+        emit_fail ".gemini/settings.json" "invalid JSON, or missing a BeforeTool entry registering output-cap.sh"
+      fi
+    fi
+  fi
+
   validate_role_set gemini
   validate_no_claude_model_aliases gemini "$TARGET/GEMINI.md" "$TARGET/.gemini/agents" "$TARGET/.gemini/styleguide.md"
 }
@@ -488,6 +516,25 @@ run_codex() {
     emit_fail ".codex/hooks.json" "hook commands are not anchored to the Git root"
   else
     emit_pass ".codex/hooks.json"
+  fi
+
+  # native config: tool_output_token_limit (Spec E, token-economy). Only
+  # emitted in full/strict mode (config-only, no hook); accept a user-owned
+  # pre-existing config.toml the same way .codex/hooks.json is preserved.
+  local cfg="$TARGET/.codex/config.toml"
+  local cfg_manifest="$TARGET/.conductor/manifests/codex.json"
+  if [ -s "$cfg" ]; then
+    # Key-presence check only (aligned with doctor's hasLimitKey regex): the file
+    # is explicitly user-editable post-install, so legitimate TOML forms — an
+    # inline comment (`= 8000  # budget`) or digit separators (`= 12_000`) —
+    # must not fail validation. Value semantics are Codex's business (ADR-051).
+    if grep -qE '^tool_output_token_limit[[:space:]]*=[[:space:]]*[^[:space:]]' "$cfg"; then
+      emit_pass ".codex/config.toml (tool_output_token_limit present)"
+    elif [ -s "$cfg_manifest" ] && ! grep -q '"path"[[:space:]]*:[[:space:]]*"\.codex/config\.toml"' "$cfg_manifest"; then
+      emit_pass ".codex/config.toml (user-owned; preserved and excluded from CONDUCTOR output validation)"
+    else
+      emit_fail ".codex/config.toml" "missing a 'tool_output_token_limit = <value>' line"
+    fi
   fi
 }
 
@@ -797,7 +844,58 @@ run_claude() {
       emit_fail ".claude/settings.json" "$hookify_count Hookify rules exist but the plugin/core-hook runtime registry is incomplete"
     fi
   fi
+  # output-cap.sh (Spec E, token-economy): only emitted in full/strict mode.
+  # When present it must be executable AND registered under a PostToolUse
+  # bucket in .claude/settings.json (mirrors the hookify core-hook check above,
+  # narrowed to this one hook so it also fires when no Hookify rules exist).
+  local cap="$TARGET/.claude/hooks/output-cap.sh"
+  if [ -e "$cap" ]; then
+    if [ ! -x "$cap" ]; then
+      emit_fail ".claude/hooks/output-cap.sh" "hook exists but is not executable (chmod +x)"
+    elif node -e '
+      const h=require(process.argv[1]);
+      try {
+        const missing=h.missingCoreHooks(process.argv[2]);
+        process.exit(missing.includes(".claude/hooks/output-cap.sh") ? 1 : 0);
+      } catch { process.exit(1); }
+    ' "$SCRIPT_ROOT/bin/claude-hookify.js" "$TARGET/.claude/settings.json" 2>/dev/null; then
+      emit_pass ".claude/hooks/output-cap.sh (executable; registered under PostToolUse)"
+    else
+      emit_fail ".claude/hooks/output-cap.sh" "hook exists but is not registered under PostToolUse in .claude/settings.json"
+    fi
+  fi
+
   validate_role_set claude
+}
+
+# ---- shared documentation contract --------------------------------------
+
+validate_canonical_docs() {
+  # À-la-carte modes intentionally omit docs. When the document bundle is
+  # present, however, all six adapters must emit the same visible precedent.
+  [ -e "$TARGET/docs/INDEX.md" ] || return
+
+  local rel
+  for rel in docs/plans/README.md docs/architecture/README.md docs/research/README.md; do
+    if [ -s "$TARGET/$rel" ]; then
+      emit_pass "$rel"
+    else
+      emit_fail "$rel" "canonical document-location seed is missing or empty"
+    fi
+  done
+
+  if /usr/bin/grep -qF 'Existing files or plugin-created' "$TARGET/docs/INDEX.md" \
+    && /usr/bin/grep -qF 'docs/plans/YYYY-MM-DD-<topic>.md' "$TARGET/docs/INDEX.md" \
+    && /usr/bin/grep -qF 'docs/specs/<area>.md' "$TARGET/docs/INDEX.md"; then
+    emit_pass "docs/INDEX.md canonical-path precedence"
+  else
+    # Existing documentation templates are adopter-owned and intentionally
+    # skip-if-existing. A pre-ADR-052 INDEX therefore survives a safe upgrade
+    # even though the always-loaded workflow rule and visible directory seeds
+    # are current. Report that drift without making a lossless upgrade fail.
+    # Fresh-output regressions remain fail-closed in test-doc-path-policy.sh.
+    emit_warn "docs/INDEX.md" "canonical path map or legacy-precedent rule is missing; preserve adopter content and merge the current template manually"
+  fi
 }
 
 # ---- main ---------------------------------------------------------------
@@ -816,6 +914,7 @@ case "$ADAPTER" in
   codex)    run_codex    ;;
   windsurf) run_windsurf ;;
 esac
+validate_canonical_docs
 
 echo ""
 echo "------------------------------------------"

@@ -96,13 +96,16 @@ cat ~/conductor/core/universal-rules/meta-discipline.md \
     > .cursorrules
 
 # 4. Copy doc templates (skip if you already have docs/CURRENT_WORK.md etc.)
-mkdir -p docs/specs
+mkdir -p docs/specs docs/plans docs/architecture docs/research
 [ -f docs/CURRENT_WORK.md ]    || cp ~/conductor/core/docs-templates/CURRENT_WORK.md    docs/
 [ -f docs/REMAINING_TASKS.md ] || cp ~/conductor/core/docs-templates/REMAINING_TASKS.md docs/
 [ -f docs/PLANS.md ]           || cp ~/conductor/core/docs-templates/PLANS.md           docs/
 [ -f docs/TASKS.md ]           || cp ~/conductor/core/docs-templates/TASKS.md           docs/
 [ -f docs/INDEX.md ]           || cp ~/conductor/core/docs-templates/INDEX.md           docs/
 [ -f docs/specs/_example.md ]  || cp ~/conductor/core/docs-templates/specs/_example.md  docs/specs/
+[ -f docs/plans/README.md ] || cp ~/conductor/core/docs-templates/plans/README.md docs/plans/
+[ -f docs/architecture/README.md ] || cp ~/conductor/core/docs-templates/architecture/README.md docs/architecture/
+[ -f docs/research/README.md ] || cp ~/conductor/core/docs-templates/research/README.md docs/research/
 ```
 
 ### Windows / Git Bash
@@ -255,9 +258,10 @@ cat ~/conductor/core/recipes/coding-conventions.md \
     >> GEMINI.md
 
 # Doc templates (same as Cursor section)
-mkdir -p docs/specs
+mkdir -p docs/specs docs/plans docs/architecture docs/research
 [ -f docs/CURRENT_WORK.md ] || cp ~/conductor/core/docs-templates/CURRENT_WORK.md docs/
-# ... (repeat for REMAINING_TASKS, PLANS, TASKS, INDEX, specs/_example)
+# ... (repeat for the remaining top-level files plus specs/_example and the
+# plans/architecture/research README seeds shown in the Cursor section)
 ```
 
 ### Windows / Git Bash
@@ -311,9 +315,9 @@ cat ~/conductor/core/universal-rules/*.md > AGENTS.md
 cat ~/conductor/core/recipes/coding-conventions.md >> AGENTS.md
 
 # Doc templates (same pattern as Gemini)
-mkdir -p docs/specs
+mkdir -p docs/specs docs/plans docs/architecture docs/research
 [ -f docs/CURRENT_WORK.md ] || cp ~/conductor/core/docs-templates/CURRENT_WORK.md docs/
-# ... (repeat as above)
+# ... (repeat as above, including all four canonical artifact directories)
 ```
 
 ### Windows / Git Bash

@@ -18,6 +18,7 @@ core/universal-rules/spec-as-you-go.md
 core/universal-rules/workflow.md
 core/docs-templates/*.md
 core/docs-templates/specs/_example.md
+core/docs-templates/{plans,architecture,research}/README.md
 core/memory-pattern/README.md
 adapters/copilot/_native/all.instructions.tpl       # Always-loaded baseline template
 ```
@@ -40,7 +41,10 @@ adapters/copilot/_native/all.instructions.tpl       # Always-loaded baseline tem
     ├── PLANS.md
     ├── TASKS.md
     ├── INDEX.md
-    └── specs/_example.md
+    ├── specs/_example.md
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 ## Universal-rules → Copilot `.instructions.md` translation

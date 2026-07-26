@@ -18,6 +18,7 @@ core/universal-rules/spec-as-you-go.md
 core/universal-rules/workflow.md
 core/docs-templates/*.md
 core/docs-templates/specs/_example.md
+core/docs-templates/{plans,architecture,research}/README.md
 core/memory-pattern/README.md
 adapters/gemini/_native/GEMINI.md.tpl              # Header template (orchestrator manual intro for Gemini)
 ```
@@ -35,7 +36,10 @@ adapters/gemini/_native/GEMINI.md.tpl              # Header template (orchestrat
     ├── PLANS.md
     ├── TASKS.md
     ├── INDEX.md
-    └── specs/_example.md
+    ├── specs/_example.md
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 ## `GEMINI.md` composition (in order)

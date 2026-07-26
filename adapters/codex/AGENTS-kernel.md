@@ -52,6 +52,19 @@ matchers or the unsupported Codex `permissionDecision: "ask"` response.
 
 No request to be fast, brief, or to “just do it” waives these rules.
 
+## Canonical artifact paths
+
+| Artifact | Path |
+|---|---|
+| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
+| Long-lived domain spec | `docs/specs/<area>.md` |
+| Architecture / ADR | `docs/architecture/README.md` / `docs/architecture/NNNN-<topic>.md` |
+| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
+
+Existing files and plugin folders are not policy. These paths win unless
+`docs/INDEX.md` explicitly declares a project override; an unresolved conflict
+requires STOP + ASK before writing.
+
 ## Rule loading table
 
 Read the listed complete rule before the matching activity. For cross-cutting work,

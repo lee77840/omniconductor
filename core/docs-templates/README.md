@@ -12,6 +12,9 @@ Tool-agnostic markdown templates that every CONDUCTOR-installed project gets at 
 | `TASKS.md` | `docs/TASKS.md` | Phase completion tracker. |
 | `INDEX.md` | `docs/INDEX.md` | Document map — pointer to every other doc in `docs/`. |
 | `specs/_example.md` | `docs/specs/_example.md` | Spec template. User renames + duplicates per area (e.g., `auth.md`, `billing.md`). |
+| `plans/README.md` | `docs/plans/README.md` | Canonical implementation-plan path and naming precedent. |
+| `architecture/README.md` | `docs/architecture/README.md` | Architecture overview / ADR path precedent. |
+| `research/README.md` | `docs/research/README.md` | Canonical research-note path and naming precedent. |
 
 ## Why these are universal
 
@@ -19,6 +22,7 @@ Tool-agnostic markdown templates that every CONDUCTOR-installed project gets at 
 - They reference no tool-specific syntax.
 - The same workflow phase definitions reference them regardless of tool.
 - The `Read first every session` instruction in adapter outputs always points to `docs/CURRENT_WORK.md`.
+- The same canonical artifact map and precedence rule reaches all six adapters.
 
 ## Why they aren't transformed by adapters
 

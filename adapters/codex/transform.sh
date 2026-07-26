@@ -623,7 +623,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (deepest first).
-  for d in .agents/skills/reflect .agents/skills .agents .codex/agents .codex .conductor/reflect .conductor docs/specs docs; do
+  for d in .agents/skills/reflect .agents/skills .agents .codex/agents .codex .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -1034,6 +1034,29 @@ HOOKJSON
   fi
 fi
 
+# ----- native config: tool_output_token_limit (Spec E, token-economy) -----
+# Codex's native token budget for storing individual tool/function outputs in
+# history. Gated to full/strict, same as native roles/hooks above — à la carte
+# modes (minimal/recipes-only/reflector-only) ship no native enforcement.
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  log "Step: native config → .codex/config.toml"
+  cfg="$TARGET_ABS/.codex/config.toml"
+  cfg_entry="$(conductor_manifest_entry_for_path ".codex/config.toml" 2>/dev/null || true)"
+  limit=12000
+  if [ ! -f "$cfg" ] || [ -n "$cfg_entry" ]; then
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would write $cfg (tool_output_token_limit = $limit)"
+    else
+      /bin/mkdir -p "$TARGET_ABS/.codex"
+      backup_and_remember "$cfg"
+      printf '# CONDUCTOR: cap individual tool/function output stored in history (token-economy).\ntool_output_token_limit = %s\n' "$limit" > "$cfg"
+      record_emit ".codex/config.toml" "<synthesized:codex-config>" "$MANIFEST_LAST_BACKUP"
+    fi
+  else
+    log "  $cfg exists — add manually: tool_output_token_limit = $limit"
+  fi
+fi
+
 # ----- opt-in: self-improvement (Reflector) --------------------------------
 
 if [ "$MODE" = "minimal" ]; then
@@ -1105,6 +1128,21 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
     fi
   fi
 fi
+
+for doc_rel in plans/README.md architecture/README.md research/README.md; do
+  src="$CORE_ROOT/docs-templates/$doc_rel"
+  dest="$TARGET_ABS/docs/$doc_rel"
+  [ -f "$src" ] || continue
+  mkdir_if_real "$TARGET_ABS/docs/${doc_rel%/*}"
+  if [ -f "$dest" ]; then
+    log "  $dest exists — leaving in place"
+  elif [ "$DRY_RUN" = "true" ]; then
+    log "would copy $src -> $dest"
+  else
+    /bin/cp "$src" "$dest"
+    record_emit "docs/$doc_rel" "core/docs-templates/$doc_rel" ""
+  fi
+done
 
 # Finalize manifest after all emits.
 fi

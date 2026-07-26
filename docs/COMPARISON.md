@@ -66,7 +66,7 @@ If you only want format conversion, you can write a 50-line script that reads `*
 - **Honesty over feature inflation.** ADR-004 says we will NOT fake-polyfill sub-agents anywhere; ADR-031 documents per-tool capability vs what CONDUCTOR actually emits. Other multi-tool projects gloss over this.
 - **Bilingual moat.** Korean solo-dev community is meaningful and underserved.
 - **Apache 2.0, no telemetry, no paid tier — fully open and commercial-friendly.** Only the **CONDUCTOR** name is reserved (trademark), so nobody can pass off a modified copy as the original. Same permissive footing as MIT competitors, with brand protection (ADR-029).
-- **Small, opinionated kernel.** 5 universal rules (plus 13 strictly opt-in recipes and 10 hook templates) vs GSD's 60 skills. If our rules are wrong for you, you'll know quickly and can move on. No 6-month sunk cost.
+- **Small, opinionated kernel.** 5 universal rules (plus 13 strictly opt-in recipes and 11 hook templates) vs GSD's 60 skills. If our rules are wrong for you, you'll know quickly and can move on. No 6-month sunk cost.
 
 ## Verdict
 

@@ -46,7 +46,10 @@ bypass.
     ├── PLANS.md
     ├── TASKS.md
     ├── INDEX.md
-    └── specs/_example.md
+    ├── specs/_example.md
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 - `--legacy-cursorrules` additionally bundles everything into a flat `.cursorrules` (Cursor < 0.45).

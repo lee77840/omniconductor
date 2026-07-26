@@ -517,7 +517,7 @@ do_uninstall() {
 
   # Try to clean up empty .cursor/rules and .cursor dirs left behind.
   # (children before parents so nested empties collapse in one pass)
-  for d in .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor .conductor/reflect .conductor; do
+  for d in .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -884,6 +884,21 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
     fi
   fi
 fi
+
+for doc_rel in plans/README.md architecture/README.md research/README.md; do
+  src="$CORE_ROOT/docs-templates/$doc_rel"
+  dest="$TARGET_ABS/docs/$doc_rel"
+  [ -f "$src" ] || continue
+  mkdir_if_real "$TARGET_ABS/docs/${doc_rel%/*}"
+  if [ -f "$dest" ]; then
+    log "  $dest exists — leaving in place"
+  elif [ "$DRY_RUN" = "true" ]; then
+    log "would copy $src -> $dest"
+  else
+    /bin/cp "$src" "$dest"
+    record_emit "docs/$doc_rel" "core/docs-templates/$doc_rel" ""
+  fi
+done
 
 # Finalize manifest after all emits.
 fi

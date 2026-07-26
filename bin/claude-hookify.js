@@ -12,6 +12,7 @@ const CORE_HOOK_GROUPS = [
   ] },
   { event: 'PreToolUse', matcher: 'Read', commands: ['.claude/hooks/pretool-large-file-read-guard.sh'] },
   { event: 'PreToolUse', matcher: '*', commands: ['.claude/hooks/pretool-loop-guard.sh'] },
+  { event: 'PostToolUse', matcher: '*', commands: ['.claude/hooks/output-cap.sh'] },
   { event: 'Stop', commands: [
     '.claude/hooks/stop-session-log-check.sh',
     '.claude/hooks/stop-r6-review-check.sh',
@@ -40,7 +41,7 @@ function readSettings(settingsPath) {
       && (!parsed.hooks || Array.isArray(parsed.hooks) || typeof parsed.hooks !== 'object')) {
     throw new Error(`${settingsPath} hooks must be a JSON object`);
   }
-  for (const event of ['PreToolUse', 'Stop']) {
+  for (const event of ['PreToolUse', 'PostToolUse', 'Stop']) {
     if (parsed.hooks && parsed.hooks[event] !== undefined && !Array.isArray(parsed.hooks[event])) {
       throw new Error(`${settingsPath} hooks.${event} must be a JSON array`);
     }
@@ -54,7 +55,7 @@ function normalizedCommand(command) {
 
 function registeredCoreHooks(settings) {
   const registered = new Set();
-  for (const event of ['PreToolUse', 'Stop']) {
+  for (const event of ['PreToolUse', 'PostToolUse', 'Stop']) {
     for (const group of (settings.hooks && settings.hooks[event]) || []) {
       const matcher = String((group && group.matcher) || '');
       for (const hook of (group && Array.isArray(group.hooks) ? group.hooks : [])) {

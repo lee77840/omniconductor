@@ -21,15 +21,18 @@ sample-claude-project/
 ├── CLAUDE.md                         # orchestrator manual (project entry point)
 ├── .claude/
 │   ├── rules/                        # 5 universal rules + 3 recipes (coding-conventions, tdd, debugging)
-│   ├── agents/                       # 6 role definitions (planner, builder, reviewer, helper, designer, scribe)
-│   ├── hooks/                        # 7 enforcement hooks (PreToolUse + Stop)
+│   ├── agents/                       # 8 baseline role definitions
+│   ├── hooks/                        # 11 hooks (PreToolUse + PostToolUse + Stop)
 │   ├── hookify.*.local.md            # opt-in hookify rule templates
 │   └── settings.json                 # permissions allowlist + hooks registry
 └── docs/
     ├── CURRENT_WORK.md               # session-continuity template
     ├── REMAINING_TASKS.md
     ├── PLANS.md / TASKS.md / INDEX.md
-    └── specs/_example.md             # spec-as-you-go example
+    ├── specs/_example.md             # spec-as-you-go example
+    ├── plans/README.md
+    ├── architecture/README.md
+    └── research/README.md
 ```
 
 ### How to regenerate

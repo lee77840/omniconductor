@@ -8,7 +8,7 @@ Anything in this directory MUST work for every supported tool. No tool-specific 
 |---|---|
 | `workflow/` | The Plan → Architecture → Tasks → Implementation → Review → Spec phase definitions. Tool-agnostic phase boundaries. |
 | `universal-rules/` | The 5 universal rule bundles (workflow, spec-as-you-go, quality-gates, operations, meta-discipline). Each is plain markdown. |
-| `docs-templates/` | The doc skeletons every project gets (`CURRENT_WORK.md`, `REMAINING_TASKS.md`, `PLANS.md`, `TASKS.md`, `INDEX.md`, `specs/_example.md`). |
+| `docs-templates/` | The doc skeletons every project gets (five top-level state/index files plus canonical `specs/`, `plans/`, `architecture/`, and `research/` precedents). |
 | `memory-pattern/` | Documentation of the 4-type memory pattern (user / feedback / project / reference). NOT actual memory data. |
 
 ## Authoring conventions

@@ -595,7 +595,7 @@ do_uninstall() {
   # Try to clean up empty dirs left behind (children before parents). Includes the
   # self-improvement gate dir .conductor/reflect/ — leaving it would keep the
   # always-on trajectory hook active after uninstall.
-  for d in .claude/rules .claude/agents .claude/hooks .claude/commands .conductor/reflect .conductor .claude; do
+  for d in .claude/rules .claude/agents .claude/hooks .claude/commands .conductor/reflect .conductor .claude docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -949,7 +949,7 @@ mkdir_if_real "$TARGET_ABS/.claude/hooks"
 # Core hooks (always emitted when template exists). Optional hooks (cache-hit baseline, large-file
 # read guard) emit only if their templates are present in the CONDUCTOR core/ tree, allowing the
 # adapter to remain forward-compatible with P1.7 work in progress.
-for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log stop-git-hygiene-guard pretool-loop-guard; do
+for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log stop-git-hygiene-guard pretool-loop-guard output-cap; do
   src="$CORE_ROOT/hooks/$hook.sh.template"
   dest="$TARGET_ABS/.claude/hooks/$hook.sh"
   if [ ! -f "$src" ]; then
@@ -1047,6 +1047,14 @@ else
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/output-cap.sh" }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -1061,7 +1069,7 @@ else
   }
 }
 SETTINGS_EOF
-  log "  wrote $SETTINGS_PATH (Hookify project dependency + $(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 10 core hooks: 5 PreToolUse + 5 Stop)"
+  log "  wrote $SETTINGS_PATH (Hookify project dependency + $(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 11 core hooks: 5 PreToolUse + 1 PostToolUse + 5 Stop)"
   record_emit ".claude/settings.json" "<synthesized>" ""
 fi
 fi
@@ -1216,6 +1224,21 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
   fi
 fi
 
+for doc_rel in plans/README.md architecture/README.md research/README.md; do
+  src="$CORE_ROOT/docs-templates/$doc_rel"
+  dest="$TARGET_ABS/docs/$doc_rel"
+  [ -f "$src" ] || continue
+  mkdir_if_real "$TARGET_ABS/docs/${doc_rel%/*}"
+  if [ -f "$dest" ]; then
+    log "  $dest exists — leaving in place"
+  elif [ "$DRY_RUN" = "true" ]; then
+    log "would copy $src -> $dest"
+  else
+    /bin/cp "$src" "$dest"
+    record_emit "docs/$doc_rel" "core/docs-templates/$doc_rel" ""
+  fi
+done
+
 fi
 
 # ----- step 6: synthesize CLAUDE.md --------------------------------------
@@ -1288,6 +1311,19 @@ Lazy-load on demand:
 - `docs/specs/<area>.md` — when touching that area's code.
 - Recipe files in `.claude/rules/` — auto-loaded by Claude Code when matching files are touched (via `paths:` frontmatter).
 
+Canonical artifact paths:
+
+| Artifact | Path |
+|---|---|
+| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
+| Long-lived domain spec | `docs/specs/<area>.md` |
+| Architecture / ADR | `docs/architecture/README.md` / `docs/architecture/NNNN-<topic>.md` |
+| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
+
+Existing files and plugin folders are not policy. These paths win unless
+`docs/INDEX.md` explicitly declares a project override; an unresolved conflict
+requires STOP + ASK before writing.
+
 ## Hooks installed
 
 | Hook | Trigger | Action |
@@ -1297,6 +1333,7 @@ Lazy-load on demand:
 | `pretool-commit-test-coverage-check.sh` | Bash `git commit` | Soft `ask` warn (non-blocking, quality-gates Q3) when a new feature-shaped file is added with no new test in the commit (skip: `CONDUCTOR_SKIP_TEST_COVERAGE_HOOK=1`) |
 | `pretool-large-file-read-guard.sh` | Read tool | Block Read of files ≥ 500 lines without offset/limit; recommends range-read or Grep (override: `CONDUCTOR_ALLOW_LARGE_READ=1`) |
 | `pretool-loop-guard.sh` | Every tool call | Warn on repeated no-progress actions or an exceeded session tool budget when the loop-engineering recipe is active |
+| `output-cap.sh` | After every tool call | Truncate oversized tool output before it re-enters context, with an elision marker (skip: `CONDUCTOR_SKIP_OUTPUT_CAP=1`) |
 | `stop-session-log-check.sh` | Session stop | Block stop when CURRENT_WORK.md / specs are stale after recent commits |
 | `stop-r6-review-check.sh` | Session stop | Remind to run pre-merge review on open PR |
 | `stop-cache-hit-baseline-check.sh` | Session stop | Non-blocking cache-hit-rate diagnostic vs baseline (skip: `CONDUCTOR_SKIP_CACHE_CHECK=1`) |

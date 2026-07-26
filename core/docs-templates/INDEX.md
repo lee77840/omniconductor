@@ -4,6 +4,24 @@
 
 > **Status (P0 placeholder)**: customize on first install. P1 will provide a more developed example.
 
+## Canonical locations and project overrides
+
+| Artifact class | Project path |
+|---|---|
+| Session state | `docs/CURRENT_WORK.md` |
+| Active tasks | `docs/TASKS.md` |
+| Strategic / phase roadmap | `docs/PLANS.md` |
+| Implementation plans | `docs/plans/YYYY-MM-DD-<topic>.md` |
+| Long-lived domain specs | `docs/specs/<area>.md` |
+| Architecture overview | `docs/architecture/README.md` |
+| Architecture decisions | `docs/architecture/NNNN-<topic>.md` |
+| Research notes | `docs/research/YYYY-MM-DD-<topic>.md` |
+
+This table is the explicit project override registry. Change a path here when this
+project intentionally uses a different location. Existing files or plugin-created
+folders that are not declared here do not override these paths; stop and ask before
+following a conflicting precedent.
+
 ---
 
 ## Top-level docs
@@ -21,7 +39,14 @@
 | Doc | Purpose |
 |---|---|
 | `architecture/README.md` | System architecture overview |
-| `architecture/<adr>.md` | Per-decision ADRs |
+| `architecture/NNNN-<topic>.md` | Per-decision ADRs |
+
+## Implementation plans
+
+| Doc | Purpose |
+|---|---|
+| `plans/README.md` | Plan naming and lifecycle |
+| `plans/YYYY-MM-DD-<topic>.md` | Reviewable implementation plan |
 
 ## Specs (per area)
 
@@ -32,6 +57,13 @@
 | `specs/billing.md` | Payment / subscription |
 | `specs/email.md` | Email infrastructure |
 | `specs/<area>.md` | (add per area) |
+
+## Research
+
+| Doc | Purpose |
+|---|---|
+| `research/README.md` | Research-source and naming policy |
+| `research/YYYY-MM-DD-<topic>.md` | Time-stamped research note |
 
 ## Sessions (archive)
 

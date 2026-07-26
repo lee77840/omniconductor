@@ -43,7 +43,10 @@ the required gate. There is no scheduled automatic reactivation.
 1. During development, run `npm run release:verify:local`. It tests the full local
    suite, exact packed npm artifact, fresh six-tool install, published-version
    upgrade matrix, doctor/uninstall behavior, and `npm publish --dry-run` without
-   pushing, dispatching CI, or publishing.
+   pushing, dispatching CI, or publishing. Before the expensive suite, the gate
+   reads npm's current `latest` and complete version list, rejects an already
+   published or non-increasing candidate, and uses that live `latest` as the
+   mandatory upgrade baseline. A stale hard-coded previous release is not allowed.
 2. Commit the release candidate in the private source repository, then run
    `CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 npm run release:verify:local`. This reruns the
    suite and fails unless the exact committed `HEAD` passes the filtered public

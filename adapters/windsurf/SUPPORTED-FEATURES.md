@@ -18,6 +18,7 @@ Detailed matrix of which CONDUCTOR features Windsurf supports.
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Read on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text reminds | Self-policed. |
 | **Two-stage code review enforcement** | ❌ rule reminder only | | |
+| **Tool-output cap (store-time)** | ❌ N/A | — | Windsurf's only verified hook is `post_cascade_response_with_transcript`, which fires after the full response — not a per-tool-call surface — so an individual tool result cannot be capped before it's stored. CONDUCTOR does not fake enforcement here. See ADR-051. |
 
 ## Universal-rule → Windsurf translation
 

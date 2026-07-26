@@ -7,7 +7,7 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CURRENT_PACKAGE="${1:-}"
 PREVIOUS_PACKAGE="${2:-}"
-PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-1.1.1}"
+PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-}"
 
 [ -n "$CURRENT_PACKAGE" ] && [ -f "$CURRENT_PACKAGE" ] || {
   echo "Usage: $0 <current-package.tgz> <previous-package.tgz>" >&2
@@ -75,7 +75,13 @@ cd "$ROOT"
 npm_config_cache="$CACHE" npm install --prefix "$CONSUMER" "$PREVIOUS_PACKAGE" \
   --ignore-scripts --no-audit --no-fund >/dev/null
 CLI="$CONSUMER/node_modules/.bin/omniconductor"
-[ "$($CLI --version)" = "$PREVIOUS_VERSION" ] || fail "previous package version is not $PREVIOUS_VERSION"
+INSTALLED_PREVIOUS_VERSION="$($CLI --version)"
+if [ -n "$PREVIOUS_VERSION" ]; then
+  [ "$INSTALLED_PREVIOUS_VERSION" = "$PREVIOUS_VERSION" ] \
+    || fail "previous package version is not $PREVIOUS_VERSION"
+else
+  PREVIOUS_VERSION="$INSTALLED_PREVIOUS_VERSION"
+fi
 PREVIOUS_INIT_MODEL_ARG=""
 if node -e '
   const [major,minor]=process.argv[1].replace(/^v/, "").split(".").map(Number);

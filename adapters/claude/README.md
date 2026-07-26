@@ -46,12 +46,13 @@ bypass.
 │   │   ├── quality-gates.md
 │   │   ├── operations.md
 │   │   └── meta-discipline.md
-│   ├── hooks/                                 # 10 hook scripts
+│   ├── hooks/                                 # 11 hook scripts
 │   │   ├── pretool-agent-routing.sh
 │   │   ├── pretool-commit-current-work-check.sh
 │   │   ├── pretool-commit-test-coverage-check.sh
 │   │   ├── pretool-large-file-read-guard.sh
 │   │   ├── pretool-loop-guard.sh
+│   │   ├── output-cap.sh
 │   │   ├── stop-session-log-check.sh
 │   │   ├── stop-r6-review-check.sh
 │   │   ├── stop-cache-hit-baseline-check.sh
@@ -65,8 +66,10 @@ bypass.
 │   ├── PLANS.md
 │   ├── TASKS.md
 │   ├── INDEX.md
-│   └── specs/
-│       └── _example.md
+│   ├── specs/_example.md
+│   ├── plans/README.md
+│   ├── architecture/README.md
+│   └── research/README.md
 └── (memory pattern docs — for reference; actual memory at ~/.claude/projects/.../memory/)
 ```
 

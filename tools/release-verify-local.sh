@@ -5,15 +5,37 @@ set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$ROOT/package.json")"
-PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-1.1.1}"
+PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-}"
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/conductor-release-$VERSION.XXXXXX")"
 ARTIFACT_DIR="${CONDUCTOR_RELEASE_DIR:-$BASE/artifact}"
 CACHE="${CONDUCTOR_NPM_CACHE:-${TMPDIR:-/tmp}/conductor-npm-cache}"
 PREVIOUS_PACKAGE="${CONDUCTOR_PREVIOUS_PACKAGE:-}"
 REQUIRE_CLEAN="${CONDUCTOR_RELEASE_REQUIRE_CLEAN:-0}"
+REGISTRY_LATEST="${CONDUCTOR_REGISTRY_LATEST_VERSION:-}"
+REGISTRY_VERSIONS_JSON="${CONDUCTOR_REGISTRY_VERSIONS_JSON:-}"
 
 mkdir -p "$ARTIFACT_DIR"
 cd "$ROOT"
+
+echo "[release] registry version and upgrade baseline"
+if [ -z "$REGISTRY_LATEST" ]; then
+  REGISTRY_LATEST="$(npm_config_cache="$CACHE" npm view omniconductor version \
+    --fetch-retries=1 --fetch-retry-mintimeout=1000 \
+    --fetch-retry-maxtimeout=3000 --fetch-timeout=10000)"
+fi
+if [ -z "$REGISTRY_VERSIONS_JSON" ]; then
+  REGISTRY_VERSIONS_JSON="$(npm_config_cache="$CACHE" npm view omniconductor versions --json \
+    --fetch-retries=1 --fetch-retry-mintimeout=1000 \
+    --fetch-retry-maxtimeout=3000 --fetch-timeout=10000)"
+fi
+[ -n "$REGISTRY_LATEST" ] && [ -n "$REGISTRY_VERSIONS_JSON" ] || {
+  echo "release gate could not establish npm registry state" >&2
+  exit 1
+}
+node tools/check-release-version.js "$VERSION" "$REGISTRY_LATEST" "$REGISTRY_VERSIONS_JSON"
+if [ -z "$PREVIOUS_VERSION" ]; then
+  PREVIOUS_VERSION="$REGISTRY_LATEST"
+fi
 
 echo "[release] full local regression suite"
 npm test
@@ -31,7 +53,8 @@ node tools/generate-adapter-docs.js --check
 bash tools/check-framework-purity.sh
 git diff --check
 for file in adapters/{claude,cursor,copilot,gemini,codex,windsurf}/transform.sh \
-  tools/{test-install-modes,test-multitool-runtime,test-npm-upgrade,live-verify}.sh; do
+  tools/{test-install-modes,test-multitool-runtime,test-npm-upgrade,live-verify}.sh \
+  tools/{test-output-cap,test-doc-path-policy}.sh core/hooks/output-cap.sh.template; do
   bash -n "$file"
 done
 
@@ -48,13 +71,14 @@ else
   echo "          rerun with CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 after the release commit"
   SNAPSHOT_STATUS="DEFERRED (uncommitted working tree)"
 fi
-for file in bin/{omniconductor,doctor,model-routing,path-safety}.js \
-  tools/{test-model-routing,test-path-safety}.js; do
+for file in bin/{omniconductor,doctor,model-routing,path-safety,claude-hookify}.js \
+  tools/{test-model-routing,test-path-safety,test-hookify-posttool,test-release-version,check-release-version}.js; do
   node --check "$file"
 done
 
 echo "[release] pack exact npm candidate"
-PACKAGE_NAME="$(npm_config_cache="$CACHE" npm pack --pack-destination "$ARTIFACT_DIR" | /usr/bin/tail -n 1)"
+PACK_OUTPUT="$(npm_config_cache="$CACHE" npm pack --pack-destination "$ARTIFACT_DIR")"
+PACKAGE_NAME="$(printf '%s\n' "$PACK_OUTPUT" | /usr/bin/tail -n 1)"
 CURRENT_PACKAGE="$ARTIFACT_DIR/$PACKAGE_NAME"
 [ -f "$CURRENT_PACKAGE" ] || { echo "release artifact missing: $CURRENT_PACKAGE" >&2; exit 1; }
 
@@ -85,8 +109,11 @@ if [ -z "$PREVIOUS_PACKAGE" ]; then
   PREVIOUS_DIR="$BASE/previous"
   mkdir -p "$PREVIOUS_DIR"
   echo "[release] fetch published omniconductor@$PREVIOUS_VERSION for upgrade verification"
-  PREVIOUS_NAME="$(npm_config_cache="$CACHE" npm pack "omniconductor@$PREVIOUS_VERSION" \
-    --pack-destination "$PREVIOUS_DIR" | /usr/bin/tail -n 1)"
+  PREVIOUS_OUTPUT="$(npm_config_cache="$CACHE" npm pack "omniconductor@$PREVIOUS_VERSION" \
+    --pack-destination "$PREVIOUS_DIR" --fetch-retries=1 \
+    --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=3000 \
+    --fetch-timeout=10000)"
+  PREVIOUS_NAME="$(printf '%s\n' "$PREVIOUS_OUTPUT" | /usr/bin/tail -n 1)"
   PREVIOUS_PACKAGE="$PREVIOUS_DIR/$PREVIOUS_NAME"
 fi
 

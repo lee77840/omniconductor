@@ -12,8 +12,8 @@ CONDUCTOR is a 3-layer system. Each layer has a single, sharp responsibility.
 │   core/universal-rules/         operations / coding-conventions /          │
 │                                 token-economy / spec-as-you-go /           │
 │                                 model-routing                              │
-│   core/docs-templates/          CURRENT_WORK / REMAINING_TASKS / PLANS /   │
-│                                 TASKS / INDEX / specs/_example.md          │
+│   core/docs-templates/          state/index + canonical specs / plans /    │
+│                                 architecture / research precedents          │
 │   core/memory-pattern/          4-type memory schema + examples            │
 └────────────────┬─────────────────────────────────────────────────────────┘
                  │

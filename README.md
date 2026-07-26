@@ -1,4 +1,4 @@
-# OMNICONDUCTOR
+# CONDUCTOR
 
 **One workflow framework, every coding agent.**
 
@@ -6,18 +6,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
-## ⭐ Community & Feedback
-
-If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
-
-- ⭐ Star the repository if you find it useful.
-- 🐛 Report bugs or unexpected behavior.
-- 💡 Suggest new features or improvements.
-- 💬 Share how you're using OMNICONDUCTOR in your projects.
-
-Every issue, discussion, and success story helps shape future releases.
-
-> **Status (v1.1.2 — 2026-07-19)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Claude full/strict installs now also verify that emitted Hookify/core-hook files have their required project runtime registration without rejecting deliberate per-rule opt-outs. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status remains in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.2.0 — 2026-07-25)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Claude full/strict installs now also verify that emitted Hookify/core-hook files have their required project runtime registration without rejecting deliberate per-rule opt-outs. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status remains in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
 > **New in 1.1.0**: the first CLI install now asks once for Tier 1/2/3 models, saves a revisioned project mapping, regenerates native roles on explicit reconfiguration, fails closed in unconfigured CI, and distinguishes configured, provider-controlled, and advisory routing. It also includes the six-adapter runtime/ownership and bounded Codex-kernel hardening. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
@@ -48,7 +37,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 ### 무엇
 
-`OMNICONDUCTOR` 는 6개의 AI 코딩 도구 (Claude Code / Cursor / GitHub Copilot / Gemini CLI / Codex / Windsurf) 모두에서 동일한 워크플로 + 룰 + 문서 템플릿을 강제하는 프레임워크입니다.
+`CONDUCTOR` 는 6개의 AI 코딩 도구 (Claude Code / Cursor / GitHub Copilot / Gemini CLI / Codex / Windsurf) 모두에서 동일한 워크플로 + 룰 + 문서 템플릿을 강제하는 프레임워크입니다.
 
 핵심 아이디어:
 
@@ -59,7 +48,7 @@ Every issue, discussion, and success story helps shape future releases.
 ### 강제하는 워크플로
 
 1. **Plan → Architecture → Tasks → Implementation → Review → Spec** (skip 금지)
-2. **Spec-as-you-go** — 코드 변경 시 `docs/specs/*.md` 동시 업데이트 (Claude/Codex는 Stop hook 검증, 나머지는 룰 reminder)
+2. **Spec-as-you-go + 정본 경로** — 코드 변경 시 `docs/specs/*.md` 동시 업데이트. 계획은 `docs/plans/`, 아키텍처는 `docs/architecture/`, 조사는 `docs/research/`; 기존 플러그인 폴더는 `docs/INDEX.md`에 명시한 경우에만 이 기본값을 대체합니다.
 3. **2-stage 코드 리뷰** — pre-commit + pre-merge
 4. **Token economy** — large-file Read 금지 / Grep first / range read
 5. **Difficulty routing** — 기존 Tier 1/2/3 난이도를 고정하고, 최초 설치에서 승인한 도구별 모델과 reasoning effort로 변환
@@ -77,7 +66,7 @@ Every issue, discussion, and success story helps shape future releases.
 > 가장 간단(클론 불필요): `npx omniconductor init --target=claude .` — 아래는 클론+bash 방식입니다.
 
 ```bash
-# 1. OMNICONDUCTOR 클론
+# 1. CONDUCTOR 클론
 git clone https://github.com/lee77840/omniconductor ~/conductor
 
 # 2. 적용할 프로젝트로 이동
@@ -98,7 +87,7 @@ bash ~/conductor/adapters/claude/transform.sh . \
 ### 설치 방법 (3가지)
 
 - **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
-- **Path B — 로컬 bash 래퍼**: OMNICONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
+- **Path B — 로컬 bash 래퍼**: CONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
 
@@ -124,8 +113,8 @@ bash ~/conductor/adapters/claude/transform.sh . \
 
 ### 업데이트 / 제거
 
-- **업데이트**: OMNICONDUCTOR 클론을 `git pull` 후 어댑터 재실행 (또는 `npx omniconductor` 최신 버전).
-- **제거**: `bash adapters/<tool>/transform.sh <dir> --uninstall` — manifest 기반으로 OMNICONDUCTOR 가 넣은 파일만 복원/삭제 (직접 커스터마이즈한 건 보존).
+- **업데이트**: CONDUCTOR 클론을 `git pull` 후 어댑터 재실행 (또는 `npx omniconductor` 최신 버전).
+- **제거**: `bash adapters/<tool>/transform.sh <dir> --uninstall` — manifest 기반으로 CONDUCTOR 가 넣은 파일만 복원/삭제 (직접 커스터마이즈한 건 보존).
 
 ### 상세 레퍼런스 (영문)
 
@@ -137,7 +126,7 @@ bash ~/conductor/adapters/claude/transform.sh . \
 
 ### What
 
-OMNICONDUCTOR enforces the same workflow, rules, and documentation discipline across **six AI coding tools**: Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf.
+CONDUCTOR enforces the same workflow, rules, and documentation discipline across **six AI coding tools**: Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf.
 
 Three layers:
 
@@ -149,12 +138,12 @@ Three layers:
 
 - Solo developers and small teams increasingly mix AI coding tools within a single project.
 - Switching tools means re-writing rules from scratch — losing the same discipline you spent months building.
-- OMNICONDUCTOR lets you write the discipline once and keep it across tools.
+- CONDUCTOR lets you write the discipline once and keep it across tools.
 
 ### Workflow enforced
 
 1. **Plan → Architecture → Tasks → Implementation → Review → Spec** (no skipping)
-2. **Spec-as-you-go**: code change touches matching `docs/specs/*.md` (checked by Stop hooks on Claude/Codex; rule-text reminder elsewhere)
+2. **Spec-as-you-go + canonical paths**: code changes update matching `docs/specs/*.md`; implementation plans, architecture, and research use their seeded `docs/` directories unless `docs/INDEX.md` explicitly overrides the artifact class.
 3. **Two-stage code review**: pre-commit + pre-merge PR
 4. **Token economy**: no large-file reads, Grep first, range reads
 5. **Difficulty routing**: preserve Tier 1/2/3, then compile the one-time saved per-tool model mapping and reasoning effort
@@ -192,9 +181,9 @@ Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](
 Separate two things (per [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md), re-verified against first-party sources 2026-07-04, ADR-031):
 
 - **Tool capability** — capability varies by product and version; the matrix records only verified native surfaces.
-- **OMNICONDUCTOR emission** — every full/strict adapter now emits a role entry in the strongest verified native form. Hook coverage remains capability-specific: full on Claude, a verified guard subset on Codex, and verified recipe/runtime hooks elsewhere.
+- **CONDUCTOR emission** — every full/strict adapter now emits a role entry in the strongest verified native form. Hook coverage remains capability-specific: full on Claude, a verified guard subset on Codex, and verified recipe/runtime hooks elsewhere.
 
-The columns below show **OMNICONDUCTOR emission today**:
+The columns below show **CONDUCTOR emission today**:
 
 | Tool | Adapter (rules) | Hooks | Sub-agents | Difficulty/model translation | Recommended install |
 |---|---|---|---|---|---|
@@ -222,7 +211,7 @@ There are three install paths. **`npx omniconductor` (Path A) is the easiest —
 No clone required. Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor):
 
 ```bash
-# Install OMNICONDUCTOR's workflow into your project — for any of the 6 tools:
+# Install CONDUCTOR's workflow into your project — for any of the 6 tools:
 npx omniconductor init --target=claude ~/your-project --recipes=coding-conventions,tdd
 # targets: claude | cursor | copilot | gemini | codex | windsurf
 
@@ -304,8 +293,8 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 
 ### Common gotchas
 
-- **GNU vs BSD `sed`**: macOS ships BSD `sed`, which requires `-i ''` for in-place edits; Linux/Git-Bash use GNU `sed -i`. OMNICONDUCTOR adapters avoid `sed -i` entirely (use `cat > new` + `mv` instead) to side-step this.
-- **CRLF vs LF on Windows**: OMNICONDUCTOR source files are LF + UTF-8. If `git config core.autocrlf=true` rewrites `.sh` files to CRLF, bash will error with `\r: command not found`. Set:
+- **GNU vs BSD `sed`**: macOS ships BSD `sed`, which requires `-i ''` for in-place edits; Linux/Git-Bash use GNU `sed -i`. Conductor adapters avoid `sed -i` entirely (use `cat > new` + `mv` instead) to side-step this.
+- **CRLF vs LF on Windows**: Conductor source files are LF + UTF-8. If `git config core.autocrlf=true` rewrites `.sh` files to CRLF, bash will error with `\r: command not found`. Set:
 
   ```bash
   git config --global core.autocrlf input
@@ -394,24 +383,24 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | File | Already exists |
 |---|---|
 | `CLAUDE.md` / `GEMINI.md` / `AGENTS.md` / `.github/copilot-instructions.md` | Backed up to `.conductor-backup-YYYYMMDD-HHMMSS`, then overwritten (`--mode=strict`: aborts instead) |
-| Tool-native rule files | Backed up + overwritten when OMNICONDUCTOR owns the path |
-| Tool-native agent/workflow files | Backed up + overwritten when OMNICONDUCTOR owns the path |
+| Tool-native rule files | Backed up + overwritten when CONDUCTOR owns the path |
+| Tool-native agent/workflow files | Backed up + overwritten when CONDUCTOR owns the path |
 | Verified hook scripts/config | Manifest-managed; user-owned hook config is preserved when safe merge is unavailable |
 | `.claude/hookify.*.local.md` | **Preserved** (adopter customizations win) |
 | `.claude/settings.json` Claude runtime entries | Missing Hookify key and core hook registrations are merged with a reversible backup; other keys, existing hook options, and an explicit plugin `false` are preserved |
-| `docs/CURRENT_WORK.md` etc. | **Preserved** (never overwritten) |
+| `docs/CURRENT_WORK.md` and canonical doc seeds | **Preserved** (never overwritten) |
 
 ---
 
 ## Update / Maintenance / Uninstall
 
-### Update OMNICONDUCTOR itself
+### Update Conductor itself
 
 ```bash
 cd ~/conductor && git pull
 ```
 
-Then re-run `transform.sh` on each target — installs are idempotent. An unchanged OMNICONDUCTOR file retains its original pre-install backup; a user-edited emitted file is backed up before replacement. Manifest entries record the emitted SHA-256 to make uninstall non-destructive.
+Then re-run `transform.sh` on each target — installs are idempotent. An unchanged CONDUCTOR file retains its original pre-install backup; a user-edited emitted file is backed up before replacement. Manifest entries record the emitted SHA-256 to make uninstall non-destructive.
 
 ### Maintainer release verification
 
@@ -551,7 +540,7 @@ git checkout -- .       # re-checkout with LF
 
 #### 4-type memory pattern (`core/memory-pattern/`)
 
-OMNICONDUCTOR uses one 4-type memory taxonomy across all tools. Claude, Copilot
+CONDUCTOR uses one 4-type memory taxonomy across all tools. Claude, Copilot
 preview, Codex opt-in, and Windsurf map it to verified managed-memory locations;
 Cursor and Gemini use the documented project-local fallback until a stable native
 contract is verified. See `core/memory-pattern/README.md` for current paths and
@@ -572,11 +561,11 @@ fallback when a native equivalent is unavailable. See `core/memory-pattern/READM
 
 | ADR | Topic | Why it matters |
 |---|---|---|
-| **ADR-001** | 3-layer architecture (Universal / Adapter / Tool-native) | Why OMNICONDUCTOR is multi-tool from day 1 |
+| **ADR-001** | 3-layer architecture (Universal / Adapter / Tool-native) | Why Conductor is multi-tool from day 1 |
 | **ADR-004** | Historical no-fake-polyfill boundary; native role emission later superseded by ADR-045 | Honesty principle preserved |
-| **ADR-006** | Bilingual (한/영) rule support | OMNICONDUCTOR's korean-first roots |
+| **ADR-006** | Bilingual (한/영) rule support | Conductor's korean-first roots |
 | **ADR-014** | Cache hit rate ≥ 95% SLA | The measurable success criterion |
-| **ADR-016** | Reference-adopter ↔ OMNICONDUCTOR bidirectional sync | Where production patterns come from |
+| **ADR-016** | Reference-adopter ↔ Conductor bidirectional sync | Where production patterns come from |
 | **ADR-020** | `--uninstall` + manifest tracking | Why install is reversible |
 | **ADR-021** | Cursor adapter (`adapters/cursor/transform.sh`) | Adapter design for `.cursor/rules/*.mdc` |
 | **ADR-022** | Copilot adapter (single-format, 5-IDE coverage) | Why one Copilot install covers VSCode + Cursor + Windsurf + JetBrains + Neovim |
@@ -610,9 +599,9 @@ A: Phase 3+ (ADR-023). Use Git Bash (ships with Git for Windows) or WSL2.
 
 **Q: How do I add custom project-specific rules?**
 
-A: Put them in `AGENT.md` at your target's root (OMNICONDUCTOR never overwrites this). Or hand-edit `CLAUDE.md` and `diff` against `CLAUDE.md.conductor-backup-*` after re-installs.
+A: Put them in `AGENT.md` at your target's root (Conductor never overwrites this). Or hand-edit `CLAUDE.md` and `diff` against `CLAUDE.md.conductor-backup-*` after re-installs.
 
-**Q: Mix OMNICONDUCTOR with Superpowers / other frameworks?**
+**Q: Mix Conductor with Superpowers / other frameworks?**
 
 A: See `docs/COMPARISON.md` for the conflict-resolution decision tree (3 patterns: Conductor-only / cherry-pick recipes only / both with reconciliation). Running both unmoderated breaks the 95% cache-hit SLA — pick one primary framework.
 
@@ -620,7 +609,7 @@ A: See `docs/COMPARISON.md` for the conflict-resolution decision tree (3 pattern
 
 A: Re-running `transform.sh` is safe. An unchanged emitted file keeps its first pre-CONDUCTOR backup; an edited emitted file is snapshotted before replacement. `--uninstall` preserves any file whose emitted SHA-256 no longer matches, rather than deleting it. `docs/CURRENT_WORK.md` and other doc templates are NEVER overwritten if they already exist.
 
-**Q: Use OMNICONDUCTOR before all 6 adapters ship?**
+**Q: Use Conductor before all 6 adapters ship?**
 
 A: Yes — all 6 adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) now ship a `transform.sh`. Install any of them with `bash adapters/<tool>/transform.sh <target>` or `node bin/omniconductor.js init --target=<tool> <target>`; both require Node.js and run the same one-time model-routing transaction. `docs/MANUAL-INSTALL.md` (copy-paste commands) remains the no-Node fallback.
 
@@ -646,7 +635,7 @@ The 3-layer architecture (ADR-001) means:
 
 ### License
 
-Apache License 2.0 — free and open for any use, including commercial. Only the **OMNICONDUCTOR** name is reserved: it is a trademark of LFamily Labs LLC (take the code, not the name). See `LICENSE`, `NOTICE`, and `TRADEMARKS.md`.
+Apache License 2.0 — free and open for any use, including commercial. Only the **CONDUCTOR** name is reserved: it is a trademark of LFamily Labs LLC (take the code, not the name). See `LICENSE`, `NOTICE`, and `TRADEMARKS.md`.
 
 ### Credits
 

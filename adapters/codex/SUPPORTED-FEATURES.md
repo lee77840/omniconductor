@@ -18,6 +18,7 @@ Detailed matrix of which CONDUCTOR features Codex supports.
 | **Spec-as-you-go ABSOLUTE enforcement** | ✅ Guard + rule | Codex Stop hook | Guardrail, not a complete security boundary. |
 | **Two-stage code review enforcement** | ✅ Guard + role | reviewer + code-reviewer + Stop review check | |
 | **Multi-step orchestration** | ✅ Native roles | `.codex/agents/*.toml` | Eight profiles use the saved project Tier mapping. |
+| **Tool-output cap (store-time)** | ✅ Native config | `.codex/config.toml` `tool_output_token_limit = 12000` (Codex's own tokenizer) | Baked value, not the shared hook — `CONDUCTOR_OUTPUT_CAP_TOKENS`/`CONDUCTOR_SKIP_OUTPUT_CAP` do NOT apply to Codex. Only-if-absent; a pre-existing file is preserved with an "add manually" log line. Codex exposes no config echo, so recognition can never be positively confirmed — `doctor` WARNs once when a Codex CLI is present but unconfirming. See ADR-051. |
 
 ## Universal-rule → Codex runtime translation
 

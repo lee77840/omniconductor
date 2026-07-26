@@ -28,6 +28,7 @@ This matrix describes which CONDUCTOR features are supported by each target tool
 | **Two-stage code review enforcement** | ✅ Stop hook | ✅¹² | ✅¹² (+ native PR review) | ✅¹² | ✅¹² | ⚠️¹² |
 | **In-repo doc templates work as-is** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Bilingual rule support (한/영)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Tool-output cap (store-time)** | ✅ PostToolUse hook (≥v2.1.121)¹³ | ❌¹³ | ❌¹³ | ✅ BeforeTool shell rewrite (shell only)¹³ | ✅ native config key¹³ | ❌¹³ |
 
 **Footnotes (first-party sources, verified 2026-07-04; emission updated 2026-07-13).** ✅ = tool capability confirmed; see the status note for what CONDUCTOR emits.
 
@@ -43,6 +44,7 @@ This matrix describes which CONDUCTOR features are supported by each target tool
 10. **Lazy rules** — Gemini/Codex offer nested `GEMINI.md`/`AGENTS.md` directory-hierarchy scoping, not glob-on-file-touch loading.
 11. **Windsurf paths** — rules are now `.devin/rules/` (legacy `.windsurf/rules/`). The CONDUCTOR Windsurf adapter **emits `.devin/rules/*.md`** (preferred) plus the always-loaded `.windsurfrules` baseline — target path already updated (as of v0.6).
 12. **Auto-block enforcement** — tool capability varies. CONDUCTOR emits the full set for Claude and verified commit/session/review guards for Codex. Cursor/Copilot/Gemini retain rule obligations plus their verified Reflector hook; Windsurf uses the per-response Reflector hook and external Git/CI gates.
+13. **Tool-output cap (ADR-051)** — reach is honestly 3/6, not rounded up. Claude: `PostToolUse` hook returns `updatedToolOutput` (head+tail+marker); requires Claude Code ≥v2.1.121, below which it silently no-ops (`doctor` D5 warns). Codex: baked `tool_output_token_limit` in `.codex/config.toml` — its own tokenizer, not the shared hook, so the `CONDUCTOR_OUTPUT_CAP_TOKENS`/`CONDUCTOR_SKIP_OUTPUT_CAP` env overrides below do not apply to it; Codex exposes no config echo, so recognition can never be positively confirmed (`doctor` WARNs only when a Codex CLI is present but unconfirming). Gemini: `BeforeTool` rewrites `run_shell_command` only (not other tool types) to merge stdout+stderr and pipe the combined stream through a byte-capping `awk` truncator — head-only (no tail), with the two output channels no longer separate. It only takes effect if `.gemini/settings.json` didn't already exist (a pre-existing file skips the whole hook set with a manual-merge warning, so Gemini's *effective* reach can be 0 until an adopter merges by hand). Cursor/Copilot/Windsurf are ❌ N/A, not partial: none has a verified per-tool-call, store-time output-edit hook contract (Cursor post-hooks are observe-only for this purpose; Copilot exposes no verified output replacement; Windsurf's response/transcript hooks fire after context ingestion) — see ADR-051.
 
 ## Tier assignment
 
@@ -62,8 +64,8 @@ Compatibility tiers reflect **how completely CONDUCTOR can map the full workflow
 | Claude Code | T1 | `CLAUDE.md` + `.claude/rules` + `.claude/agents` + `.claude/hooks` + `.claude/settings.json` + `docs/CURRENT_WORK.md` | — | ✅ 2026-07-09 | `claude -p` | per-file |
 | Cursor | T1 | `.cursor/rules` + `.cursor/agents` + `docs/CURRENT_WORK.md` | `.cursorrules` (legacy) | 🧪 pending | `cursor-agent -p` | per-file |
 | Copilot | T2 | `.github/copilot-instructions.md` + `.github/instructions` + `.github/agents` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `copilot -p` | per-file |
-| Gemini CLI | T2 | `GEMINI.md` + `.gemini/styleguide.md` + `.gemini/agents` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `gemini -p` | marked block |
-| Codex | T2 | `AGENTS.md` + `.codex/conductor/rules` + `.codex/agents` + `.codex/hooks` + `.codex/hooks.json` + `docs/CURRENT_WORK.md` | `.codex/codex.md` (legacy) | ✅ 2026-07-13 | `codex exec` | marked block |
+| Gemini CLI | T2 | `GEMINI.md` + `.gemini/styleguide.md` + `.gemini/agents` + `.gemini/hooks` + `.gemini/settings.json` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `gemini -p` | marked block |
+| Codex | T2 | `AGENTS.md` + `.codex/conductor/rules` + `.codex/agents` + `.codex/hooks` + `.codex/hooks.json` + `.codex/config.toml` + `docs/CURRENT_WORK.md` | `.codex/codex.md` (legacy) | ✅ 2026-07-13 | `codex exec` | marked block |
 | Windsurf | T3 | `.windsurfrules` + `.devin/rules` + `.windsurf/workflows` + `docs/CURRENT_WORK.md` | `.windsurf/rules` (legacy) | 🧪 pending | `devin -p` | per-file |
 <!-- /generated:adapter-outputs-table -->
 
@@ -94,7 +96,8 @@ Smaller residuals: Gemini/Codex scope rules by nested-file hierarchy rather than
 What you KEEP everywhere (unchanged):
 
 - All rule text, including the vendor-neutral difficulty routing contract.
-- All doc templates (CURRENT_WORK, REMAINING_TASKS, PLANS, TASKS, INDEX, specs/_example).
+- All doc templates (five top-level state/index files plus canonical
+  specs/plans/architecture/research seeds).
 - The 4-type memory pattern (built-in managed memory now also exists on Copilot/Codex/Windsurf).
 - The Plan → Architecture → Tasks → Impl → Review → Spec phase definitions.
 

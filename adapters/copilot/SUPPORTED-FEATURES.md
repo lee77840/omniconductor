@@ -20,6 +20,7 @@ Detailed matrix of which CONDUCTOR features Copilot supports natively.
 | **In-repo doc templates** | ✅ Universal | Plain markdown; Copilot Chat reads on demand | |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule in `.instructions.md` with `applyTo: 'docs/specs/**,**/*.md'` reminds when relevant files are touched | Self-policed. |
 | **Two-stage code review enforcement** | ⚠️ Partial | Stage A: rule reminder; Stage B: configure Copilot PR review feature | |
+| **Tool-output cap (store-time)** | ❌ N/A | — | Copilot's only verified hook contract is `agentStop`; its extensibility beyond that is MCP, not a per-tool-call output-rewrite surface, so there is no mechanism to cap an individual tool result before it's stored. CONDUCTOR does not fake enforcement here. See ADR-051. |
 
 ## Universal-rule → Copilot `.instructions.md` translation
 

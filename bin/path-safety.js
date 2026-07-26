@@ -7,26 +7,28 @@ const COMMON = [
   '.conductor',
   'docs/CURRENT_WORK.md', 'docs/REMAINING_TASKS.md', 'docs/PLANS.md',
   'docs/TASKS.md', 'docs/INDEX.md', 'docs/specs/_example.md',
+  'docs/plans/README.md', 'docs/architecture/README.md', 'docs/research/README.md',
   '.conductor-manifest.json',
 ];
 const MANAGED = {
   claude: ['CLAUDE.md', '.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/settings.json'],
   cursor: ['.cursorrules', '.cursor/rules', '.cursor/agents', '.cursor/skills', '.cursor/hooks.json'],
   copilot: ['.github/copilot-instructions.md', '.github/instructions', '.github/agents', '.github/hooks', '.github/prompts'],
-  gemini: ['GEMINI.md', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/settings.json'],
-  codex: ['AGENTS.md', '.codex/conductor', '.codex/agents', '.codex/hooks', '.codex/hooks.json', '.agents/skills'],
+  gemini: ['GEMINI.md', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.gemini/settings.json'],
+  codex: ['AGENTS.md', '.codex/conductor', '.codex/agents', '.codex/hooks', '.codex/hooks.json', '.codex/config.toml', '.agents/skills'],
   windsurf: ['.windsurfrules', '.windsurf/workflows', '.windsurf/hooks', '.windsurf/hooks.json', '.devin/rules'],
 };
 const COMMON_MANIFEST_FILES = new Set([
   'docs/CURRENT_WORK.md', 'docs/REMAINING_TASKS.md', 'docs/PLANS.md',
   'docs/TASKS.md', 'docs/INDEX.md', 'docs/specs/_example.md',
+  'docs/plans/README.md', 'docs/architecture/README.md', 'docs/research/README.md',
   '.conductor/project.json', '.conductor/trajectories/.gitignore',
 ]);
 const MANIFEST_DIRS = {
   claude: ['.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands'],
   cursor: ['.cursor/rules', '.cursor/agents', '.cursor/skills'],
   copilot: ['.github/instructions', '.github/agents', '.github/hooks', '.github/prompts'],
-  gemini: ['.gemini/agents', '.gemini/commands'],
+  gemini: ['.gemini/agents', '.gemini/commands', '.gemini/hooks'],
   codex: ['.codex/conductor', '.codex/agents', '.codex/hooks', '.agents/skills'],
   windsurf: ['.windsurf/workflows', '.windsurf/hooks', '.devin/rules'],
 };

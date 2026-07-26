@@ -9,6 +9,7 @@
     { "path": ".codex/agents", "kind": "agents", "validated": true },
     { "path": ".codex/hooks", "kind": "hooks", "validated": true },
     { "path": ".codex/hooks.json", "kind": "config", "validated": true },
+    { "path": ".codex/config.toml", "kind": "config", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [

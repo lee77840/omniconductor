@@ -138,6 +138,7 @@ Output (default):
   <target>/.github/copilot-instructions.md            (5 universal rules merged)
   <target>/.github/instructions/<recipe>.instructions.md  (per recipe, applyTo: from paths)
   <target>/docs/{CURRENT_WORK,REMAINING_TASKS,PLANS,TASKS,INDEX}.md
+  <target>/docs/{specs,plans,architecture,research}/  Canonical artifact seeds
 
 Skipped for Copilot:
   Claude-only Agent/Read hook contracts and Hookify rules
@@ -558,7 +559,7 @@ do_uninstall() {
   fi
   conductor_manifest_refresh_projection
 
-  for d in .github/instructions .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor; do
+  for d in .github/instructions .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -920,6 +921,21 @@ if [ -f "$CORE_ROOT/docs-templates/specs/_example.md" ]; then
     fi
   fi
 fi
+
+for doc_rel in plans/README.md architecture/README.md research/README.md; do
+  src="$CORE_ROOT/docs-templates/$doc_rel"
+  dest="$TARGET_ABS/docs/$doc_rel"
+  [ -f "$src" ] || continue
+  mkdir_if_real "$TARGET_ABS/docs/${doc_rel%/*}"
+  if [ -f "$dest" ]; then
+    log "  $dest exists — leaving in place"
+  elif [ "$DRY_RUN" = "true" ]; then
+    log "would copy $src -> $dest"
+  else
+    /bin/cp "$src" "$dest"
+    record_emit "docs/$doc_rel" "core/docs-templates/$doc_rel" ""
+  fi
+done
 
 # ----- step 4: skip notice -----------------------------------------------
 

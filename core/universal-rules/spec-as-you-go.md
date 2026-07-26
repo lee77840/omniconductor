@@ -47,6 +47,10 @@ Documented production failure: a multi-file refactor changed 4 service signature
 
 If the area you're touching does not yet have a `docs/specs/<area>.md`, CREATE IT in the same turn. Use `core/docs-templates/specs/_example.md` (shipped by every CONDUCTOR adapter) as the starting point.
 
+Do not infer a different spec directory from legacy files or plugin-created
+folders. `workflow.md` section 1.4 defines path precedence: only an explicit
+artifact-class override in `docs/INDEX.md` replaces `docs/specs/`.
+
 ---
 
 ## 2. Real-Time Docs Sync (O1)

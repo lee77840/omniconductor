@@ -18,6 +18,7 @@ Detailed matrix of which CONDUCTOR features Gemini CLI supports.
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Gemini reads on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `GEMINI.md` reminds user | Self-policed. |
 | **Two-stage code review enforcement** | ❌ rule reminder only | | |
+| **Tool-output cap (store-time)** | ⚠️ Shell-only | `.gemini/hooks/output-cap.sh`, `BeforeTool` rewrite of `run_shell_command`'s `tool_input.command` into a combined-stream `awk` truncator | Only fires for `run_shell_command`, not other tool types; stdout+stderr are merged and bounded together, so separate channels are not preserved; head-only (no tail — a streaming cap can't buffer a tail). Composed into a single `.gemini/settings.json` write, only-if-absent — a pre-existing user settings.json skips the whole hook set (cap included) with a manual-merge log line, so effective reach can be 0 until an adopter merges by hand. See ADR-051. |
 
 ## Universal-rule → Gemini bundle translation
 
@@ -60,7 +61,7 @@ inherited environment variables cannot replace the saved mapping.
 
 With `--recipes=self-improvement`, the Gemini adapter emits the Reflector loop (ADR-032):
 
-- **Hook**: `.gemini/settings.json` — registers `.conductor/reflect/trajectory-log.sh` on the `SessionEnd` event. Written only if no settings/hook config exists; if one is already present, the adapter emits a manual-merge log entry instead of overwriting.
+- **Hook**: `.gemini/settings.json` — registers `.conductor/reflect/trajectory-log.sh` on the `SessionEnd` event, composed into the same settings.json write as the always-on `BeforeTool` output-cap hook (ADR-051). Written only if no settings/hook config exists; if one is already present, the adapter emits a manual-merge log entry instead of overwriting.
 - **Command**: `.gemini/commands/reflect.toml` — the `/reflect` command that distills the trajectory log into lesson candidates.
 - **Agent**: `.gemini/agents/reflector.md` — named reflector agent for the distillation pass.
 - **Scripts**: `.conductor/reflect/trajectory-log.sh` (session trajectory capture) and `.conductor/reflect/prune-lessons.sh` (lesson-file size pruning).
