@@ -3,6 +3,16 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.2.1] — 2026-07-26
+
+### Fixed
+
+- Restored the public Community & Feedback section with direct links to GitHub
+  Issues and Discussions.
+- Standardized user-facing README branding on **OMNICONDUCTOR** while retaining
+  technical identifiers such as `.conductor/` paths and `CONDUCTOR_*`
+  environment variables.
+
 ## [1.2.0] — 2026-07-25
 
 ### Added
