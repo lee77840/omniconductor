@@ -211,6 +211,48 @@ grep -q 'USER-EDIT-BEFORE-UPDATE' "$d/$BASELINE" 2>/dev/null \
   && ok "full: update snapshots a user edit before replacement" \
   || bad "full update lost user edit"
 
+# ---- uninstall empty-directory hygiene -------------------------------------
+# The final adapter manifest must not leave an empty registry directory. Codex
+# also emits complete rule/recipe references below .codex/conductor; their
+# parents should collapse after the managed files are removed.
+d="$BASE/uninstall-empty-dirs"; mkdir -p "$d"
+run_adapter "$d" --no-prompt --recipes=tdd >/dev/null 2>&1
+run_adapter "$d" --uninstall >/dev/null 2>&1
+empty_dirs_clean=true
+[ ! -d "$d/.conductor/manifests" ] || empty_dirs_clean=false
+if [ "$TOOL" = "codex" ]; then
+  [ ! -d "$d/.codex/conductor/rules" ] || empty_dirs_clean=false
+  [ ! -d "$d/.codex/conductor/recipes" ] || empty_dirs_clean=false
+  [ ! -d "$d/.codex/conductor" ] || empty_dirs_clean=false
+fi
+$empty_dirs_clean \
+  && ok "full: uninstall prunes empty managed directories" \
+  || bad "full uninstall left empty managed directories"
+
+# Cleanup is deliberately best-effort rmdir, never recursive deletion. Prove
+# adopter files in every newly-pruned directory survive with exact bytes.
+d="$BASE/uninstall-user-dirs"; mkdir -p "$d/.conductor/manifests"
+printf 'USER-MANIFEST-DIR-%s\n' "$TOOL" > "$d/.conductor/manifests/user.keep"
+if [ "$TOOL" = "codex" ]; then
+  mkdir -p "$d/.codex/conductor/rules" "$d/.codex/conductor/recipes"
+  printf 'USER-CODEX-RULES\n' > "$d/.codex/conductor/rules/user.keep"
+  printf 'USER-CODEX-RECIPES\n' > "$d/.codex/conductor/recipes/user.keep"
+fi
+run_adapter "$d" --no-prompt --recipes=tdd >/dev/null 2>&1
+run_adapter "$d" --uninstall >/dev/null 2>&1
+user_dirs_safe=true
+[ "$(/bin/cat "$d/.conductor/manifests/user.keep" 2>/dev/null)" = "USER-MANIFEST-DIR-$TOOL" ] \
+  || user_dirs_safe=false
+if [ "$TOOL" = "codex" ]; then
+  [ "$(/bin/cat "$d/.codex/conductor/rules/user.keep" 2>/dev/null)" = "USER-CODEX-RULES" ] \
+    || user_dirs_safe=false
+  [ "$(/bin/cat "$d/.codex/conductor/recipes/user.keep" 2>/dev/null)" = "USER-CODEX-RECIPES" ] \
+    || user_dirs_safe=false
+fi
+$user_dirs_safe \
+  && ok "full: uninstall preserves adopter files in managed directory roots" \
+  || bad "full uninstall removed adopter directory content"
+
 # ---- minimal ---------------------------------------------------------------
 d="$BASE/minimal"; mkdir -p "$d"
 minimal_install_ok=false

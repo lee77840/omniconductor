@@ -19,9 +19,17 @@ from `reviewer`, which reviews plans and architecture before implementation.
 - The relevant diff (normally against the task base SHA).
 - The implementation files and directly affected call sites.
 - Test results and the tests that claim to cover the change.
+- A reproducible reviewed-snapshot identity: commit/tree SHA or deterministic diff
+  digest, plus the intended base.
 
 If the base SHA or requested behavior is missing, report that limitation before
 reviewing. Do not silently invent the intended behavior.
+
+When prior review evidence is supplied, compare its snapshot identity before reading
+the whole change. If the current snapshot matches, inspect only PR-specific evidence.
+If only part changed, review the unreviewed delta and its affected callers. Fall back
+to a full review when provenance is missing, the base changed incompatibly, history was
+rewritten, or the delta has broad semantic effects.
 
 ## Review order
 
@@ -49,6 +57,11 @@ Lead with findings, ordered by severity:
 
 ## Verification gaps
 - Tests or runtime checks that could not be confirmed
+
+## Review provenance
+- Base: `<sha>`
+- Snapshot: `<tree-sha | commit-sha | diff-digest>`
+- Scope: `full | delta | provenance-check`
 
 ## Verdict
 APPROVE | REQUEST_CHANGES | BLOCK

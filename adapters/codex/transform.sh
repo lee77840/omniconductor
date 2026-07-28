@@ -623,7 +623,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (deepest first).
-  for d in .agents/skills/reflect .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .codex/agents .codex/hooks .codex .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/reflect .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .codex/agents .codex/hooks .codex/conductor/rules .codex/conductor/recipes .codex/conductor .codex .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then

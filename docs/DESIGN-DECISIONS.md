@@ -1458,6 +1458,11 @@ uses medium Codex reasoning instead of the prior unrelated `fast`/low setting.
 
 **Status**: Accepted (2026-07-13)
 
+**Clarification (2026-07-28)**: A project may save the same exact model for multiple
+tiers. This does not collapse difficulty: Codex continues to compile Tier 1/2/3 to
+high/medium/low reasoning effort independently of the model slug. A project-level
+single-family policy therefore needs no universal Tier change.
+
 **Context**: Dynamic inheritance removed Claude terminology from the portable Tier
 contract, but it did not satisfy projects that need an intentional model choice for
 every supported tool. A proposed wizard inside the first real work prompt could not
@@ -2022,3 +2027,51 @@ adapter set.
   worse than an explicit rule fallback.
 - *Probe provider versions during install.* Rejected — it would make a portable,
   offline file compiler depend on machine state and external executables.
+
+## ADR-057 — Review and test evidence is scoped to an exact code snapshot
+
+**Status**: Accepted (2026-07-28)
+
+**Context**: Q1 and Q2 correctly required two review boundaries, but the wording
+encouraged two full model reviews even when the PR code was byte-identical to the
+pre-commit review. The TDD recipe likewise requested a full project suite after each
+Green step. On large repositories, these repetitions spend model tokens and test time
+without adding independent evidence.
+
+**Decision**:
+
+1. Q1 records a reproducible reviewed snapshot: preferably a staged tree SHA, otherwise
+   a base SHA plus deterministic complete-diff digest.
+2. Q2 keeps its independent merge boundary but reuses an identical Q1 snapshot. It
+   checks PR-only evidence when head and base are unchanged, reviews only the unreviewed
+   head/base delta when they changed, and falls back to a full review when provenance or
+   semantic isolation is uncertain.
+3. Verification follows a ladder: focused tests during the edit loop, impacted
+   subsystem tests as the change stabilizes, and one required full gate on the final
+   snapshot. A code change invalidates that final evidence and requires a new final
+   gate; an identical SHA may reuse trusted local or CI evidence.
+4. Security, authentication, database/migration, and cross-platform changes retain
+   broad verification whenever their affected surface is inherently broad.
+5. Model routing is unchanged. Project-specific same-family Tier mappings remain valid,
+   and adapters with independent reasoning controls continue to translate Tier
+   1/2/3 to high/medium/low.
+
+**Consequences**:
+
+- Two-stage review remains mandatory, but identical code is not billed for two full
+  model scans.
+- Test failures are found quickly with focused checks, while final regression coverage
+  remains tied to the exact code snapshot that ships.
+- Evidence reports must name the reviewed/tested snapshot and scope; vague “passed”
+  statements are not reusable.
+- The Stop reminder cannot prove provenance itself, so it prompts the orchestrator to
+  compare snapshot identity and choose provenance-check, delta, or full review.
+
+**Alternatives considered**:
+
+- *Remove Q2 when Q1 passed.* Rejected — PR base movement, CI, comments, and mergeability
+  do not exist at the pre-commit boundary.
+- *Always repeat the full review and full suite.* Rejected — identical inputs do not
+  produce independent coverage proportional to their cost.
+- *Trust timestamps or a 30-minute cooldown as review identity.* Rejected — time does
+  not prove that code is unchanged.

@@ -468,7 +468,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty Conductor-emitted dirs left behind.
-  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then

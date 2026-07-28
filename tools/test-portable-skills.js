@@ -87,6 +87,15 @@ try {
     assert.deepStrictEqual(fs.readdirSync(SOURCE_ROOT).sort(), [...SKILL_NAMES].sort());
   });
 
+  test('review and verification skills preserve snapshot-scoped economy', () => {
+    const review = fs.readFileSync(path.join(SOURCE_ROOT, 'review-change', 'SKILL.md'), 'utf8');
+    const verify = fs.readFileSync(path.join(SOURCE_ROOT, 'verify-change', 'SKILL.md'), 'utf8');
+    assert.match(review, /snapshot identity/);
+    assert.match(review, /unreviewed delta/);
+    assert.match(verify, /full project gates once on the final stable snapshot/);
+    assert.match(verify, /reuse it/);
+  });
+
   test('all six metadata contracts agree with their emitted roots', () => {
     for (const tool of TOOLS) {
       const metadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'adapters', tool, 'metadata.json'), 'utf8'));

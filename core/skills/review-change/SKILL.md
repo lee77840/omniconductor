@@ -16,6 +16,14 @@ resolve comments, commit, push, publish, or alter external state.
    files and generated artifacts.
 3. Separate the reviewed change from pre-existing or unrelated working-tree edits.
 4. Note unverified assumptions instead of inventing intent.
+5. Record the reviewed base and exact snapshot identity: commit/tree SHA when
+   available, otherwise a deterministic complete-diff digest that includes untracked
+   files.
+
+If prior review evidence exists, compare its snapshot identity first. An identical
+head/base needs only a provenance check plus PR-specific evidence. New commits require
+review of the unreviewed delta and affected callers. Rewritten history, an incompatible
+base change, or missing provenance requires a fresh full review.
 
 ## Trace affected behavior
 
@@ -65,6 +73,8 @@ Then state:
 
 - open questions or verification-required items;
 - the checks performed;
+- reviewed base and snapshot identity;
+- review scope (`full`, `delta`, or `provenance-check`);
 - the merge-readiness verdict.
 
 If no actionable defects are found, say so directly and name any residual testing or

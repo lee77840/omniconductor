@@ -293,6 +293,16 @@ This is a **fidelity** rule, not only cost caution. On conceptual or
 instruction-dense work, an underpowered or low-effort configuration is more likely
 to fill gaps by guessing. Route by fidelity risk, not by token price alone.
 
+#### 6.4.1 Project model constraints do not collapse tiers
+
+A project may intentionally save the same exact model for more than one Tier—for
+example, a codebase that requires one high-assurance model family for every code edit.
+The task classification still changes reasoning depth and review/test scope. Where the
+adapter exposes a separate effort control, it MUST preserve Tier 1/2/3 as
+high/medium/low even when Tier 1 and Tier 2 resolve to the same model. A routine
+one- or two-file change is not promoted to Tier 1 merely because both tiers use the
+same model family.
+
 ### 6.5 Surface the choice
 
 When ambiguous, the orchestrator surfaces its difficulty choice in the dispatch announcement:

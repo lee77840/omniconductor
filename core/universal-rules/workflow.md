@@ -41,6 +41,12 @@ Plan → Architecture → Tasks → Implementation
 | Medium (3+ files, new behavior) | Yes |
 | Large (cross-cutting, new system) | Yes — and reviewer agent validates before implementation |
 
+For implementation dispatch, simple established-pattern work in one or two files uses
+the Tier 2 `helper`; do not route it to the Tier 1 `builder` merely because it changes
+code. Use `builder` for 3+ files, cross-cutting behavior, or when a Tier 1 trigger in
+`meta-discipline.md` applies. Security, authentication, billing, database, and
+architecture risk still override file count.
+
 ### 1.2 Why this rule exists (origin)
 
 The originating project counted **6+ violations** of this order during early production work. Each violation produced rework (wrong file touched, missed test, broken dependency). The rule was promoted to ABSOLUTE after the 6th catch.

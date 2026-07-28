@@ -33,7 +33,8 @@ The TDD cycle has three phases. Each phase has an explicit STOP-AND-VERIFY step 
 
 ### RED — Write One Failing Test
 
-Write the smallest test that describes a single desired behavior. Run the suite and confirm the test fails for the right reason (missing feature, not a syntax error).
+Write the smallest test that describes a single desired behavior. Run that focused
+test and confirm it fails for the right reason (missing feature, not a syntax error).
 
 ```bash
 # vitest
@@ -60,7 +61,10 @@ npx vitest --watch path/to/file.test.ts
 pytest-watch tests/
 ```
 
-After the test passes, run the full suite to confirm no regression.
+After the test passes, keep the edit loop narrow: rerun that test and the directly
+affected subsystem. Run the project's required full suite once after the implementation
+reaches its final stable snapshot, not after every Green step. See
+`quality-gates.md` Q3.3.
 
 ### REFACTOR — Clean Up, Stay Green
 
@@ -73,8 +77,9 @@ Commit discipline: keep Red, Green, and Refactor as separate commits when the hi
 1. Reproduce the bug with a deterministic, minimal failing test
 2. Confirm the test fails with the exact error message the bug produces
 3. Write the minimal fix
-4. Confirm the test passes; run the full suite
-5. Refactor the fix if the implementation is rough
+4. Confirm the focused regression test passes
+5. Refactor the fix if the implementation is rough, keeping focused tests green
+6. On the final stable snapshot, run the required subsystem and full project gates once
 
 Never fix a bug without a test. A fix without a test is a guess that happened to work today.
 
@@ -84,8 +89,9 @@ When delegating implementation via sub-agents, the brief MUST specify this seque
 
 1. Write the failing test(s) first
 2. Implement until the tests pass
-3. Run the full suite and confirm green
-4. Report test output as proof of completion
+3. During implementation, run focused tests and confirm Green
+4. On the final stable snapshot, run the required full gate once
+5. Report the snapshot identity and test output as proof of completion
 
 A sub-agent that returns "implemented X" without test output has not completed the task.
 
@@ -116,7 +122,8 @@ Before marking any task complete:
 - [ ] Watched each test fail before implementing
 - [ ] Each test failed for the expected reason (feature absent, not typo)
 - [ ] Wrote minimal code to pass each test
-- [ ] All tests pass
+- [ ] Focused tests pass throughout the edit loop
+- [ ] The required full gate passes once on the final stable snapshot
 - [ ] No warnings or errors in test output
 - [ ] Tests cover edge cases and error paths (not just happy path)
 

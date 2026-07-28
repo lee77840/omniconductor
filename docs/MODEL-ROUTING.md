@@ -42,6 +42,13 @@ normal installs never silently repair or downgrade a user selection.
 | GitHub Copilot | `gpt-5.6-sol` | `gpt-5.6-terra` | `gpt-5.6-luna` | Native agent model; account/policy remains authoritative |
 | Windsurf | `adaptive` | `adaptive` | `adaptive` | Advisory session requirement only |
 
+Recommendations are defaults, not a requirement to use three different model
+families. A project may save the same exact model for multiple tiers—for example,
+Sol for both Tier 1 and Tier 2 under a code-model allowlist. Codex still compiles
+Tier 1/2/3 to high/medium/low reasoning effort, so a routine one- or two-file change
+uses medium effort even when its model matches Tier 1. The immutable difficulty
+triggers remain authoritative.
+
 Claude and Gemini recommendations use provider semantic/family aliases. Codex is
 checked against the local CLI binary's bundled-model catalog, which proves binary
 recognition rather than account/plan availability. Cursor is checked against its

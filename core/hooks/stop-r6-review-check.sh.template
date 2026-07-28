@@ -104,7 +104,7 @@ if [ -f "$FLAG" ]; then
 fi
 touch "$FLAG"
 
-REASON="[stop-hook Q2] Open PR #${PR_NUM} on branch \`${BRANCH}\` with recent push. Run \`${REVIEW_COMMAND} ${PR_URL}\` before merge per universal-rules/quality-gates.md Q2 (pre-merge code review). Docs-only PRs are exempt."
+REASON="[stop-hook Q2] Open PR #${PR_NUM} on branch \`${BRANCH}\` with recent push. Confirm the Q1 reviewed snapshot still matches the PR head/base. If identical, inspect only PR-specific evidence; otherwise run \`${REVIEW_COMMAND} ${PR_URL}\` on the unreviewed delta (full review when provenance is missing or unsafe). See universal-rules/quality-gates.md Q2. Docs-only PRs are exempt."
 
 REASON="$REASON" DIALECT="$DIALECT" /usr/bin/python3 -c '
 import json, os

@@ -3,6 +3,31 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.3.1] — 2026-07-28
+
+### Changed
+
+- **Snapshot-scoped review evidence (ADR-057)** — Q1 records a reproducible reviewed
+  snapshot. Q2 reuses byte-identical evidence for PR-only checks, reviews only new
+  head/base deltas when they exist, and falls back to a full review when provenance,
+  history, or semantic isolation is uncertain.
+- **Focused-to-full verification ladder** — edit loops run focused and affected
+  subsystem tests; the complete required gate runs once on the final stable code
+  snapshot. Trusted exact-SHA evidence can be reused at the merge boundary, while any
+  code change invalidates the prior final result.
+- **Same-family Tier effort remains distinct** — projects may save the same exact model
+  for Tier 1 and Tier 2 without collapsing task difficulty. Adapters with native effort
+  controls continue to compile Tier 1/2/3 independently as high/medium/low, and routine
+  established-pattern one- or two-file work remains Tier 2.
+
+### Fixed
+
+- **Uninstall directory hygiene** — all six adapters now remove an empty
+  `.conductor/manifests/` after the final manifest is removed. Codex also collapses
+  empty `.codex/conductor/{rules,recipes}/` parents. Cleanup uses non-recursive
+  best-effort directory removal, so adopter files keep every non-empty directory and
+  remain byte-for-byte intact.
+
 ## [1.3.0] — 2026-07-27
 
 ### Added

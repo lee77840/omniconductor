@@ -32,17 +32,23 @@ are authorized and required by the verification contract.
 
 ## Verify from narrow to broad
 
-Run the smallest deterministic check that can disprove a claim, then expand:
+Run the smallest deterministic check that can disprove a claim, then expand as the
+change stabilizes:
 
 1. syntax and structural validation;
 2. focused unit or regression tests;
 3. integration, installation, migration, and removal tests;
-4. full project gates;
+4. full project gates once on the final stable snapshot;
 5. package or consumer checks when distribution behavior is in scope.
 
 Inspect both command status and resulting state. Use fresh temporary locations for
 stateful tests. Capture exact counts, exit codes, key diagnostics, file inventories,
 digests, or byte comparisons as appropriate.
+
+During a fix loop, rerun the affected focused checks rather than the unchanged full
+suite. If the exact head SHA already has trusted full-gate evidence, verify the SHA and
+reuse it. Any code change invalidates that snapshot's evidence: rerun affected checks
+and establish one new final full-gate result before completion.
 
 For read-only or security claims, compare state before and after and inspect process
 boundaries, environment forwarding, logs, and error paths.

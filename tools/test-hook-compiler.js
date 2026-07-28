@@ -346,6 +346,8 @@ printf '%s\\n' '[{"url":"https://example.invalid/pr/987654321","number":98765432
     const output = JSON.parse(result.stdout);
     assert(Object.hasOwn(output, key), dialect);
     if (value !== null) assert.strictEqual(output[key], value, dialect);
+    assert(/reviewed snapshot/.test(result.stdout), `${dialect}: missing snapshot reuse guidance`);
+    assert(/unreviewed delta/.test(result.stdout), `${dialect}: missing delta-review guidance`);
   }
   try { fs.unlinkSync(flag); } catch { /* cleanup best effort */ }
 });

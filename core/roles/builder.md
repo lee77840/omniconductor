@@ -68,7 +68,8 @@ If the project has both web and mobile surfaces (see `recipes/web-mobile-parity.
 The builder is done when ALL of:
 - Every file in the scope has been saved.
 - Every relevant spec has been updated to reflect the new behavior.
-- Every test (existing + new) has been run and is green.
+- Focused tests stayed green during implementation, and the required full gate passed
+  once on the final stable snapshot.
 - Pre-commit review (Q1) has been triggered and passed.
 - The summary is written and verification evidence is included.
 

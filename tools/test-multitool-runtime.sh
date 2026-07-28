@@ -150,7 +150,7 @@ if node -e '
     const path=require("path"),r=require("./bin/model-routing.js"),target=path.resolve(process.argv[1]);
     const choices={
       claude:{1:"claude-exact-tier-1",2:"claude-exact-tier-2",3:"haiku"},
-      codex:{1:"gpt-5.6-sol",2:"gpt-5.6-terra",3:"gpt-5.6-luna"},
+      codex:{1:"gpt-5.6-sol",2:"gpt-5.6-sol",3:"gpt-5.6-luna"},
       gemini:{1:"gemini-exact-tier-1",2:"gemini-exact-tier-2",3:"gemini-exact-tier-3"}
     };
     (async()=>{for(const tool of Object.keys(choices)) await r.configure({targetAbs:target,targets:[tool],choices:{[tool]:choices[tool]},generatorVersion:"1.1.0"});})().catch(e=>{console.error(e.message);process.exit(1)});
@@ -161,10 +161,12 @@ if node -e '
   && /usr/bin/grep -qF 'model: claude-exact-tier-1' "$MODEL_OVERRIDE/.claude/agents/planner.md" \
   && /usr/bin/grep -qF 'model: claude-exact-tier-2' "$MODEL_OVERRIDE/.claude/agents/scribe.md" \
   && /usr/bin/grep -qF 'model = "gpt-5.6-sol"' "$MODEL_OVERRIDE/.codex/agents/planner.toml" \
+  && /usr/bin/grep -qF 'model = "gpt-5.6-sol"' "$MODEL_OVERRIDE/.codex/agents/scribe.toml" \
+  && /usr/bin/grep -qF 'model_reasoning_effort = "high"' "$MODEL_OVERRIDE/.codex/agents/planner.toml" \
   && /usr/bin/grep -qF 'model_reasoning_effort = "medium"' "$MODEL_OVERRIDE/.codex/agents/scribe.toml" \
   && /usr/bin/grep -qF 'model: gemini-exact-tier-1' "$MODEL_OVERRIDE/.gemini/agents/planner.md" \
   && /usr/bin/grep -qF 'CONDUCTOR difficulty contract: **Tier 2' "$MODEL_OVERRIDE/.gemini/agents/scribe.md"; then
-  ok "saved Tier-specific exact models compile without changing difficulty"
+  ok "same-family saved models retain Tier-specific Codex reasoning effort"
 else
   bad "saved Tier-specific exact-model contract"
 fi
@@ -189,6 +191,9 @@ for f in workflow spec-as-you-go quality-gates operations meta-discipline; do
 done
 if [ "$codex_kernel_bytes" -le 24576 ] \
   && /usr/bin/grep -qF 'CONDUCTOR_KERNEL_END' "$TARGET/AGENTS.md" \
+  && /usr/bin/grep -qF 'one or two files uses `helper`' "$TARGET/AGENTS.md" \
+  && /usr/bin/grep -qF 'Exact reviewed snapshot, unchanged base' "$TARGET/.codex/conductor/rules/quality-gates.md" \
+  && /usr/bin/grep -qF 'Final stable snapshot' "$TARGET/.codex/conductor/rules/quality-gates.md" \
   && $codex_refs \
   && [ -s "$TARGET/.codex/conductor/recipes/loop-engineering.md" ]; then
   ok "Codex always-loaded kernel is bounded and complete references are preserved on demand"

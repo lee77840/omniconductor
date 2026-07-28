@@ -13,7 +13,7 @@ linked_rules:
   - spec-as-you-go
 ---
 
-# Quality Gates — Two-Stage Review + Test Sync + Verify
+# Quality Gates — Two-Stage Review + Test Ladder + Verify
 
 > Bundles Q1 (pre-commit code review), Q2 (pre-merge code review), Q3 (test coverage sync), Q4 (verify-after-changes). Every code change passes through this gate before being declared done.
 
@@ -51,11 +51,25 @@ If the reviewer reports any issue with confidence ≥ 75 and severity ≥ HIGH:
 
 LOW / MEDIUM issues become commit-message footer notes or follow-up tasks in CURRENT_WORK.md.
 
+### 1.4 Record the reviewed snapshot
+
+Q1 evidence MUST identify the exact code snapshot it reviewed:
+
+- Prefer the staged Git tree (`git write-tree`) when every intended file is staged.
+- Otherwise record the base SHA plus a deterministic digest of the complete reviewed
+  diff, including untracked files.
+- Record whether the review was full or limited to a previously unreviewed delta.
+
+A prose statement such as “review passed” without a reproducible snapshot identifier
+cannot be reused at Q2.
+
 ---
 
 ## 2. Pre-Merge Code Review (Q2)
 
-After commit + push + open PR, a SECOND review pass runs on the open PR before merge. This is distinct from Q1 — Q1 reviews the local diff before commit; Q2 reviews the merged-state PR (including CI signals + reviewer comments).
+After commit + push + open PR, a SECOND review boundary runs before merge. Q2 is
+distinct from Q1 because it also considers the PR base, CI signals, and reviewer
+comments. It is not an unconditional second full scan of identical code.
 
 ### 2.1 Trigger
 
@@ -67,11 +81,32 @@ The `stop-r6-review-check` hook is installed by the Claude and Codex adapters in
 their verified Stop-hook dialects. It reminds the orchestrator to run pre-merge
 review at most once per 30 minutes per PR, avoiding reminder spam on rapid pushes.
 
-### 2.3 Exemptions
+### 2.3 Snapshot reuse and delta review
 
-Same as Q1 (docs-only, lockfile, generated files). Additionally, PRs that have already passed pre-merge review are not re-reviewed unless new commits are pushed.
+Start Q2 by comparing the recorded Q1 snapshot with the PR head and base:
 
-### 2.4 Cross-tool degradation
+1. **Exact reviewed snapshot, unchanged base** — do not repeat the full code review.
+   Verify the snapshot identity, then inspect only PR-specific evidence: CI results,
+   comments, approvals, and mergeability.
+2. **New commits after Q1** — review the unreviewed delta from the last reviewed
+   snapshot to the current head. Do not rescan unchanged files unless the delta changes
+   their behavior.
+3. **Base branch advanced** — review the base/integration delta and the resulting merge
+   behavior. Re-review affected paths only.
+4. **Missing provenance, rewritten history, or broad semantic interaction** — run a
+   fresh full review.
+
+This optimization never converts “not reviewed” into “reviewed.” It reuses evidence
+only when identity is deterministic and expands back to a full review on uncertainty.
+
+### 2.4 Exemptions
+
+Same as Q1 (docs-only, lockfile, generated files). Additionally, a PR that already
+passed Q2 does not repeat unchanged work. Re-evaluate only when the head changes, the
+base advances, CI/reviewer evidence changes materially, or mergeability changes; apply
+the provenance/delta rules above.
+
+### 2.5 Cross-tool degradation
 
 | Tool | Q2 mechanism |
 |---|---|
@@ -103,14 +138,26 @@ Every new feature, changed behavior, or new public API MUST have a corresponding
 
 A PR that adds a new feature without an accompanying test is treated as INCOMPLETE. Pre-commit review (Q1) catches this when the diff contains source changes but no test changes. Pre-merge review (Q2) catches it when CI runs.
 
-### 3.3 The "verify before push" command pair
+### 3.3 Verification ladder — narrow during iteration, broad once at the boundary
 
-Before push:
+Use the smallest check that can disprove the current edit, then expand only as the
+change stabilizes:
 
-1. Run unit tests (project-specific command, e.g. `npx vitest run`).
-2. Run functional E2E (project-specific command, e.g. `npm run test:functional`).
+1. **Edit loop** — run the directly affected unit/regression test.
+2. **Subsystem boundary** — run the impacted package, service, or functional suite.
+3. **Final stable snapshot** — run the project's required full pre-push gate once,
+   including functional E2E where applicable.
+4. **Pre-merge reuse** — if the exact head SHA already has a green required gate
+   (local or trusted CI), verify the SHA and reuse that evidence. Do not rerun the same
+   full suite merely because the workflow moved from commit to merge.
 
-If either is red, the work is not done. The orchestrator does not push and does not declare the task complete.
+If code changes after the final full gate, return to the narrow check first and run the
+full gate once more on the new final snapshot. Security, authentication, data migration,
+and cross-platform changes may require earlier broad checks because their impacted
+surface is inherently broad.
+
+Any required check that is red leaves the work incomplete. The orchestrator does not
+push or declare completion.
 
 ---
 
@@ -122,7 +169,7 @@ Every code or configuration change MUST be verified by running the application o
 
 | Change | Verification |
 |---|---|
-| Code | Run unit tests + relevant functional E2E + manual sanity (when UI). |
+| Code | During iteration run focused tests; on the final stable snapshot run the required broader/full gate once, plus manual sanity when UI. |
 | Build config | Run `build` command, verify no errors. |
 | Environment variable | Verify in dev environment (or staging) that the var loads and the dependent path works. |
 | Database schema | Apply migration on dev DB, run mock-data seeds, run a query. |
@@ -162,6 +209,15 @@ The failure mode §4.3–4.4 exist to prevent: a green build, a passing test sui
 
 **Fix:** (1) `git diff` and grep for the *concrete pattern the task required* — the new structure, function, or renamed symbol, not "files changed"; if the grep does not find it, the change was not applied regardless of build status. (2) Observe it at runtime where applicable (render the page, hit the endpoint, run the query). (3) Only then claim completion, citing the diff + observation. On the Claude adapter, the Stop guard `block-completion-claim-without-push` is the mechanical backstop.
 
+### 4.6 Evidence is snapshot-scoped
+
+Test and review evidence applies only to the exact code snapshot that produced it.
+Record the head SHA or deterministic tree/diff identity beside the result. Reuse is
+encouraged when the identity is unchanged; after a code change, rerun the affected
+checks and establish one new final full-gate result. Documentation-only changes do not
+invalidate code-test evidence unless they alter executable configuration or generated
+artifacts.
+
 ---
 
 ## 5. Pre-commit checklist (operator-facing)
@@ -180,6 +236,8 @@ Before any commit:
 - [ ] Naming conventions followed.
 - [ ] No duplicated business logic across surfaces (web ↔ mobile, etc.).
 - [ ] **Q1 — Pre-commit review passed.**
+- [ ] Q1 records the reviewed snapshot identity.
+- [ ] The required full test gate passed once on the final stable snapshot.
 
 ---
 

@@ -95,7 +95,8 @@ Fix only the confirmed root cause. Then lock it in with a test.
 1. Write a failing test that reproduces the bug (apply `core/recipes/tdd.md`)
 2. Implement the minimal fix
 3. Confirm the test passes
-4. Run the full suite — confirm no regression introduced
+4. When the fix is final, run the required full suite once — confirm no regression
+   introduced
 5. If the fix does not work: return to Phase 1 with new evidence
 
 **If three or more fixes have failed:** stop attempting fixes. The root cause may be architectural — a coupling or shared-state assumption that no local fix can address. Discuss with your team before attempting another fix.
@@ -115,7 +116,9 @@ After a confirmed fix, update the relevant spec or known-issues section (spec-as
 
 ## Conductor Integration
 
-**meta-discipline (M1 — verify before claim)**: A fix is not complete until the test passes and the full suite is green. Do not report "fixed" before verifying.
+**meta-discipline (M1 — verify before claim)**: A fix is not complete until the
+focused regression passes and the required full suite is green on the final stable
+snapshot. Do not report "fixed" before verifying.
 
 **spec-as-you-go (W3)**: Bug fixes update the spec. If the bug was a known edge case not previously documented, add it to the spec's known-issues section. If the fix changes behavior, update the relevant spec section.
 

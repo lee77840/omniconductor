@@ -626,7 +626,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (children before parents).
-  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .gemini/commands .gemini/agents .gemini/hooks .conductor/reflect .conductor .gemini docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .gemini/commands .gemini/agents .gemini/hooks .conductor/reflect .conductor/manifests .conductor .gemini docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then

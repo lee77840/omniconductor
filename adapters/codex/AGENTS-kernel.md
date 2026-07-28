@@ -114,6 +114,10 @@ Tier 2 = routine, Tier 3 = trivial. The complete, unchanged triggers are in
 classifying an ambiguous task. Codex agent profiles use the project-saved model
 mapping and compile Tier 1/2/3 to high/medium/low reasoning effort. A model
 release can require explicit revalidation, but never changes the task's Tier.
+Routine established-pattern implementation in one or two files uses `helper`
+(Tier 2 / medium), not `builder`, unless security, authentication, billing,
+database, architecture, or another Tier 1 trigger applies. This remains true when
+a project maps both Tier 1 and Tier 2 to the same allowed model family.
 
 | Role | Responsibility | Default access |
 |---|---|---|
