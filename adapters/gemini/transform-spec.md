@@ -25,6 +25,10 @@ adapters/gemini/_native/GEMINI.md.tpl              # Header template (orchestrat
 
 ## Outputs
 
+Full/minimal/strict also copy the three byte-identical portable procedures from
+`core/skills/` to Gemini CLI's `.agents/skills/<name>/SKILL.md` workspace alias.
+Recipes-only and Reflector-only do not emit the baseline set.
+
 ```
 <target-dir>/
 ├── GEMINI.md                                   # Bundled all-rules + orchestrator manual + universal rule TEXT

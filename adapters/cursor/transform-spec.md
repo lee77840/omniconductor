@@ -28,6 +28,10 @@ adapters/cursor/_native/commands/*.md                  # (optional) project comm
 
 ## Outputs
 
+Full/minimal/strict also copy the three byte-identical portable procedures from
+`core/skills/` to the documented `.agents/skills/<name>/SKILL.md` alias.
+Recipes-only and Reflector-only do not emit the baseline set.
+
 ```
 <target-dir>/
 ├── .cursorrules                                # From _native/cursorrules.tpl + always-loaded rules merged

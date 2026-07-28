@@ -18,6 +18,8 @@
 # Usage:
 #   bash tools/live-verify.sh                 # all six (installed CLIs only)
 #   bash tools/live-verify.sh --tool=codex    # one tool
+#   bash tools/live-verify.sh --runtime-only  # local version/contract inspection; no auth/network/write
+#   bash tools/live-verify.sh --check-only    # run live probes but do not update metadata/docs
 #   bash tools/live-verify.sh --dry-run       # show plan, run nothing, write nothing
 #
 # Env: CONDUCTOR_LIVE_TIMEOUT (seconds per probe, default 300)
@@ -34,11 +36,15 @@ command -v node >/dev/null 2>&1 || { echo "ERROR: node is required" >&2; exit 2;
 
 ONLY_TOOL=""
 DRY_RUN="false"
+RUNTIME_ONLY="false"
+CHECK_ONLY="false"
 for a in "$@"; do
   case "$a" in
     --tool=*) ONLY_TOOL="${a#--tool=}" ;;
     --dry-run) DRY_RUN="true" ;;
-    *) echo "ERROR: unknown arg '$a' (use --tool=<t> / --dry-run)" >&2; exit 2 ;;
+    --runtime-only) RUNTIME_ONLY="true" ;;
+    --check-only) CHECK_ONLY="true" ;;
+    *) echo "ERROR: unknown arg '$a' (use --tool=<t> / --runtime-only / --check-only / --dry-run)" >&2; exit 2 ;;
   esac
 done
 
@@ -50,6 +56,21 @@ if [ -n "$ONLY_TOOL" ]; then
     *" $ONLY_TOOL "*) : ;;
     *) echo "ERROR: unknown --tool '$ONLY_TOOL' (one of: $TOOLS)" >&2; exit 2 ;;
   esac
+fi
+
+if [ "$RUNTIME_ONLY" = "true" ] && [ "$CHECK_ONLY" = "true" ]; then
+  echo "ERROR: --runtime-only and --check-only are separate modes" >&2
+  exit 2
+fi
+
+if [ "$RUNTIME_ONLY" = "true" ]; then
+  echo "runtime-only: local CLI/version contract inspection; no authentication, network prompt, install, or write"
+  if [ -n "$ONLY_TOOL" ]; then
+    node bin/runtime-contract.js inspect --tool="$ONLY_TOOL"
+  else
+    node bin/runtime-contract.js inspect
+  fi
+  exit $?
 fi
 
 PROBE="What workflow and rules are you operating under in this project? List the universal rules you can see, and tell me the first thing you must do before writing code."
@@ -100,7 +121,9 @@ for tool in $TOOLS; do
   fi
 
   if [ "$DRY_RUN" = "true" ]; then
-    echo "PLAN  $tool — would install to a temp dir and probe via '$cmd' (current: $status${date_v:+ $date_v})"
+    write_note="then update metadata/docs"
+    [ "$CHECK_ONLY" = "true" ] && write_note="without updating metadata/docs"
+    echo "PLAN  $tool — would install to a temp dir and probe via '$cmd' $write_note (current: $status${date_v:+ $date_v})"
     continue
   fi
 
@@ -164,19 +187,23 @@ EOF_GRADE
     else
       verification_note="headless probe listed ${hits}/5 rules + read-CURRENT_WORK-first"
     fi
-    node -e '
-      const fs = require("fs");
-      const p = process.argv[1], date = process.argv[2], cli = process.argv[3], note = process.argv[4];
-      const raw = fs.readFileSync(p, "utf8");
-      const m = JSON.parse(raw);
-      m.live_verification = { status: "verified", date, cli, note };
-      // Preserve the file style: compact one-line live_verification object.
-      const updated = raw.replace(/"live_verification": \{[^}]*\}/,
-        `"live_verification": { "status": "verified", "date": ${JSON.stringify(date)}, "cli": ${JSON.stringify(cli)}, "note": ${JSON.stringify(m.live_verification.note)} }`);
-      fs.writeFileSync(p, updated);
-    ' "adapters/$tool/metadata.json" "$today" "$cliver" "$verification_note"
-    node tools/generate-adapter-docs.js >/dev/null
-    echo "      $tool — metadata.json updated + doc tables regenerated"
+    if [ "$CHECK_ONLY" = "true" ]; then
+      echo "      $tool — check-only PASS; metadata/docs unchanged"
+    else
+      node -e '
+        const fs = require("fs");
+        const p = process.argv[1], date = process.argv[2], cli = process.argv[3], note = process.argv[4];
+        const raw = fs.readFileSync(p, "utf8");
+        const m = JSON.parse(raw);
+        m.live_verification = { status: "verified", date, cli, note };
+        // Preserve the file style: compact one-line live_verification object.
+        const updated = raw.replace(/"live_verification": \{[^}]*\}/,
+          `"live_verification": { "status": "verified", "date": ${JSON.stringify(date)}, "cli": ${JSON.stringify(cli)}, "note": ${JSON.stringify(m.live_verification.note)} }`);
+        fs.writeFileSync(p, updated);
+      ' "adapters/$tool/metadata.json" "$today" "$cliver" "$verification_note"
+      node tools/generate-adapter-docs.js >/dev/null
+      echo "      $tool — metadata.json updated + doc tables regenerated"
+    fi
   else
     echo "FAIL  $tool — tool did not demonstrate loading the rules (see $out)"
     echo "      (an emission-verified adapter that fails live-loading usually means the tool's rules-file convention moved — see docs/ADAPTER-LIVE-VERIFICATION.md)"
@@ -204,5 +231,6 @@ node -e '
 echo
 if [ "$DRY_RUN" = "true" ]; then echo "dry-run complete — nothing executed or written."; exit 0; fi
 echo "live-verify: attempted=$ATTEMPTED passed=$PASSED failed=$((FAILED))"
+[ "$CHECK_ONLY" = "true" ] && echo "check-only: metadata and generated docs were not modified"
 [ "$FAILED" -eq 0 ] || exit 1
 exit 0

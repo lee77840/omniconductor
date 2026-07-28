@@ -49,6 +49,8 @@ jobs:
         run: bash tools/check-adapter-metadata.sh
       - name: Generated doc regions match metadata (ADR-042)
         run: node tools/generate-adapter-docs.js --check
+      - name: Runtime compatibility contract tests
+        run: node tools/test-runtime-contract.js
 
   # ---------------------------------------------------------------------------
   # 2. Per-adapter install + validate (matrix over the 6 supported tools).

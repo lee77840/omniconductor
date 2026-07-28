@@ -11,7 +11,7 @@ Cursor is a strong CONDUCTOR target because:
 
 **Tier**: T1 (see `docs/COMPATIBILITY-MATRIX.md` — glob rule-scoping + hooks incl. session/stop events + sub-agents + per-task model all present; richest non-Claude target for Phase-2 emission).
 
-> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+> Enumerable facts about this adapter (output paths / tier / capabilities / runtime compatibility / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and checked against the shared runtime schema, `transform.sh`, and the validator (ADR-040/054).
 
 
 ## Installation path
@@ -32,6 +32,7 @@ bypass.
 
 ```
 <target>/
+├── .agents/skills/                            # plan-change, verify-change, review-change
 ├── .cursor/
 │   └── rules/
 │       ├── workflow.mdc                        # alwaysApply: true
@@ -52,6 +53,9 @@ bypass.
     └── research/README.md
 ```
 
+Full, minimal, and strict installs emit the three portable procedures at Cursor's
+documented `.agents/skills` alias. Recipes-only and Reflector-only do not.
+
 - `--legacy-cursorrules` additionally bundles everything into a flat `.cursorrules` (Cursor < 0.45).
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.cursor/hooks.json`), the `/reflect` Skill (`.cursor/skills/reflect/SKILL.md`), a reflector agent (`.cursor/agents/`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
@@ -62,6 +66,7 @@ bypass.
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
 - ✅ Eight native `.cursor/agents/*.md` role profiles, including code-reviewer and Tier 3 utility.
+- ✅ Three portable Agent Skills (`plan-change`, `verify-change`, `review-change`).
 - ✅ Reflector loop (opt-in recipe) — hook config + `/reflect` Skill + agent.
 
 ## Capability boundary

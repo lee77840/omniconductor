@@ -4,6 +4,23 @@ For each of the 6 supported tools: what gets installed, where, what works, and w
 
 ---
 
+## Portable Agent Skills
+
+Full, minimal, and strict installs add the same three on-demand procedures:
+`plan-change`, `verify-change`, and `review-change`. Claude receives the canonical
+bytes at `.claude/skills/<name>/SKILL.md`; Cursor, Copilot, Gemini CLI, Codex, and
+Windsurf/Devin share `.agents/skills/<name>/SKILL.md`.
+
+The files are instruction-only and manifest-owned. Identical shared files create no
+backup chain; uninstall preserves them until the final owner is removed. A strict
+install rejects conflicting user content before adapter output. Recipes-only and
+Reflector-only do not emit the baseline skills. These procedures do not add roles or
+change Tier/model routing. Native discovery, consent, and explicit invocation differ
+by tool; see the generated table in
+[`COMPATIBILITY-MATRIX.md`](./COMPATIBILITY-MATRIX.md).
+
+---
+
 ## Claude Code (T1, reference implementation)
 
 ### Install

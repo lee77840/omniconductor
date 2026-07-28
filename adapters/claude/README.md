@@ -10,6 +10,8 @@ The reference implementation. Claude Code is CONDUCTOR's most-feature-complete t
 
 **Tier**: T1 — Full.
 
+> Enumerable facts about this adapter (output paths / tier / capabilities / runtime compatibility / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and checked against the shared runtime schema, `transform.sh`, and the validator (ADR-040/054).
+
 ## Installation path
 
 ```bash
@@ -46,6 +48,7 @@ bypass.
 │   │   ├── quality-gates.md
 │   │   ├── operations.md
 │   │   └── meta-discipline.md
+│   ├── skills/                                # plan-change, verify-change, review-change
 │   ├── hooks/                                 # 11 hook scripts
 │   │   ├── pretool-agent-routing.sh
 │   │   ├── pretool-commit-current-work-check.sh
@@ -72,6 +75,10 @@ bypass.
 │   └── research/README.md
 └── (memory pattern docs — for reference; actual memory at ~/.claude/projects/.../memory/)
 ```
+
+Full, minimal, and strict installs copy the three instruction-only portable
+procedures to `.claude/skills/<name>/SKILL.md`. Recipes-only and Reflector-only
+remain narrow and do not emit them.
 
 ## Native features supported
 

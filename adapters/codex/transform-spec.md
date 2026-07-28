@@ -25,6 +25,10 @@ adapters/codex/AGENTS-kernel.md                  # Bounded always-loaded contrac
 
 ## Outputs
 
+Full/minimal/strict also copy the three byte-identical portable procedures from
+`core/skills/` to Codex's native `.agents/skills/<name>/SKILL.md` repository
+path. Recipes-only and Reflector-only do not emit the baseline set.
+
 > **Convention change (post-P0):** the canonical Codex project-rules file is **`AGENTS.md`** at the
 > project root — the established cross-agent standard adopted by OpenAI Codex / Codex CLI — NOT the
 > early-design `.codex/codex.md` guess. The implemented `transform.sh` emits `AGENTS.md`; references

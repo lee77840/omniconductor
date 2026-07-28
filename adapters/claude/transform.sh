@@ -595,7 +595,7 @@ do_uninstall() {
   # Try to clean up empty dirs left behind (children before parents). Includes the
   # self-improvement gate dir .conductor/reflect/ — leaving it would keep the
   # always-on trajectory hook active after uninstall.
-  for d in .claude/rules .claude/agents .claude/hooks .claude/commands .conductor/reflect .conductor .claude docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .claude/skills/plan-change .claude/skills/verify-change .claude/skills/review-change .claude/skills .claude/rules .claude/agents .claude/hooks .claude/commands .conductor/reflect .conductor .claude docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -773,8 +773,10 @@ if { [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; } \
 fi
 
 # Initialize manifest before any emit happens.
+conductor_assert_portable_skill_collisions "claude" ".claude/skills" || exit $?
 init_manifest
 conductor_install_project_profile
+conductor_install_portable_skills "claude" ".claude/skills"
 
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/6: universal-rules — skipped (--mode=$MODE is à la carte)"

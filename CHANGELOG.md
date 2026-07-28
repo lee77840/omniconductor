@@ -3,6 +3,77 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.3.0] — 2026-07-27
+
+### Added
+
+- **Version-gated native hook compiler (ADR-056)** — a central schema-v1 registry
+  maps portable guard intent to each provider's verified event and payload contract.
+  Within P2's three portable policies, Claude, Copilot, and Codex receive commit
+  CURRENT_WORK/test-coverage soft confirmations plus review-before-stop continuation;
+  Cursor and Gemini receive the verified review continuation; unsupported decisions
+  remain explicit rule fallbacks. Full Codex additionally retains its session-state
+  Stop guard, and full Gemini additionally retains its output-cap BeforeTool hook.
+- **Schema-aware hook config composition** — existing Cursor, Copilot, Gemini, Codex,
+  and Windsurf JSON is preserved at arbitrary keys/events/arrays while only handlers
+  with an exact registry-rendered CONDUCTOR command are refreshed. Invalid configs
+  fail before adapter-managed writes; reinstall is idempotent and uninstall restores
+  original bytes.
+- **Hook compiler regression contract** — focused tests cover flat/nested merges,
+  injected atomic-write failure, five-adapter install/uninstall restoration, invalid
+  config preflight, native Copilot/Codex payloads, retry-loop safety, and five native
+  stop response schemas. Native-directory adopter hooks are covered across Copilot,
+  Gemini, and Codex install, unchanged reinstall, and uninstall.
+- **Portable Agent Skills (ADR-055)** — full/minimal/strict installs compile three
+  instruction-only procedures (`plan-change`, `verify-change`, `review-change`) from
+  `core/skills/` into all six tools. Claude uses `.claude/skills`; Cursor, Copilot,
+  Gemini, Codex, and Windsurf/Devin share byte-identical `.agents/skills` files.
+  Metadata M11, output validation, path safety, focused regressions, install-mode
+  coverage, and generated compatibility documentation enforce the contract.
+- **Manifest-safe shared skill ownership** — identical skill files create no backup
+  chains, remain while another adapter owns them, and disappear with the final owner.
+  Full installs preserve and restore pre-existing user skills; strict mode rejects a
+  conflict before adapter output.
+- **Adapter runtime compatibility contracts (ADR-054)** — all six metadata files now
+  declare product lineage, capability-specific version floors, authentication
+  uncertainty, policy gates, probe requirements, and dated first-party sources.
+  Read-only doctor D13 performs only local CLI/version inspection and distinguishes
+  `not-installed`, `installed-unverified`, `unsupported-version`,
+  `verification-required`, `product-migrated`, and `active`.
+- **Non-mutating runtime probes** — `tools/live-verify.sh --runtime-only` performs no
+  authentication, network prompt, installation, or write; `--check-only` exercises the
+  existing effective live probe without recording metadata or regenerating docs.
+- **D13 credential/output hardening** — local version commands receive only the
+  minimum process-execution environment (`PATH` plus required Windows equivalents);
+  credential-bearing and unrelated environment values are not forwarded, and raw
+  provider output is never copied into doctor diagnostics. Regression coverage proves
+  the installed project remains byte-identical and exercises the renamed-product state.
+
+### Changed
+
+- Cursor, Copilot, and Gemini full/strict output validation now checks their emitted
+  native guard scripts and composed hook registries. Metadata M12 and a generated
+  compatibility table enforce the native/fallback partition for all six adapters.
+- Claude's `posttool-output-rewrite >= 2.1.121` floor moved from a hard-coded doctor D5
+  exception into the shared emitted-capability contract consumed by D13.
+- Generated adapter documentation now includes a runtime-contract table and composes
+  multiple regions in the same file before writing, preventing one generated update
+  from overwriting another.
+- Gemini CLI authentication remains explicitly `source-conflict`: CONDUCTOR records
+  both the June 2026 individual-account transition notice and the current authentication
+  guide instead of inferring eligibility.
+
+### Fixed
+
+- **Critical native-hook ownership collision (ADR-056)** — replaced directory
+  substring matching with exact registry-command equality. An adopter's own hook is
+  no longer silently deregistered merely because its command points below
+  `.github/hooks/`, `.gemini/hooks/`, or `.codex/hooks/`.
+- **Release baseline cache freshness (ADR-053)** — registry checks now use an
+  invocation-scoped npm cache and `--prefer-online`, preventing a prior release run's
+  cached dist-tag from selecting an older published version as the mandatory upgrade
+  baseline.
+
 ## [1.2.1] — 2026-07-26
 
 ### Fixed

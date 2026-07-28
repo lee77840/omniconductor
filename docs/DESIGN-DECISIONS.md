@@ -1199,7 +1199,7 @@ never receives Claude's unsupported `permissionDecision: ask` contract.
 
 **Context**: Same audit root-cause as ADR-039, restricted to the *enumerable* facts: output paths, legacy paths, tier, capability axes, live-verification status, headless CLI. These were re-stated independently in each transform.sh header, adapter README, ARCHITECTURE, COMPATIBILITY-MATRIX, HOW-IT-WORKS, INDEX, and ADAPTER-LIVE-VERIFICATION — and disagreed (e.g. Codex live-verified in one doc, "not yet run" in two others; Codex README said T3 while the matrix said T2).
 
-**Decision**: One `adapters/<tool>/metadata.json` per adapter is the single source for: `outputs[]` (path/kind/validated), `reflector_outputs[]`, `legacy_paths[]`, `tier`, two-axis `capabilities` (`tool_native` vs `conductor_emitted`, per ADR-031), `live_verification`, `headless_cli`. `tools/check-adapter-metadata.sh` (CI job `adapter-metadata`) asserts 8 invariants: valid+complete JSON (M1); every output/reflector/legacy path literal actually appears in the tool's `transform.sh` (M2/M4) and — when `validated: true` — in `tools/validate-adapter-output.sh` (M3); legacy paths are handled in code, not just prose (M5); a `verified` live status carries a date that appears in `docs/ADAPTER-LIVE-VERIFICATION.md` (M6); the headless CLI is one `core/reflector/run-weekly.sh` auto-detects (M7); and the COMPATIBILITY-MATRIX tier row names the adapter (M8).
+**Decision**: One `adapters/<tool>/metadata.json` per adapter is the single source for: `outputs[]` (path/kind/validated), `reflector_outputs[]`, `legacy_paths[]`, `tier`, two-axis `capabilities` (`tool_native` vs `conductor_emitted`, per ADR-031), `live_verification`, `headless_cli`, and (as of ADR-054) `runtime_contract`. `tools/check-adapter-metadata.sh` (CI job `adapter-metadata`) asserts ten labeled checks: valid+complete JSON (M1); every output/reflector/legacy path literal actually appears in the tool's `transform.sh` (M2/M4) and — when `validated: true` — in `tools/validate-adapter-output.sh` (M3); legacy paths are handled in code, not just prose (M5); a `verified` live status carries a date that appears in `docs/ADAPTER-LIVE-VERIFICATION.md` (M6); the headless CLI is one `core/reflector/run-weekly.sh` auto-detects (M7); the COMPATIBILITY-MATRIX tier row names the adapter (M8); the à-la-carte strategy agrees with marker machinery (M9, ADR-044); and the runtime contract passes the shared schema validator (M10, ADR-054).
 
 **Deliberate constraint**: the bash transforms are NOT retrofitted to parse JSON at runtime (ADR-002/023/025 — bash adapters stay dependency-free and remain the validated implementation). Metadata *validates* the transforms; it does not *drive* them. The checker uses `node` (already a CI + CLI dependency), no jq.
 
@@ -1216,7 +1216,7 @@ never receives Claude's unsupported `permissionDecision: ask` contract.
 
 **Context**: An adopter has no way to answer "is my CONDUCTOR install still healthy?" A file deleted by hand, a hook config corrupted by a merge, a legacy path left behind after a tool rebrand, or an install made by an older package version all fail silently until an agent misbehaves. The manifest (`.conductor-manifest.json`) already records everything an install emitted; nothing consumed it diagnostically. Prior art (web-verified 2026-07-09): Spec Kit `specify check` and SuperClaude/Claude Code `doctor` check the *environment* only; BMAD `status` displays the manifest without verifying anything — no tool in the space does per-project installed-asset health.
 
-**Decision**: `omniconductor doctor [target] [--json]` — the CLI's 3rd command, in `bin/doctor.js` (dependency-free Node, **strictly read-only**, consistent with ADR-002/023/025: it inspects adapter output, never reimplements install logic). Seven check groups anchored on the manifest: **D1** manifest validity · **D2** version drift (manifest stamp vs running package) · **D3** file integrity (every tracked file exists) · **D4** stale legacy paths (from `adapters/<tool>/metadata.json` `legacy_paths`, skipping intentional emissions like `--legacy-cursorrules`) · **D5** hook validity (emitted `.json` parses; emitted `.sh` executable + `bash -n`) · **D6** doc-link liveness (relative links in emitted docs resolve) · **D7** stale claims (emitted files scanned against `tools/stale-tokens.txt` with the same allow/waiver semantics). Severity model FAIL / WARN / OK → exit 2 / 1 / 0; `--json` for machines. The Claude adapter's manifest now also stamps `"adapter": "claude"` (the other five already did); doctor falls back to footprint inference for pre-0.8 claude manifests.
+**Decision**: `omniconductor doctor [target] [--json]` — the CLI's 3rd command, in `bin/doctor.js` (dependency-free Node, **strictly read-only**, consistent with ADR-002/023/025: it inspects adapter output, never reimplements install logic). The original seven manifest-anchored groups remain **D1** manifest validity · **D2** version drift · **D3** file integrity · **D4** stale legacy paths · **D5** hook/config validity · **D6** doc-link liveness · **D7** stale claims. Later accepted decisions extended the same read-only audit with **D8** footprint ownership · **D9** Git tracking · **D10** structured work-state drift · **D11** saved model-routing truth · **D12** canonical document paths · **D13** offline runtime compatibility (ADR-054). Severity model FAIL / WARN / OK → exit 2 / 1 / 0; `--json` for machines. The Claude adapter's manifest now also stamps `"adapter": "claude"` (the other five already did); doctor falls back to footprint inference for pre-0.8 claude manifests.
 
 **Consequences**: CI gained a doctor smoke per adapter (fresh install → exit 0; hide a tracked file → non-zero; restore → 0). Differentiated **in scope, not in name** — per-project asset health rather than global environment. Depends on ADR-040 metadata (D4) and ADR-039 tokens (D7); both ship in the same npm package (`files` includes `adapters/` + `tools/`).
 
@@ -1230,7 +1230,7 @@ never receives Claude's unsupported `permissionDecision: ask` contract.
 
 **Context**: ADR-040 slice 1 made metadata the *checked* source for enumerable adapter facts, but the prose tables stating those facts were still hand-maintained — the Codex live-verification status alone was restated (and had drifted) across 3+ docs.
 
-**Decision**: `tools/generate-adapter-docs.js` renders marked regions (`<!-- generated:<name> … --> … <!-- /generated:<name> -->`) from `adapters/*/metadata.json`: the **live-verification status table** in `docs/ADAPTER-LIVE-VERIFICATION.md` and the **"Adapter outputs at a glance"** table in `docs/COMPATIBILITY-MATRIX.md`. `--check` mode fails CI on any drift between metadata and the rendered tables (wired into the `adapter-metadata` job). Legacy paths render with an explicit "(legacy)" qualifier so generated rows satisfy the ADR-039 stale-token allow-rules. Alongside this, all remaining hand-written live-verification dates/CLI versions on living surfaces (README status line, ROADMAP, COMPARISON, HOW-IT-WORKS, INDEX, codex README/spec, the live-verification guide prose) were replaced with **date-free pointers to the generated table** — milestone history keeps its dates as "first live-verified" records.
+**Decision**: `tools/generate-adapter-docs.js` renders marked regions (`<!-- generated:<name> … --> … <!-- /generated:<name> -->`) from `adapters/*/metadata.json`: the **live-verification status table** and (as of ADR-054) **runtime compatibility contract table** in `docs/ADAPTER-LIVE-VERIFICATION.md`, plus the **"Adapter outputs at a glance"** table in `docs/COMPATIBILITY-MATRIX.md`. `--check` mode fails CI on any drift between metadata and the rendered tables (wired into the `adapter-metadata` job). Multiple regions in one file are composed in memory before a single write, so simultaneous drift cannot make a later region overwrite an earlier update. Legacy paths render with an explicit "(legacy)" qualifier so generated rows satisfy the ADR-039 stale-token allow-rules. Alongside this, all remaining hand-written live-verification dates/CLI versions on living surfaces (README status line, ROADMAP, COMPARISON, HOW-IT-WORKS, INDEX, codex README/spec, the live-verification guide prose) were replaced with **date-free pointers to the generated table** — milestone history keeps its dates as "first live-verified" records.
 
 **Consequences**: A metadata change now propagates to the docs by running one script, and CI blocks a PR whose docs disagree with metadata. Hand-editing inside a marked region is futile by design. Remaining slices: more regions (e.g. README tool-coverage cells) as they prove drift-prone.
 
@@ -1244,7 +1244,7 @@ never receives Claude's unsupported `permissionDecision: ask` contract.
 
 **Context**: CI proves adapters *emit* correct files; it cannot prove a tool *loads* them (needs an authenticated CLI + a model). That gap was closed manually once (Codex, 2026-06-28) and recorded by hand in three places — which then drifted (the audit's finding). The manual procedure and probe prompt already existed in `docs/ADAPTER-LIVE-VERIFICATION.md`; the headless invocation matrix already existed in `core/reflector/run-weekly.sh` (ADR-033).
 
-**Decision**: `tools/live-verify.sh` automates the procedure per tool: throwaway temp install → headless probe (`claude -p` / `codex exec --sandbox read-only` / `gemini -p` / `cursor-agent -p` / `copilot -p` / `devin -p`, read-only, portable watchdog timeout) → **deterministic grade** (answer must name ≥3 of the 5 universal rules AND mention CURRENT_WORK — no LLM judge) → on PASS, write `live_verification {status, date, cli, note}` into the tool's `metadata.json` and re-run the ADR-042 generator so every doc updates in one motion. CLIs not on PATH are **SKIPped honestly** (never a fake ✅ — Windsurf/Devin likely stays manual). A freshness guard WARNs when a verified date is >90 days old. **Local-first**: CI can't hold six authenticated model CLIs; the script is the recorded, repeatable procedure.
+**Decision**: `tools/live-verify.sh` automates the procedure per tool: throwaway temp install → headless probe (`claude -p` / Codex local `debug prompt-input` / `gemini -p` / `cursor-agent -p` / `copilot -p` / `devin -p`, portable watchdog timeout) → **deterministic grade** (answer must name ≥3 of the 5 universal rules AND mention CURRENT_WORK — no LLM judge) → on PASS, write `live_verification {status, date, cli, note}` into the tool's `metadata.json` and re-run the ADR-042 generator so every doc updates in one motion. CLIs not on PATH are **SKIPped honestly** (never a fake ✅ — Windsurf/Devin likely stays manual). A freshness guard WARNs when a verified date is >90 days old. **Local-first**: CI can't hold six authenticated model CLIs; the script is the recorded, repeatable procedure. ADR-054 adds `--runtime-only` for zero-network, zero-auth, read-only contract inspection and `--check-only` for a live probe that does not record metadata or regenerate docs.
 
 **Consequences**: First run live-verified **Claude Code (5/5 rules + CURRENT_WORK, Claude Code 2.1.205)** and re-verified **Codex (4/5 + CURRENT_WORK, codex-cli 0.144.0)** on 2026-07-09 — both recorded through the metadata → generator pipeline, zero hand-edited docs. Cursor/Copilot/Gemini/Windsurf remain live-pending until their CLIs are available here.
 
@@ -1839,9 +1839,186 @@ status instead of the registry command's failure under Bash without `pipefail`.
 
 - Routine release verification tracks the actual npm latest release without a
   source edit after every publication.
+- Registry metadata uses an invocation-scoped cache and `--prefer-online`; a previous
+  release run's cached dist-tag cannot silently become the next run's upgrade baseline.
 - A duplicate or stale candidate fails before the multi-minute test suite.
 - Registry access is intentionally required for release verification. Tests can
   inject recorded registry values, but publication readiness cannot be claimed
   from those overrides alone.
 - Publishing, tagging, syncing, and CI dispatch remain manual and outside this
   local guard.
+
+## ADR-054 — Runtime compatibility is a metadata contract, not an emission claim
+
+**Status**: Accepted (2026-07-27)
+
+**Context**: CONDUCTOR already separates native tool capability from adapter emission,
+but effective activation was still inferred from scattered prose and hard-coded doctor
+exceptions. Claude's output-rewrite floor lived directly in D5, product lineage such as
+Windsurf → Devin Desktop was not machine-readable, and authentication or policy
+uncertainty had no common representation. Gemini CLI exposed the danger: a June 2026
+first-party transition announcement says individual traffic moved to Antigravity CLI,
+while the current first-party authentication guide still documents individual
+Google-account login.
+
+**Decision**:
+
+1. Add a schema-v1 `runtime_contract` to all six adapter metadata files: product
+   lifecycle, version-command arguments, emitted-capability floors, auth status/modes,
+   policy gates, probe requirements, and dated first-party sources.
+2. Validate the contract through one dependency-free Node module consumed by metadata
+   checks, doctor, tests, and the runtime-only probe. Numeric floors apply only when
+   the installed manifest owns the declared `when_emitted` path.
+3. Add doctor D13 as a local, read-only inspection. CONDUCTOR contains no
+   authentication, prompt, credential-file, network-client, or write path here. It may
+   run only the declared CLI version command, with an execution-only environment
+   allowlist, and never surfaces raw provider output. A missing CLI is informational;
+   proven incompatibility or conflicting first-party sources are warnings; malformed
+   contracts are failures. A provider CLI remains external code, so its internal
+   `--version` behavior is not represented as an OS-sandbox guarantee.
+4. Add `live-verify --runtime-only` for the same zero-network inspection and
+   `--check-only` for authenticated live verification without metadata/doc writes.
+5. Generate the runtime-contract table beside live-verification status. Compose all
+   regions for a document in memory before writing to prevent same-file overwrite.
+
+**Consequences**:
+
+- Provider changes become dated, reviewable data instead of hidden doctor branches.
+- Gemini remains `verification-required` until effective access or primary-source
+  convergence resolves the conflict; CONDUCTOR does not guess.
+- Claude's output-rewrite floor has one owner in metadata/D13 instead of duplicate D5
+  logic.
+- CLI-less CI remains green because file portability does not require every provider
+  runtime on the same machine.
+- D13 does not forward ambient credentials or unrelated environment state, does not
+  echo raw version output, and leaves the installed project byte-identical.
+- Tier definitions and saved model routing remain unchanged.
+
+**Alternatives considered**:
+
+- *Probe authentication in doctor.* Rejected — it would make a read-only local audit
+  networked, credential-sensitive, slow, and policy-dependent.
+- *One global minimum version per adapter.* Rejected — a runtime can load rules while
+  lacking one optional emitted capability; floors must be artifact-specific.
+- *Resolve the Gemini source conflict by choosing the newer announcement.* Rejected —
+  the current authentication guide is also first-party and materially contradictory.
+- *Keep product/auth facts only in prose.* Rejected — that recreates the drift class
+  ADR-040 was introduced to eliminate.
+
+## ADR-055 — Portable procedures compile to native Agent Skills
+
+**Status**: Accepted (2026-07-27)
+
+**Context**: CONDUCTOR already emits durable rules, eight role profiles, and
+provider-specific commands. Planning, verification/debugging, and change-review
+procedures nevertheless remain mixed into always-loaded guidance or repeated manually.
+All six supported tools now document filesystem `SKILL.md` workflows with progressive
+disclosure. Five tools discover `.agents/skills`; Claude Code requires its native
+`.claude/skills` project path.
+
+**Decision**:
+
+1. Add three instruction-only universal sources under `core/skills/`:
+   `plan-change`, `verify-change`, and `review-change`.
+2. Treat skills as procedures, never roles. The eight baseline roles, optional
+   Reflector, immutable task-difficulty Tier 1/2/3 definitions, and saved model routing
+   remain unchanged.
+3. Emit byte-identical source skills to `.claude/skills` for Claude and to the shared
+   `.agents/skills` path for Cursor, Copilot, Gemini, Codex, and Windsurf/Devin.
+4. Emit baseline skills in full, minimal, and strict modes only. Recipes-only and
+   Reflector-only retain their narrow à-la-carte contract.
+5. Reuse adapter-scoped manifests for shared ownership. Strict mode rejects a
+   conflicting user skill before manifest staging or adapter output; uninstall
+   preserves shared or user-modified files and removes only an unchanged final-owner
+   file. The CLI's earlier saved model-configuration gate remains unchanged.
+6. Record project path, path status, activation semantics, invocation syntax, and a
+   dated first-party source in each adapter's `agent_skills` metadata contract. Generate
+   the support table from those contracts.
+7. Keep this slice instruction-only. Executable skill scripts, community downloads,
+   MCP dependencies, and plugin packaging require a separate trust and distribution
+   decision.
+
+**Consequences**:
+
+- Reusable procedures load on demand instead of enlarging every always-loaded rule.
+- Five adapters share one physical skill tree without duplicate backup chains; Claude
+  receives the same bytes at its provider-native path.
+- Gemini may request activation consent, Copilot availability remains surface/policy
+  dependent, and Devin can activate only one skill at a time. These are native
+  differences, not framework failures.
+- Skill discovery is structurally validated but not described as live-verified until a
+  provider session actually activates the skill.
+
+**Alternatives considered**:
+
+- *Convert role profiles to skills.* Rejected — a persona/permission boundary and a
+  reusable procedure are different contracts.
+- *Emit six provider-specific skill bodies.* Rejected — it would recreate prose drift;
+  only the discovery path differs in this slice.
+- *Use `.agents/skills` for Claude too.* Rejected — Claude's first-party project path is
+  `.claude/skills`.
+- *Bundle scripts immediately.* Rejected — scripts expand the trust, permission, and
+  cross-platform test surface without adding value to these three procedural skills.
+- *Emit skills in recipes-only mode.* Rejected — it would violate the mode's promise to
+  install only explicitly selected recipe content.
+
+## ADR-056 — Native hooks compile from a version-gated registry
+
+**Status**: Accepted (2026-07-27)
+
+**Context**: ADR-034 kept workflow guards Claude-only because single-config tools
+could not safely combine always-on guards with recipe-gated hooks. ADR-045 later
+proved a Codex-native subset but retained duplicated adapter heredocs and the
+write-only-if-absent limitation. Current first-party contracts now support the
+three existing portable workflow intents on a wider, but still non-uniform,
+adapter set.
+
+**Decision**:
+
+1. Add an event-neutral `core/hooks/registry.json` and a dependency-free,
+   schema-aware JSON composer. Adapter mappings own native event names, matchers,
+   commands, payload/output dialects, config shape, and artifact-scoped version
+   floors.
+2. Treat only exact executable commands rendered by the adapter registry as
+   CONDUCTOR-owned. Directory prefixes, basenames, and substrings are not ownership
+   evidence. Preserve all arbitrary user keys and user hook arrays—including user
+   commands below a native hook directory—and use the existing manifest
+   backup/checksum lifecycle for exact uninstall restoration and
+   unchanged-reinstall backup retention.
+3. Compile the commit-current-work and commit-test-coverage soft confirmations
+   only for Claude, Copilot, and Codex. Compile the Q2 review-stop continuation
+   for Claude, Cursor, Copilot, Gemini, and Codex. Keep Windsurf/Devin on the
+   universal rule fallback because its documented post-response hooks are
+   asynchronous.
+4. Do not translate a soft confirmation into a hard deny. Cursor's shell `ask`
+   behavior and Gemini's non-blocking BeforeTool confirmation are not sufficiently
+   established for these guards, so those mappings remain absent.
+5. Keep installation offline. D13 applies a numeric capability floor only when
+   the adapter manifest owns the declared guard artifact. Missing CLIs remain
+   informational and no install-time authentication or provider execution occurs.
+6. Every retry-capable stop mapping consumes the runtime's repeat/active signal
+   and fails open on a repeated invocation.
+
+**Consequences**:
+
+- User-owned `.cursor/hooks.json`, `.gemini/settings.json`, and
+  `.windsurf/hooks.json` can receive CONDUCTOR entries without losing unrelated
+  configuration.
+- Adopter-owned hook commands remain registered when their scripts live below
+  `.github/hooks/`, `.gemini/hooks/`, or `.codex/hooks/`; only exact
+  registry-rendered CONDUCTOR commands are refreshed.
+- Hook intent remains universal while native enforcement remains honestly
+  adapter-scoped.
+- Reflector-only installs do not inherit unrelated guard-version requirements.
+- Tier definitions, roles, skills, and saved model routing remain unchanged.
+
+**Alternatives considered**:
+
+- *Continue only-if-absent writes.* Rejected — it leaves the ADR-034 blocker in
+  place and makes later hook additions manual.
+- *Use `jq` or a package dependency.* Rejected — Node is already the CLI runtime,
+  and a small validated composer keeps installs dependency-free.
+- *Emit every guard everywhere.* Rejected — unsupported decision semantics are
+  worse than an explicit rule fallback.
+- *Probe provider versions during install.* Rejected — it would make a portable,
+  offline file compiler depend on machine state and external executables.

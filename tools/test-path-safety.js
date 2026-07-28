@@ -71,6 +71,34 @@ check('managed leaf symlink and hardlink are both refused without touching their
   }
 });
 
+check('portable skill roots and nested files reject links for native and shared paths', () => {
+  for (const fixture of [
+    { tool: 'cursor', root: '.agents', leaf: '.agents/skills/plan-change/SKILL.md' },
+    { tool: 'claude', root: '.claude/skills', leaf: '.claude/skills/plan-change/SKILL.md' },
+  ]) {
+    for (const kind of ['root-symlink', 'leaf-hardlink']) {
+      const parent = temp(`skill-${fixture.tool}-${kind}`);
+      const target = path.join(parent, 'project');
+      const outside = path.join(parent, 'outside');
+      fs.mkdirSync(target); fs.mkdirSync(outside);
+      const sentinel = path.join(outside, 'SKILL.md');
+      fs.writeFileSync(sentinel, `${fixture.tool}-${kind}`);
+      if (kind === 'root-symlink') {
+        fs.mkdirSync(path.dirname(path.join(target, fixture.root)), { recursive: true });
+        fs.symlinkSync(outside, path.join(target, fixture.root));
+      } else {
+        const leaf = path.join(target, fixture.leaf);
+        fs.mkdirSync(path.dirname(leaf), { recursive: true });
+        fs.linkSync(sentinel, leaf);
+      }
+      const result = run(['init', `--target=${fixture.tool}`, target, '--no-prompt', '--accept-model-defaults']);
+      assertRefused(result);
+      assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), `${fixture.tool}-${kind}`);
+      assert.ok(!fs.existsSync(path.join(target, '.conductor/model-routing.json')));
+    }
+  }
+});
+
 check('uninstall refuses traversal, absolute, and foreign backup paths in a crafted manifest', () => {
   const cases = [
     { path: '../outside/victim', backup_path: '' },

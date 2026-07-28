@@ -26,6 +26,53 @@ Status legend: ✅ = automated (CI/validator) · 🧪 = needs a live session (th
 > `tools/live-verify.sh` updates the metadata after a successful live probe, and CI
 > fails if the table and metadata disagree.
 
+## Runtime compatibility contracts
+
+Runtime compatibility is separate from file emission and live rule loading. Each
+adapter declares product lineage, authentication uncertainty, policy gates, numeric
+feature floors when a first-party or live-verified floor exists, and the type of probe
+needed to establish effective activation. `omniconductor doctor` D13 reads this contract
+and performs only a local `<cli> --version` inspection. CONDUCTOR has no authentication,
+prompt, credential-file, network-client, or write path in this inspection. The child
+receives only an execution-safe environment allowlist, and its raw output is never
+surfaced in diagnostics. Since a provider CLI is external code, its internal
+`--version` behavior is not treated as a portable sandbox guarantee.
+
+<!-- generated:runtime-contract-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
+| Adapter | Product lifecycle | Auth contract | Applicable version floors | Probe contract |
+|---|---|---|---|---|
+| Claude Code | Claude Code · active | documented | posttool-output-rewrite ≥ 2.1.121 | headless-model; auth=yes, network=yes |
+| Cursor | Cursor · active | policy-controlled | project-hooks ≥ 1.7.0<br>stop-followup-message ≥ 2.4.0 | headless-model; auth=yes, network=yes |
+| Copilot | GitHub Copilot · active | policy-controlled | pretool-ask-decision ≥ 1.0.4 | headless-model; auth=yes, network=yes |
+| Gemini CLI | Gemini CLI · source-conflict | source-conflict | native-hooks ≥ 0.26.0 | headless-model; auth=yes, network=yes |
+| Codex | Codex · active | documented | no documented numeric floor | local-renderer; auth=no, network=no |
+| Windsurf | Devin Desktop (adapter: Windsurf) · renamed | verification-required | no documented numeric floor | headless-model; auth=yes, network=yes |
+<!-- /generated:runtime-contract-table -->
+
+Statuses are deliberately observational:
+
+- `not-installed` is informational: generated project files remain valid even when a
+  developer does not have that tool on the current machine.
+- `unsupported-version` means an installed runtime is below a floor applicable to an
+  artifact CONDUCTOR actually emitted.
+- `installed-unverified` means the CLI is visible but effective rule loading has not
+  been recorded.
+- `verification-required` covers first-party source conflicts or effective access that
+  cannot be established offline.
+- `product-migrated` records an intentional product rename while retaining the stable
+  adapter identifier and legacy compatibility. It is emitted only after that renamed
+  product line has a recorded live verification; a pending renamed CLI remains
+  `installed-unverified`.
+- `active` means the local runtime is visible, satisfies applicable floors, and has a
+  recorded live verification. It does not override account or organization policy.
+
+Gemini CLI is intentionally `source-conflict`: the 2026-06-18
+[individual-account transition announcement](https://github.com/google-gemini/gemini-cli/discussions/28017)
+states that individual traffic moved to Antigravity CLI, while the repository's current
+[authentication guide](https://github.com/google-gemini/gemini-cli/blob/main/docs/get-started/authentication.mdx)
+still documents individual Google-account login. CONDUCTOR records both dated sources
+and requires an opt-in live result instead of guessing eligibility.
+
 ## Per-tool procedure
 
 For each tool: (1) install into a throwaway project, (2) open the tool there, (3) run
@@ -74,3 +121,19 @@ CURRENT_WORK — no LLM judge), and on PASS writes the result into
 `adapters/<tool>/metadata.json`, regenerating the status table above. Tools whose CLI
 is not installed are SKIPped honestly. Treat any 🧪 row as "emission-verified,
 live-pending" until a probe (or a manual session per this guide) is recorded.
+
+For a zero-network compatibility inspection, run:
+
+```bash
+bash tools/live-verify.sh --runtime-only
+bash tools/live-verify.sh --runtime-only --tool=gemini
+```
+
+To exercise the authenticated/model-backed probe without changing metadata or generated
+documentation, add `--check-only`. Omit it only when the result should become the
+repository's recorded verification evidence:
+
+```bash
+bash tools/live-verify.sh --tool=claude --check-only
+bash tools/live-verify.sh --tool=claude
+```

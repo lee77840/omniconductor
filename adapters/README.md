@@ -38,10 +38,15 @@ Every adapter MUST honor:
 - Write tool-native files at the conventional path for that tool, into a target directory passed as an argument.
 - Conventional paths per tool are documented in `docs/HOW-IT-WORKS-PER-TOOL.md`.
 - `docs/` templates from `core/docs-templates/` install at `<target>/docs/` for every adapter (universal across tools).
+- Full/minimal/strict installs compile the three `core/skills/*/SKILL.md`
+  procedures to `.claude/skills` for Claude and shared `.agents/skills` for the
+  other five adapters. Recipes-only and Reflector-only do not emit them.
 
 ### 3. Idempotency
 
-- Safe to re-run. Existing files at target paths are NOT overwritten — skip and report.
+- Safe to re-run. Manifest-owned files may be refreshed; user files are skipped,
+  backed up for lossless restoration, or rejected by strict mode according to the
+  adapter contract.
 - Re-running with the same inputs produces the same outputs.
 
 ### 4. Dry-run support

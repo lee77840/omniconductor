@@ -8,7 +8,11 @@ VERSION="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$RO
 PREVIOUS_VERSION="${CONDUCTOR_PREVIOUS_VERSION:-}"
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/conductor-release-$VERSION.XXXXXX")"
 ARTIFACT_DIR="${CONDUCTOR_RELEASE_DIR:-$BASE/artifact}"
-CACHE="${CONDUCTOR_NPM_CACHE:-${TMPDIR:-/tmp}/conductor-npm-cache}"
+# Registry state is part of the release decision. Default to a cache scoped to this
+# invocation so a prior run cannot supply an obsolete dist-tag. An explicitly supplied
+# cache remains supported for controlled environments; --prefer-online below still
+# forces npm to revalidate registry metadata.
+CACHE="${CONDUCTOR_NPM_CACHE:-$BASE/npm-cache}"
 PREVIOUS_PACKAGE="${CONDUCTOR_PREVIOUS_PACKAGE:-}"
 REQUIRE_CLEAN="${CONDUCTOR_RELEASE_REQUIRE_CLEAN:-0}"
 REGISTRY_LATEST="${CONDUCTOR_REGISTRY_LATEST_VERSION:-}"
@@ -21,12 +25,12 @@ echo "[release] registry version and upgrade baseline"
 if [ -z "$REGISTRY_LATEST" ]; then
   REGISTRY_LATEST="$(npm_config_cache="$CACHE" npm view omniconductor version \
     --fetch-retries=1 --fetch-retry-mintimeout=1000 \
-    --fetch-retry-maxtimeout=3000 --fetch-timeout=10000)"
+    --fetch-retry-maxtimeout=3000 --fetch-timeout=10000 --prefer-online)"
 fi
 if [ -z "$REGISTRY_VERSIONS_JSON" ]; then
   REGISTRY_VERSIONS_JSON="$(npm_config_cache="$CACHE" npm view omniconductor versions --json \
     --fetch-retries=1 --fetch-retry-mintimeout=1000 \
-    --fetch-retry-maxtimeout=3000 --fetch-timeout=10000)"
+    --fetch-retry-maxtimeout=3000 --fetch-timeout=10000 --prefer-online)"
 fi
 [ -n "$REGISTRY_LATEST" ] && [ -n "$REGISTRY_VERSIONS_JSON" ] || {
   echo "release gate could not establish npm registry state" >&2
@@ -41,7 +45,9 @@ echo "[release] full local regression suite"
 npm test
 
 echo "[release] static, metadata, generated-doc, and source checks"
-for required_tracked_file in bin/claude-hookify.js; do
+for required_tracked_file in \
+  bin/claude-hookify.js bin/runtime-contract.js bin/portable-skills.js bin/hook-config.js \
+  core/hooks/registry.json tools/test-hook-compiler.js; do
   git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
     echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
     exit 1
@@ -54,7 +60,8 @@ bash tools/check-framework-purity.sh
 git diff --check
 for file in adapters/{claude,cursor,copilot,gemini,codex,windsurf}/transform.sh \
   tools/{test-install-modes,test-multitool-runtime,test-npm-upgrade,live-verify}.sh \
-  tools/{test-output-cap,test-doc-path-policy}.sh core/hooks/output-cap.sh.template; do
+  tools/{test-output-cap,test-doc-path-policy,manifest-safety,validate-adapter-output,check-adapter-metadata,release-verify-local}.sh \
+  core/hooks/*.sh.template; do
   bash -n "$file"
 done
 
@@ -71,8 +78,8 @@ else
   echo "          rerun with CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 after the release commit"
   SNAPSHOT_STATUS="DEFERRED (uncommitted working tree)"
 fi
-for file in bin/{omniconductor,doctor,model-routing,path-safety,claude-hookify}.js \
-  tools/{test-model-routing,test-path-safety,test-hookify-posttool,test-release-version,check-release-version}.js; do
+for file in bin/{omniconductor,doctor,model-routing,path-safety,claude-hookify,runtime-contract,portable-skills,hook-config}.js \
+  tools/{test-model-routing,test-path-safety,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-release-version,check-release-version}.js; do
   node --check "$file"
 done
 

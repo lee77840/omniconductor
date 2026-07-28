@@ -10,7 +10,7 @@ Gemini CLI is a T2 target because:
 
 **Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md`).
 
-> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+> Enumerable facts about this adapter (output paths / tier / capabilities / runtime compatibility / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and checked against the shared runtime schema, `transform.sh`, and the validator (ADR-040/054).
 
 
 ## Installation path
@@ -37,6 +37,7 @@ bypass.
 ```
 <target>/
 ├── GEMINI.md                                   # All universal rules concatenated, sectioned
+├── .agents/skills/                             # plan-change, verify-change, review-change
 ├── .gemini/
 │   └── styleguide.md                           # coding-conventions excerpt (Gemini convention)
 └── docs/
@@ -51,6 +52,10 @@ bypass.
     └── research/README.md
 ```
 
+Full, minimal, and strict installs emit the three portable procedures at Gemini
+CLI's `.agents/skills` workspace alias. Native activation asks for user consent.
+Recipes-only and Reflector-only do not emit them.
+
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.gemini/settings.json`), `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
 ## Native features supported (emitted today)
@@ -60,6 +65,7 @@ bypass.
 - ✅ All universal rule TEXT (concatenated).
 - ✅ All doc templates.
 - ✅ Eight native `.gemini/agents/*.md` role profiles, including code-reviewer and Tier 3 utility.
+- ✅ Three portable Agent Skills (`plan-change`, `verify-change`, `review-change`).
 - ✅ Strong large-context capability — the bundled rule file is fine to load every session.
 
 ## Capability boundary

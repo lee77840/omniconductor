@@ -49,6 +49,26 @@ case "$TOOL" in
 esac
 # claude special-case: universal rule location
 [ "$TOOL" = "claude" ] && RULE=".claude/rules/workflow.md"
+if [ "$TOOL" = "claude" ]; then
+  SKILL_ROOT=".claude/skills"
+else
+  SKILL_ROOT=".agents/skills"
+fi
+
+portable_skills_present() {
+  local dir="$1" skill
+  for skill in plan-change verify-change review-change; do
+    [ -s "$dir/$SKILL_ROOT/$skill/SKILL.md" ] || return 1
+    /usr/bin/cmp -s "core/skills/$skill/SKILL.md" "$dir/$SKILL_ROOT/$skill/SKILL.md" || return 1
+  done
+}
+
+portable_skills_absent() {
+  local dir="$1" skill
+  for skill in plan-change verify-change review-change; do
+    [ ! -e "$dir/$SKILL_ROOT/$skill/SKILL.md" ] || return 1
+  done
+}
 
 recipe_artifact() { # path proving the tdd recipe landed, per tool + mode-kind (file|block)
   local d="$1"
@@ -66,7 +86,8 @@ recipe_artifact() { # path proving the tdd recipe landed, per tool + mode-kind (
 d="$BASE/full"; mkdir -p "$d"
 if run_adapter "$d" --no-prompt --recipes=tdd,self-improvement >/dev/null 2>&1 \
    && bash tools/validate-adapter-output.sh "$d" "$TOOL" >/dev/null 2>&1 \
-   && grep -q '"mode": "full"' "$d/.conductor/manifests/$TOOL.json"; then
+   && grep -q '"mode": "full"' "$d/.conductor/manifests/$TOOL.json" \
+   && portable_skills_present "$d"; then
   ok "full: install + validator + manifest mode stamp"
 else bad "full mode"; fi
 
@@ -194,7 +215,9 @@ grep -q 'USER-EDIT-BEFORE-UPDATE' "$d/$BASELINE" 2>/dev/null \
 d="$BASE/minimal"; mkdir -p "$d"
 minimal_install_ok=false
 run_adapter "$d" --mode=minimal --recipes=tdd,self-improvement >/dev/null 2>&1 && minimal_install_ok=true
-if $minimal_install_ok && have "$d/$RULE" && have "$d/docs/CURRENT_WORK.md" && have "$d/.conductor/project.json" && [ ! -d "$d/.conductor/reflect" ]; then
+if $minimal_install_ok && have "$d/$RULE" && have "$d/docs/CURRENT_WORK.md" \
+  && have "$d/.conductor/project.json" && [ ! -d "$d/.conductor/reflect" ] \
+  && portable_skills_present "$d"; then
   ok "minimal: rule text + docs, no Reflector runtime"
 else bad "minimal mode"; fi
 if [ "$TOOL" = "claude" ]; then
@@ -207,6 +230,7 @@ fi
 # ---- strict ----------------------------------------------------------------
 d="$BASE/strict-fresh"; mkdir -p "$d"
 run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1 && have "$d/$RULE" \
+  && portable_skills_present "$d" \
   && ok "strict: fresh target installs" || bad "strict fresh install"
 d="$BASE/strict-seeded"; mkdir -p "$d"
 case "$TOOL" in
@@ -219,6 +243,25 @@ rc=$?
 if [ "$rc" -eq 3 ] && [ ! -f "$d/.conductor-manifest.json" ]; then
   ok "strict: seeded baseline aborts (exit 3, no manifest)"
 else bad "strict seeded abort (rc=$rc)"; fi
+
+d="$BASE/strict-skill-conflict"; mkdir -p "$d/$SKILL_ROOT/plan-change"
+printf '%s\n' 'USER-OWNED-SKILL' > "$d/$SKILL_ROOT/plan-change/SKILL.md"
+before="$(/usr/bin/cksum < "$d/$SKILL_ROOT/plan-change/SKILL.md")"
+run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1
+rc=$?
+after="$(/usr/bin/cksum < "$d/$SKILL_ROOT/plan-change/SKILL.md")"
+if [ "$rc" -eq 3 ] && [ "$before" = "$after" ] \
+  && [ ! -f "$d/.conductor-manifest.json" ] \
+  && [ ! -f "$d/.conductor/manifests/$TOOL.json" ]; then
+  ok "strict: conflicting portable skill aborts before adapter writes"
+else bad "strict portable-skill collision (rc=$rc)"; fi
+
+d="$BASE/strict-skill-identical"; mkdir -p "$d/$SKILL_ROOT/plan-change"
+/bin/cp core/skills/plan-change/SKILL.md "$d/$SKILL_ROOT/plan-change/SKILL.md"
+if run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1 \
+  && portable_skills_present "$d"; then
+  ok "strict: identical portable skill is safe to adopt"
+else bad "strict identical portable-skill adoption"; fi
 
 # Multi-surface tools: seeding ONLY the secondary rules surface must also abort.
 case "$TOOL" in
@@ -254,6 +297,7 @@ art="$(recipe_artifact "$d")"
 okay=true
 have "$art" || okay=false
 [ -d "$d/docs" ] && okay=false
+portable_skills_absent "$d" || okay=false
 if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   grep -q 'conductor:block recipes' "$art" || okay=false
   grep -q "$PRE" "$art" || okay=false
@@ -291,6 +335,7 @@ else
   [ -x "$d/.conductor/reflect/trajectory-log.sh" ] || okay=false
 fi
 [ -d "$d/docs" ] && okay=false
+portable_skills_absent "$d" || okay=false
 case "$TOOL" in
   claude)   { have "$d/.claude/rules/self-improvement.md" && have "$d/.claude/agents/reflector.md" && have "$d/.claude/hooks/stop-trajectory-log.sh" && have "$d/.claude/settings.json" && [ ! -f "$d/CLAUDE.md" ]; } || okay=false ;;
   cursor)   { have "$d/.cursor/rules/self-improvement.mdc" && have "$d/.cursor/hooks.json" && [ ! -f "$d/.cursor/rules/workflow.mdc" ]; } || okay=false ;;

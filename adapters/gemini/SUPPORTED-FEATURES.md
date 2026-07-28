@@ -9,16 +9,18 @@ Detailed matrix of which CONDUCTOR features Gemini CLI supports.
 | **Always-loaded baseline** | ✅ Native | `GEMINI.md` at project root | Auto-loaded by Gemini CLI on session start. |
 | **Style guide convention** | ✅ Native | `.gemini/styleguide.md` | Coding-style-specific guide; complements GEMINI.md. |
 | **Large-context capability** | ✅ Strength | Up to ~1M-2M tokens depending on Gemini Pro version | Bundled rule loading is no problem. |
+| **Runtime compatibility diagnosis** | ⚠️ Source conflict | metadata `runtime_contract` + doctor D13 | June 2026 transition and current authentication docs conflict; an installed CLI remains `verification-required` until an opt-in effective probe passes. |
 | **Per-pattern rule scoping** | ❌ | — | All rules always-loaded. No per-file routing. |
 | **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.gemini/agents/*.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
-| **Hooks (SessionEnd etc.)** | ✅ Native (2026) | `hooks` block in `.gemini/settings.json` | CONDUCTOR emits the verified Reflector hook; other guard translations remain excluded until their contracts are verified. |
+| **Hooks (BeforeTool / AfterAgent / SessionEnd)** | ✅ Native (2026) | `.gemini/settings.json` + `.gemini/hooks/*.sh` | Full/strict emits output-cap and review continuation. Commit soft-confirmations remain rule fallbacks because Gemini's verified shell decision is allow/deny, not soft `ask`; Reflector is recipe-gated. |
 | **Per-task model routing** | ✅ Configured native (2026) | Agent `model` from saved Tier mapping | Recommended semantic aliases: `pro` / `flash` / `flash-lite`. |
 | **Custom slash commands** | ✅ Native (2026) | `.gemini/commands/*.toml` | ADR-031. |
+| **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Official workspace alias; Gemini requests user consent before activation. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Gemini reads on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `GEMINI.md` reminds user | Self-policed. |
-| **Two-stage code review enforcement** | ❌ rule reminder only | | |
-| **Tool-output cap (store-time)** | ⚠️ Shell-only | `.gemini/hooks/output-cap.sh`, `BeforeTool` rewrite of `run_shell_command`'s `tool_input.command` into a combined-stream `awk` truncator | Only fires for `run_shell_command`, not other tool types; stdout+stderr are merged and bounded together, so separate channels are not preserved; head-only (no tail — a streaming cap can't buffer a tail). Composed into a single `.gemini/settings.json` write, only-if-absent — a pre-existing user settings.json skips the whole hook set (cap included) with a manual-merge log line, so effective reach can be 0 until an adopter merges by hand. See ADR-051. |
+| **Two-stage code review enforcement** | ⚠️ Partial native | `AfterAgent` review continuation + commit rule reminders | |
+| **Tool-output cap (store-time)** | ⚠️ Shell-only | `.gemini/hooks/output-cap.sh`, `BeforeTool` rewrite of `run_shell_command`'s `tool_input.command` into a combined-stream `awk` truncator | Only fires for `run_shell_command`, not other tool types; stdout+stderr are merged and bounded together, so separate channels are not preserved; head-only. The registration is schema-merged with arbitrary existing settings and hooks. See ADR-051/056. |
 
 ## Universal-rule → Gemini bundle translation
 
@@ -43,7 +45,7 @@ Still true:
 - Per-pattern rule scoping (everything is always-loaded — no per-file routing).
 - No built-in memory directory — DIY at `.memory/`.
 - No native scheduler.
-- CONDUCTOR emits eight native role profiles, including Tier 3 utility. Hook emission remains limited to the verified self-improvement Reflector lifecycle hook; unsupported Claude hook contracts are not copied.
+- CONDUCTOR emits eight native role profiles, including Tier 3 utility, plus verified output-cap and review-stop guards. Unsupported soft-confirmation semantics remain rule text.
 
 ## Difficulty translation
 
@@ -61,7 +63,7 @@ inherited environment variables cannot replace the saved mapping.
 
 With `--recipes=self-improvement`, the Gemini adapter emits the Reflector loop (ADR-032):
 
-- **Hook**: `.gemini/settings.json` — registers `.conductor/reflect/trajectory-log.sh` on the `SessionEnd` event, composed into the same settings.json write as the always-on `BeforeTool` output-cap hook (ADR-051). Written only if no settings/hook config exists; if one is already present, the adapter emits a manual-merge log entry instead of overwriting.
+- **Hook**: `.gemini/settings.json` — schema-composes `.conductor/reflect/trajectory-log.sh` on `SessionEnd` beside the baseline `BeforeTool`/`AfterAgent` registrations, preserving arbitrary existing user entries.
 - **Command**: `.gemini/commands/reflect.toml` — the `/reflect` command that distills the trajectory log into lesson candidates.
 - **Agent**: `.gemini/agents/reflector.md` — named reflector agent for the distillation pass.
 - **Scripts**: `.conductor/reflect/trajectory-log.sh` (session trajectory capture) and `.conductor/reflect/prune-lessons.sh` (lesson-file size pruning).

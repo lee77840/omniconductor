@@ -17,9 +17,9 @@ If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
 
 Every issue, discussion, and success story helps shape future releases.
 
-> **Status (v1.2.1 — 2026-07-26)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Claude full/strict installs now also verify that emitted Hookify/core-hook files have their required project runtime registration without rejecting deliberate per-rule opt-outs. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status remains in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.3.0 — 2026-07-27)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs now also emit three instruction-only portable Agent Skills (`plan-change`, `verify-change`, `review-change`) at each tool's documented project path; the procedures do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and the generated product/version/auth/policy runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks only local runtime visibility and applicable version floors; authenticated probes remain explicit. Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.1.0**: the first CLI install now asks once for Tier 1/2/3 models, saves a revisioned project mapping, regenerates native roles on explicit reconfiguration, fails closed in unconfigured CI, and distinguishes configured, provider-controlled, and advisory routing. It also includes the six-adapter runtime/ownership and bounded Codex-kernel hardening. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.3.0**: six-adapter runtime compatibility contracts, three portable Agent Skills, and a version-gated native hook compiler. Hook configuration now merges without replacing adopter settings, and exact-command ownership preserves user hooks inside native hook directories. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -52,7 +52,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 핵심 아이디어:
 
-- **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 문서 템플릿, 4-type 메모리 패턴
+- **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 온디맨드 스킬 3개, 문서 템플릿, 4-type 메모리 패턴
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules`)
 - **Layer 3 — Tool-native (정직한 한계)**: full/strict 설치는 Claude·Cursor·Copilot·Gemini·Codex의 8개 네이티브 역할 파일을 생성하고, Windsurf에는 확인된 커스텀 에이전트 파일 계약 대신 8개 역할 워크플로를 설치한다. Claude는 전체 가드 훅, Codex는 검증된 `PreToolUse`/`Stop` 부분집합, 나머지는 검증된 Reflector 훅만 생성한다. 지원되지 않는 계약은 가짜로 폴리필하지 않는다 (ADR-004 / ADR-045/049).
 
@@ -141,9 +141,9 @@ OMNICONDUCTOR enforces the same workflow, rules, and documentation discipline ac
 
 Three layers:
 
-- **Layer 1 (`core/`) — Universal**: tool-agnostic workflow definitions, rule text, doc templates, 4-type memory pattern.
+- **Layer 1 (`core/`) — Universal**: tool-agnostic workflow definitions, rule text, three on-demand skills, doc templates, and the 4-type memory pattern.
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: per-tool transform script that reads `core/` and writes tool-native files.
-- **Layer 3 — Tool-native (honest limits)**: full/strict installs emit eight native role files for Claude, Cursor, Copilot, Gemini, and Codex. Windsurf receives eight native role workflows because no project-local custom-agent profile contract has been verified. Claude gets the full guard set; Codex gets the verified `PreToolUse`/`Stop` subset; other adapters emit only hooks whose native contract is verified. Unsupported contracts are never fake-polyfilled (ADR-004 / ADR-045/049).
+- **Layer 3 — Tool-native (honest limits)**: full/strict installs emit eight native role files for Claude, Cursor, Copilot, Gemini, and Codex. Windsurf receives eight native role workflows because no project-local custom-agent profile contract has been verified. Within the three-policy portable guard set, the hook compiler emits all three guards for Claude, Copilot, and Codex, review continuation for Cursor/Gemini, and explicit rule fallbacks where a verified native decision is absent. Full Codex also retains its existing session-state Stop guard; full Gemini also retains its output-cap BeforeTool hook (ADR-004 / ADR-045/049/051/056).
 
 ### Why this exists
 
@@ -192,18 +192,18 @@ Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](
 Separate two things (per [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md), re-verified against first-party sources 2026-07-04, ADR-031):
 
 - **Tool capability** — capability varies by product and version; the matrix records only verified native surfaces.
-- **OMNICONDUCTOR emission** — every full/strict adapter now emits a role entry in the strongest verified native form. Hook coverage remains capability-specific: full on Claude, a verified guard subset on Codex, and verified recipe/runtime hooks elsewhere.
+- **OMNICONDUCTOR emission** — every full/strict adapter emits a role entry in the strongest verified native form. Within P2's three portable policies, hook coverage is compiled per verified contract: three guards on Claude/Copilot/Codex, review continuation on Cursor/Gemini, and rule fallback on Windsurf. This is not the total hook count: full Codex also emits its session-state Stop guard, and full Gemini also emits output-cap.
 
 The columns below show **OMNICONDUCTOR emission today**:
 
 | Tool | Adapter (rules) | Hooks | Sub-agents | Difficulty/model translation | Recommended install |
 |---|---|---|---|---|---|
 | **Claude Code** | ✅ Full, lazy load | ✅ full Stop / PreToolUse set | ✅ 8 roles (+ reflector recipe) | Saved Opus / Sonnet / Haiku | `bash adapters/claude/transform.sh <target>` |
-| **Cursor** | ✅ Full, lazy load (`.mdc` globs) | Reflector hook when selected | ✅ 8 `.cursor/agents` profiles | Saved exact Tier models; provider fallback disclosed | `bash adapters/cursor/transform.sh <target>` |
-| **GitHub Copilot** | ✅ Full (`applyTo:` scoping) | Reflector hook when selected | ✅ 8 `.github/agents` profiles | Saved exact Tier models; policy risk disclosed | `bash adapters/copilot/transform.sh <target>` |
-| **Gemini CLI** | ✅ Full (`GEMINI.md`) | Reflector hook when selected | ✅ 8 `.gemini/agents` profiles | Saved `pro` / `flash` / `flash-lite` recommendation | `bash adapters/gemini/transform.sh <target>` |
+| **Cursor** | ✅ Full, lazy load (`.mdc` globs) | ✅ review-stop + optional Reflector | ✅ 8 `.cursor/agents` profiles | Saved exact Tier models; provider fallback disclosed | `bash adapters/cursor/transform.sh <target>` |
+| **GitHub Copilot** | ✅ Full (`applyTo:` scoping) | ✅ commit soft-warns + review-stop + optional Reflector | ✅ 8 `.github/agents` profiles | Saved exact Tier models; policy risk disclosed | `bash adapters/copilot/transform.sh <target>` |
+| **Gemini CLI** | ✅ Full (`GEMINI.md`) | ✅ output-cap + review-stop + optional Reflector | ✅ 8 `.gemini/agents` profiles | Saved `pro` / `flash` / `flash-lite` recommendation | `bash adapters/gemini/transform.sh <target>` |
 | **Codex (OpenAI)** | ✅ Bounded `AGENTS.md` kernel + complete `.codex/conductor/` references | ✅ verified commit/session/review guards | ✅ 8 `.codex/agents` profiles | Saved Sol / Terra / Luna + Tier effort | `bash adapters/codex/transform.sh <target>` |
-| **Windsurf** | ✅ Full (`.windsurfrules` + `.devin/rules/*`) | Reflector response hook when selected | ✅ 8 invocable role workflows | Adaptive advisory-session | `bash adapters/windsurf/transform.sh <target>` |
+| **Windsurf** | ✅ Full (`.windsurfrules` + `.devin/rules/*`) | Rule fallback + optional Reflector response hook | ✅ 8 invocable role workflows | Adaptive advisory-session | `bash adapters/windsurf/transform.sh <target>` |
 
 Full per-feature matrix + first-party footnotes: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
 

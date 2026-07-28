@@ -468,7 +468,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty Conductor-emitted dirs left behind.
-  for d in .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -585,8 +585,13 @@ fi
 
 # ----- step 1: synthesize .windsurfrules (always-loaded baseline) --------
 
+conductor_assert_portable_skill_collisions "windsurf" ".agents/skills" || exit $?
+case "$MODE,$RECIPES," in
+  *,self-improvement,*) conductor_validate_hook_config "windsurf" ".windsurf/hooks.json" || exit 1 ;;
+esac
 init_manifest
 conductor_install_project_profile
+conductor_install_portable_skills "windsurf" ".agents/skills"
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
@@ -794,8 +799,10 @@ if [ "$MODE" = "minimal" ]; then
 else
   RECIPES_FOR_RUNTIME="$RECIPES"
 fi
+WINDSURF_HOOK_FEATURES=""
 case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
+    WINDSURF_HOOK_FEATURES="self-improvement"
     log "Step: self-improvement (Reflector) → hook/workflow/rule"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.windsurf/workflows" "$TARGET_ABS/.devin/rules"
@@ -811,23 +818,6 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
         record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
       done
-      hc="$TARGET_ABS/.windsurf/hooks.json"
-      hc_entry="$(conductor_manifest_entry_for_path ".windsurf/hooks.json" 2>/dev/null || true)"
-      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
-        backup_and_remember "$hc"
-        /bin/cat > "$hc" <<'HOOK'
-{
-  "hooks": {
-    "post_cascade_response_with_transcript": [
-      { "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "show_output": false }
-    ]
-  }
-}
-HOOK
-        record_emit ".windsurf/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
-      else
-        log "  WARNING: .windsurf/hooks.json is user-owned — preserved; merge the CONDUCTOR transcript hook manually"
-      fi
       wf="$TARGET_ABS/.windsurf/workflows/reflect.md"
       backup_and_remember "$wf"
       { printf -- '---\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only)\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$wf"
@@ -841,6 +831,10 @@ HOOK
     fi
     ;;
 esac
+
+if [ -n "$WINDSURF_HOOK_FEATURES" ]; then
+  conductor_install_hook_config "windsurf" ".windsurf/hooks.json" "$WINDSURF_HOOK_FEATURES" || exit 1
+fi
 
 # ----- step 4: docs templates --------------------------------------------
 

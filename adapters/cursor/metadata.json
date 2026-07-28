@@ -6,6 +6,9 @@
   "outputs": [
     { "path": ".cursor/rules", "kind": "rules", "validated": true },
     { "path": ".cursor/agents", "kind": "agents", "validated": true },
+    { "path": ".cursor/hooks", "kind": "hooks", "validated": true },
+    { "path": ".cursor/hooks.json", "kind": "config", "validated": true },
+    { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [
@@ -21,15 +24,90 @@
       "model_routing": "yes",
       "commands": "yes",
       "glob_scoping": "yes",
-      "scheduler": "cloud-only"
+      "scheduler": "cloud-only",
+      "skills": "yes"
     },
     "conductor_emitted": {
       "rules": "full",
-      "guard_hooks": "none",
+      "guard_hooks": "review-stop-native",
       "reflector_loop": "recipe",
       "role_agents": "full",
-      "model_routing": "saved-tier-native-with-provider-fallback"
+      "model_routing": "saved-tier-native-with-provider-fallback",
+      "skills": "full"
     }
+  },
+  "agent_skills": {
+    "schema_version": 1,
+    "project_path": ".agents/skills",
+    "path_status": "alias",
+    "activation": "automatic-and-explicit",
+    "explicit_invocation": "/plan-change",
+    "source": {
+      "url": "https://cursor.com/docs/skills",
+      "checked": "2026-07-27"
+    }
+  },
+  "hook_compiler": {
+    "schema_version": 1,
+    "config_path": ".cursor/hooks.json",
+    "native_policies": ["review-before-stop"],
+    "fallback_policies": ["commit-current-work", "commit-test-coverage"],
+    "source": {
+      "url": "https://cursor.com/blog/agent-best-practices",
+      "checked": "2026-07-27"
+    }
+  },
+  "runtime_contract": {
+    "schema_version": 1,
+    "product": {
+      "canonical_name": "Cursor",
+      "aliases": ["Cursor Agent"],
+      "lifecycle": "active",
+      "note": "Cursor remains active; cursor-agent is the headless verification surface."
+    },
+    "version": {
+      "args": ["--version"],
+      "capability_floors": [
+        {
+          "capability": "project-hooks",
+          "minimum": "1.7.0",
+          "when_emitted": ".cursor/hooks.json",
+          "basis": "documented",
+          "source": "https://cursor.com/changelog/1-7"
+        },
+        {
+          "capability": "stop-followup-message",
+          "minimum": "2.4.0",
+          "when_emitted": ".cursor/hooks/stop-r6-review-check.sh",
+          "basis": "documented",
+          "source": "https://cursor.com/changelog/2-4"
+        }
+      ]
+    },
+    "auth": {
+      "status": "policy-controlled",
+      "modes": ["interactive-account"],
+      "note": "Provider availability and organization policy remain authoritative for model-backed probes."
+    },
+    "policy_gates": ["workspace-trust", "plan-or-provider-availability"],
+    "probe": {
+      "kind": "headless-model",
+      "requires_auth": true,
+      "requires_network": true,
+      "note": "live-verify uses cursor-agent -p only when explicitly invoked."
+    },
+    "sources": [
+      {
+        "label": "Cursor hooks changelog",
+        "url": "https://cursor.com/changelog/1-7",
+        "checked": "2026-07-27"
+      },
+      {
+        "label": "Cursor stop-hook continuation",
+        "url": "https://cursor.com/changelog/2-4",
+        "checked": "2026-07-27"
+      }
+    ]
   },
   "live_verification": { "status": "pending", "date": null, "cli": null, "note": "not yet run" },
   "headless_cli": { "command": "cursor-agent", "invocation": "cursor-agent -p" }

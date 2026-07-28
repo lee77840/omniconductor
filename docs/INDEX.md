@@ -26,6 +26,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/universal-rules/quality-gates.md` | Q1..Q4 (pre-commit + pre-merge review, test sync, verify-after). |
 | `core/universal-rules/operations.md` | O2 + O3 + P3 (session continuity, completed-task delete, dev/prod sync). |
 | `core/universal-rules/meta-discipline.md` | M1 + M2 + M3 + M5 + ambiguity policy. |
+| `core/skills/{plan-change,verify-change,review-change}/SKILL.md` | Three instruction-only portable procedures compiled to every adapter (ADR-055). |
 | `core/roles/README.md` | The 8 universal-role catalog, including Tier 3 utility, plus opt-in reflector. |
 | `core/roles/planner.md` | Architecture, gap analysis, ADRs. Tier 1. |
 | `core/roles/builder.md` | Multi-file / cross-cutting code. Tier 1. |
@@ -116,7 +117,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-053. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-055. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |

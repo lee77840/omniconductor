@@ -10,7 +10,10 @@
  *
  * Regions:
  *   docs/ADAPTER-LIVE-VERIFICATION.md   <!-- generated:live-verification-table -->
+ *   docs/ADAPTER-LIVE-VERIFICATION.md   <!-- generated:runtime-contract-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:adapter-outputs-table -->
+ *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:portable-skills-table -->
+ *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:hook-compiler-table -->
  *
  * Usage:
  *   node tools/generate-adapter-docs.js           # rewrite regions in place
@@ -58,6 +61,25 @@ function renderLiveVerificationTable(metas) {
   ].join('\n');
 }
 
+function renderRuntimeContractTable(metas) {
+  const rows = metas.map((m) => {
+    const runtime = m.runtime_contract;
+    const product = runtime.product.lifecycle === 'renamed'
+      ? `${runtime.product.canonical_name} (adapter: ${m.display_name})`
+      : runtime.product.canonical_name;
+    const floors = runtime.version.capability_floors.length
+      ? runtime.version.capability_floors.map((floor) => `${floor.capability} ≥ ${floor.minimum}`).join('<br>')
+      : 'no documented numeric floor';
+    const probe = `${runtime.probe.kind}; auth=${runtime.probe.requires_auth ? 'yes' : 'no'}, network=${runtime.probe.requires_network ? 'yes' : 'no'}`;
+    return `| ${m.display_name} | ${product} · ${runtime.product.lifecycle} | ${runtime.auth.status} | ${floors} | ${probe} |`;
+  });
+  return [
+    '| Adapter | Product lifecycle | Auth contract | Applicable version floors | Probe contract |',
+    '|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
 function renderOutputsTable(metas) {
   const rows = metas.map((m) => {
     const outputs = m.outputs.map((o) => `\`${o.path}\``).join(' + ');
@@ -78,11 +100,45 @@ function renderOutputsTable(metas) {
   ].join('\n');
 }
 
+function renderPortableSkillsTable(metas) {
+  const activationLabels = {
+    'automatic-and-explicit': 'automatic + explicit',
+    'automatic-with-consent': 'automatic + activation consent',
+    'automatic-and-explicit-one-active': 'automatic + explicit; one active',
+  };
+  const rows = metas.map((m) => {
+    const skills = m.agent_skills;
+    const source = `[official](${skills.source.url}) (${skills.source.checked})`;
+    return `| ${m.display_name} | \`${skills.project_path}\` | ${skills.path_status} | ${activationLabels[skills.activation] || skills.activation} | \`${skills.explicit_invocation}\` | ${source} |`;
+  });
+  return [
+    '| Tool | Emitted project root | Path status | Activation | Example explicit invocation | First-party basis |',
+    '|---|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
+function renderHookCompilerTable(metas) {
+  const label = (m, policy) => m.hook_compiler.native_policies.includes(policy)
+    ? '✅ native'
+    : '📘 rule fallback';
+  const rows = metas.map((m) => {
+    const hook = m.hook_compiler;
+    const source = `[official](${hook.source.url}) (${hook.source.checked})`;
+    return `| ${m.display_name} | \`${hook.config_path}\` | ${label(m, 'commit-current-work')} | ${label(m, 'commit-test-coverage')} | ${label(m, 'review-before-stop')} | ${source} |`;
+  });
+  return [
+    '| Tool | Schema-aware config | CURRENT_WORK commit check | Test-coverage commit check | Review-before-stop | First-party basis |',
+    '|---|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
 // ---- region splicing -------------------------------------------------------
 
-function spliceRegion(file, name, body) {
+function spliceRegion(file, name, body, sourceOverride) {
   const p = path.join(ROOT, file);
-  const src = fs.readFileSync(p, 'utf8');
+  const src = sourceOverride === undefined ? fs.readFileSync(p, 'utf8') : sourceOverride;
   const open = `<!-- generated:${name} — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->`;
   const close = `<!-- /generated:${name} -->`;
   const start = src.indexOf(open);
@@ -96,9 +152,49 @@ function spliceRegion(file, name, body) {
 
 function main() {
   const metas = loadMetadata();
+  const live = spliceRegion(
+    'docs/ADAPTER-LIVE-VERIFICATION.md',
+    'live-verification-table',
+    renderLiveVerificationTable(metas),
+  );
+  const runtime = spliceRegion(
+    'docs/ADAPTER-LIVE-VERIFICATION.md',
+    'runtime-contract-table',
+    renderRuntimeContractTable(metas),
+    live.next,
+  );
+  const combinedLive = {
+    p: live.p,
+    src: live.src,
+    next: runtime.next,
+    changed: runtime.next !== live.src,
+  };
+  const outputs = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'adapter-outputs-table',
+    renderOutputsTable(metas),
+  );
+  const skills = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'portable-skills-table',
+    renderPortableSkillsTable(metas),
+    outputs.next,
+  );
+  const hooks = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'hook-compiler-table',
+    renderHookCompilerTable(metas),
+    skills.next,
+  );
+  const combinedMatrix = {
+    p: outputs.p,
+    src: outputs.src,
+    next: hooks.next,
+    changed: hooks.next !== outputs.src,
+  };
   const jobs = [
-    spliceRegion('docs/ADAPTER-LIVE-VERIFICATION.md', 'live-verification-table', renderLiveVerificationTable(metas)),
-    spliceRegion('docs/COMPATIBILITY-MATRIX.md', 'adapter-outputs-table', renderOutputsTable(metas)),
+    combinedLive,
+    combinedMatrix,
   ];
 
   const drifted = jobs.filter((j) => j.changed);

@@ -72,6 +72,26 @@ for f in \
 done
 $role_ok && ok "every supported tool has code-review and Tier 3 utility role entries" || bad "cross-tool role emission"
 
+portable_skills_ok=true
+for skill in plan-change verify-change review-change; do
+  /usr/bin/cmp -s "core/skills/$skill/SKILL.md" "$TARGET/.claude/skills/$skill/SKILL.md" \
+    || portable_skills_ok=false
+  /usr/bin/cmp -s "core/skills/$skill/SKILL.md" "$TARGET/.agents/skills/$skill/SKILL.md" \
+    || portable_skills_ok=false
+  /usr/bin/grep -qF "\"path\": \".claude/skills/$skill/SKILL.md\"" \
+    "$TARGET/.conductor/manifests/claude.json" || portable_skills_ok=false
+  for tool in cursor copilot gemini codex windsurf; do
+    /usr/bin/grep -qF "\"path\": \".agents/skills/$skill/SKILL.md\"" \
+      "$TARGET/.conductor/manifests/$tool.json" || portable_skills_ok=false
+  done
+done
+skill_backup_count="$(find "$TARGET/.agents" -type f -name '*.conductor-backup-*' 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
+if $portable_skills_ok && [ "$skill_backup_count" -eq 0 ]; then
+  ok "portable skills compile byte-identically with six manifests and no shared backup chain"
+else
+  bad "portable skill bytes, ownership, or shared backup hygiene"
+fi
+
 # Difficulty is the cross-vendor invariant. Role sources and all compiled role
 # surfaces must preserve the original 4x Tier 1 / 3x Tier 2 assignment.
 tier_contract_ok=true
@@ -262,8 +282,9 @@ if bash adapters/codex/transform.sh "$TARGET" --uninstall >/dev/null 2>&1 \
   && [ "$(manifest_count "$TARGET")" -eq 5 ] \
   && [ "$(projection_count "$TARGET")" -eq 5 ] \
   && [ -s "$TARGET/.claude/rules/workflow.md" ] \
+  && [ -s "$TARGET/.agents/skills/plan-change/SKILL.md" ] \
   && [ -s "$TARGET/docs/CURRENT_WORK.md" ]; then
-  ok "uninstalling one adapter preserves the other five and shared docs"
+  ok "uninstalling one adapter preserves the other five, shared skills, and shared docs"
 else
   bad "scoped uninstall isolation"
 fi
@@ -277,18 +298,26 @@ else
   bad "scoped adapter reinstall"
 fi
 
-# A user-owned hook registry must not be overwritten by first install.
+# A user-owned hook registry must be semantically composed, retain every user
+# field/handler, validate as managed output, and restore exact bytes on uninstall.
 OWNED="$BASE/user-owned-hooks"
 mkdir -p "$OWNED/.codex"
-printf '{"hooks":{"Stop":[]},"owner":"user"}\n' > "$OWNED/.codex/hooks.json"
+printf '{"hooks":{"Stop":[{"matcher":"custom","hooks":[{"type":"command","command":"user-owned-hook"}]}]},"owner":"user"}\n' > "$OWNED/.codex/hooks.json"
 before="$(/usr/bin/cksum < "$OWNED/.codex/hooks.json")"
 bash adapters/codex/transform.sh "$OWNED" --no-prompt --accept-model-defaults >/dev/null 2>&1
-after="$(/usr/bin/cksum < "$OWNED/.codex/hooks.json")"
-if [ "$before" = "$after" ] \
-  && bash tools/validate-adapter-output.sh "$OWNED" codex >/dev/null 2>&1; then
-  ok "user-owned Codex hooks.json is preserved and not misclassified as generated output"
+if node -e '
+    const c=require(process.argv[1]);
+    const strings=JSON.stringify(c);
+    process.exit(c.owner==="user" && /user-owned-hook/.test(strings)
+      && /stop-r6-review-check\.sh/.test(strings) ? 0 : 1);
+  ' "$OWNED/.codex/hooks.json" \
+  && /usr/bin/grep -q '"path": ".codex/hooks.json"' "$OWNED/.conductor/manifests/codex.json" \
+  && bash tools/validate-adapter-output.sh "$OWNED" codex >/dev/null 2>&1 \
+  && bash adapters/codex/transform.sh "$OWNED" --uninstall >/dev/null 2>&1 \
+  && [ "$before" = "$(/usr/bin/cksum < "$OWNED/.codex/hooks.json")" ]; then
+  ok "user-owned Codex hooks.json is merged losslessly and restored byte-for-byte"
 else
-  bad "user-owned hook registry overwritten or misclassified by validator"
+  bad "user-owned hook registry merge/validation/uninstall contract"
 fi
 
 # Codex soft warnings must use model-visible context, never the unsupported

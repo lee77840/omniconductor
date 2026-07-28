@@ -8,11 +8,13 @@ Detailed matrix of which CONDUCTOR features Codex supports.
 |---|---|---|---|
 | **Always-loaded project rules** | ✅ Native | `AGENTS.md` | Bounded kernel auto-loaded on session start. |
 | **Shell task execution** | ✅ Strength | Codex's primary capability | One-shot shell scripting is Codex's best use case. |
+| **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Local prompt-input verification does not require authentication or a network model call. |
 | **Per-pattern rule scoping** | ❌ | — | All rules always-loaded. |
 | **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.codex/agents/*.toml` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
 | **Hooks (Stop etc.)** | ✅ Emitted subset | `.codex/hooks.json` + `.codex/hooks/*.sh` | Commit/current-work/test, session/spec, pre-merge review, and recipe-gated guards. |
 | **Per-task model routing** | ✅ Configured native (2026) | Saved model + `model_reasoning_effort` | Recommended Sol/Terra/Luna; Tier 1/2/3 independently maps to high/medium/low. |
 | **Custom slash commands** | ✅ Native (2026) | Skills at `.agents/skills/*/SKILL.md` | ADR-031. |
+| **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Full/minimal/strict emit plan, verify, and review procedures; implicit selection or explicit `$skill` invocation. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Read on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ✅ Guard + rule | Codex Stop hook | Guardrail, not a complete security boundary. |

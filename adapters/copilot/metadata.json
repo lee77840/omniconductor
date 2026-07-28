@@ -7,6 +7,9 @@
     { "path": ".github/copilot-instructions.md", "kind": "always_loaded", "validated": true },
     { "path": ".github/instructions", "kind": "rules", "validated": true },
     { "path": ".github/agents", "kind": "agents", "validated": true },
+    { "path": ".github/hooks", "kind": "hooks", "validated": true },
+    { "path": ".github/hooks/conductor-reflect.json", "kind": "config", "validated": true },
+    { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [
@@ -22,15 +25,83 @@
       "model_routing": "yes",
       "commands": "yes",
       "glob_scoping": "yes",
-      "scheduler": "cloud-only"
+      "scheduler": "cloud-only",
+      "skills": "yes"
     },
     "conductor_emitted": {
       "rules": "full",
-      "guard_hooks": "none",
+      "guard_hooks": "commit-soft-warn+review-stop-native",
       "reflector_loop": "recipe",
       "role_agents": "full",
-      "model_routing": "saved-tier-native-with-policy-risk"
+      "model_routing": "saved-tier-native-with-policy-risk",
+      "skills": "full"
     }
+  },
+  "agent_skills": {
+    "schema_version": 1,
+    "project_path": ".agents/skills",
+    "path_status": "documented-alternative",
+    "activation": "automatic-and-explicit",
+    "explicit_invocation": "/plan-change",
+    "source": {
+      "url": "https://docs.github.com/en/copilot/reference/customization-cheat-sheet",
+      "checked": "2026-07-27"
+    }
+  },
+  "hook_compiler": {
+    "schema_version": 1,
+    "config_path": ".github/hooks/conductor-reflect.json",
+    "native_policies": ["commit-current-work", "commit-test-coverage", "review-before-stop"],
+    "fallback_policies": [],
+    "source": {
+      "url": "https://docs.github.com/en/copilot/reference/hooks-reference",
+      "checked": "2026-07-27"
+    }
+  },
+  "runtime_contract": {
+    "schema_version": 1,
+    "product": {
+      "canonical_name": "GitHub Copilot",
+      "aliases": ["Copilot CLI"],
+      "lifecycle": "active",
+      "note": "GitHub Copilot spans CLI, IDE, app, and cloud-agent surfaces."
+    },
+    "version": {
+      "args": ["--version"],
+      "capability_floors": [
+        {
+          "capability": "pretool-ask-decision",
+          "minimum": "1.0.4",
+          "when_emitted": ".github/hooks/conductor/pretool-commit-current-work-check.sh",
+          "basis": "documented",
+          "source": "https://github.com/github/copilot-cli/blob/main/changelog.md"
+        }
+      ]
+    },
+    "auth": {
+      "status": "policy-controlled",
+      "modes": ["github-account"],
+      "note": "CLI and agent availability can be disabled by organization or enterprise policy."
+    },
+    "policy_gates": ["organization-or-enterprise-policy"],
+    "probe": {
+      "kind": "headless-model",
+      "requires_auth": true,
+      "requires_network": true,
+      "note": "live-verify uses copilot -p; IDE-specific consumption remains a manual smoke test."
+    },
+    "sources": [
+      {
+        "label": "GitHub Copilot CLI reference",
+        "url": "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference",
+        "checked": "2026-07-27"
+      },
+      {
+        "label": "GitHub Copilot hooks reference",
+        "url": "https://docs.github.com/en/copilot/reference/hooks-reference",
+        "checked": "2026-07-27"
+      }
+    ]
   },
   "live_verification": { "status": "pending", "date": null, "cli": null, "note": "per-IDE — see docs/IDE-SMOKE-TESTING.md" },
   "headless_cli": { "command": "copilot", "invocation": "copilot -p" }

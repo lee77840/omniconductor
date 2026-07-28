@@ -68,6 +68,35 @@ Each tool consumes a different syntax. When you copy a rule file into a tool-nat
 
 ---
 
+## Portable Agent Skills (optional manual copy)
+
+The guided installer manifest-manages these files. A no-Node manual install can copy
+the same three instruction-only procedures, but you are responsible for collisions and
+removal:
+
+```bash
+cd <target>
+conductor_clone="$HOME/conductor"
+
+# Claude Code:
+skill_root=.claude/skills
+
+# Cursor, Copilot, Gemini CLI, Codex, or Windsurf/Devin:
+# skill_root=.agents/skills
+
+for skill in plan-change verify-change review-change; do
+  mkdir -p "$skill_root/$skill"
+  cp "$conductor_clone/core/skills/$skill/SKILL.md" "$skill_root/$skill/SKILL.md"
+done
+```
+
+Do not overwrite an existing skill with the same name without reviewing it. Native
+discovery differs: Gemini asks for activation consent, Copilot remains
+surface/policy-dependent, and Devin activates one skill at a time. Manual copy does
+not create CONDUCTOR manifest ownership.
+
+---
+
 ## Tool 1 — Cursor (fallback manual install)
 
 ### Prerequisites

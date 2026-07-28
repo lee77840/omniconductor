@@ -25,6 +25,10 @@ adapters/windsurf/_native/windsurfrules.tpl       # Header template (Windsurf-fl
 
 ## Outputs
 
+Full/minimal/strict also copy the three byte-identical portable procedures from
+`core/skills/` to Devin's recommended `.agents/skills/<name>/SKILL.md` path.
+Recipes-only and Reflector-only do not emit the baseline set.
+
 ```
 <target-dir>/
 ├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules + always-loaded rules)

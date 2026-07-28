@@ -10,7 +10,7 @@ GitHub Copilot is a T2 target because:
 
 **Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md` — hooks + sub-agents + per-task model + commands all present; caveats: `applyTo:` glob scoping works, but the coding agent has no transcript API).
 
-> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+> Enumerable facts about this adapter (output paths / tier / capabilities / runtime compatibility / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and checked against the shared runtime schema, `transform.sh`, and the validator (ADR-040/054).
 
 
 ## Installation path
@@ -31,6 +31,7 @@ bypass.
 
 ```
 <target>/
+├── .agents/skills/                            # plan-change, verify-change, review-change
 ├── .github/
 │   ├── copilot-instructions.md                 # 5 universal rules merged (repo-wide, default mode)
 │   └── instructions/
@@ -47,6 +48,10 @@ bypass.
     └── research/README.md
 ```
 
+Full, minimal, and strict installs emit the three portable procedures at Copilot's
+documented alternative `.agents/skills` project path. Recipes-only and
+Reflector-only do not.
+
 - `--per-rule` splits the 5 universal rules into per-file `.github/instructions/<rule>.instructions.md` (`applyTo: '**'`) instead of the single merged file.
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config, `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
@@ -58,6 +63,7 @@ bypass.
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
 - ✅ Eight repository custom agents in `.github/agents/`, including code-reviewer and Tier 3 utility.
+- ✅ Three portable Agent Skills (`plan-change`, `verify-change`, `review-change`).
 - ✅ Reflector loop (opt-in recipe).
 - ⚠️ Copilot PR review feature for Stage B (partial).
 

@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "adapters": {
+    "claude": {
+      "config_path": ".claude/settings.json",
+      "shape": "nested"
+    },
+    "cursor": {
+      "config_path": ".cursor/hooks.json",
+      "shape": "flat",
+      "root_defaults": { "version": 1 }
+    },
+    "copilot": {
+      "config_path": ".github/hooks/conductor-reflect.json",
+      "shape": "flat",
+      "root_defaults": { "version": 1 }
+    },
+    "gemini": {
+      "config_path": ".gemini/settings.json",
+      "shape": "nested"
+    },
+    "codex": {
+      "config_path": ".codex/hooks.json",
+      "shape": "nested"
+    },
+    "windsurf": {
+      "config_path": ".windsurf/hooks.json",
+      "shape": "flat"
+    }
+  },
+  "registrations": [
+    {
+      "id": "commit-current-work",
+      "source": "core/hooks/pretool-commit-current-work-check.sh.template",
+      "feature": "baseline",
+      "intent": "pre-command-soft-confirmation",
+      "fallback": "operations-rule",
+      "targets": {
+        "claude": {
+          "event": "PreToolUse",
+          "group": {
+            "matcher": "Bash",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pretool-commit-current-work-check.sh"
+              }
+            ]
+          }
+        },
+        "copilot": {
+          "event": "preToolUse",
+          "handler": {
+            "type": "command",
+            "matcher": "bash|powershell",
+            "bash": "CONDUCTOR_HOOK_DIALECT=copilot bash \"$(git rev-parse --show-toplevel)/.github/hooks/conductor/pretool-commit-current-work-check.sh\"",
+            "timeoutSec": 30
+          }
+        },
+        "codex": {
+          "event": "PreToolUse",
+          "group": {
+            "matcher": "^Bash$",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-commit-current-work-check.sh\"",
+                "timeout": 30,
+                "statusMessage": "Checking CURRENT_WORK synchronization"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "commit-test-coverage",
+      "source": "core/hooks/pretool-commit-test-coverage-check.sh.template",
+      "feature": "baseline",
+      "intent": "pre-command-soft-confirmation",
+      "fallback": "quality-gates-rule",
+      "targets": {
+        "claude": {
+          "event": "PreToolUse",
+          "group": {
+            "matcher": "Bash",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pretool-commit-test-coverage-check.sh"
+              }
+            ]
+          }
+        },
+        "copilot": {
+          "event": "preToolUse",
+          "handler": {
+            "type": "command",
+            "matcher": "bash|powershell",
+            "bash": "CONDUCTOR_HOOK_DIALECT=copilot bash \"$(git rev-parse --show-toplevel)/.github/hooks/conductor/pretool-commit-test-coverage-check.sh\"",
+            "timeoutSec": 30
+          }
+        },
+        "codex": {
+          "event": "PreToolUse",
+          "group": {
+            "matcher": "^Bash$",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-commit-test-coverage-check.sh\"",
+                "timeout": 30,
+                "statusMessage": "Checking staged test coverage"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "review-before-stop",
+      "source": "core/hooks/stop-r6-review-check.sh.template",
+      "feature": "baseline",
+      "intent": "turn-stop-continuation",
+      "fallback": "quality-gates-rule",
+      "targets": {
+        "claude": {
+          "event": "Stop",
+          "group": {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-r6-review-check.sh"
+              }
+            ]
+          }
+        },
+        "cursor": {
+          "event": "stop",
+          "handler": {
+            "command": "CONDUCTOR_HOOK_DIALECT=cursor bash \"$(git rev-parse --show-toplevel)/.cursor/hooks/stop-r6-review-check.sh\""
+          }
+        },
+        "copilot": {
+          "event": "agentStop",
+          "handler": {
+            "type": "command",
+            "bash": "CONDUCTOR_HOOK_DIALECT=copilot bash \"$(git rev-parse --show-toplevel)/.github/hooks/conductor/stop-r6-review-check.sh\"",
+            "timeoutSec": 30
+          }
+        },
+        "gemini": {
+          "event": "AfterAgent",
+          "group": {
+            "matcher": "*",
+            "hooks": [
+              {
+                "type": "command",
+                "name": "conductor-review-before-stop",
+                "command": "CONDUCTOR_HOOK_DIALECT=gemini bash \"$GEMINI_PROJECT_DIR\"/.gemini/hooks/stop-r6-review-check.sh",
+                "timeout": 30000
+              }
+            ]
+          }
+        },
+        "codex": {
+          "event": "Stop",
+          "group": {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-r6-review-check.sh\"",
+                "timeout": 30,
+                "statusMessage": "Checking pre-merge review state"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "session-state-before-stop",
+      "source": "core/hooks/stop-session-log-check.sh.template",
+      "feature": "baseline",
+      "intent": "turn-stop-continuation",
+      "fallback": "operations-rule",
+      "targets": {
+        "codex": {
+          "event": "Stop",
+          "group": {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-session-log-check.sh\"",
+                "timeout": 30,
+                "statusMessage": "Checking session and spec state"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "output-cap",
+      "source": "core/hooks/output-cap.sh.template",
+      "feature": "output-cap",
+      "intent": "tool-output-cap",
+      "fallback": "meta-discipline-rule",
+      "targets": {
+        "gemini": {
+          "event": "BeforeTool",
+          "group": {
+            "matcher": "run_shell_command",
+            "hooks": [
+              {
+                "type": "command",
+                "name": "conductor-output-cap",
+                "command": "CONDUCTOR_HOOK_DIALECT=gemini bash \"$GEMINI_PROJECT_DIR\"/.gemini/hooks/output-cap.sh",
+                "timeout": 30000
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "trajectory-log",
+      "source": "core/reflector/trajectory-log.sh",
+      "feature": "self-improvement",
+      "intent": "trajectory-observation",
+      "fallback": "manual-reflect",
+      "targets": {
+        "cursor": {
+          "event": "stop",
+          "handler": {
+            "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\""
+          }
+        },
+        "copilot": {
+          "event": "agentStop",
+          "handler": {
+            "type": "command",
+            "bash": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"",
+            "timeoutSec": 10
+          }
+        },
+        "gemini": {
+          "event": "SessionEnd",
+          "group": {
+            "matcher": "*",
+            "hooks": [
+              {
+                "type": "command",
+                "name": "conductor-trajectory-log",
+                "command": "\"$GEMINI_PROJECT_DIR\"/.conductor/reflect/trajectory-log.sh",
+                "timeout": 30000
+              }
+            ]
+          }
+        },
+        "codex": {
+          "event": "Stop",
+          "group": {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"",
+                "timeout": 30,
+                "statusMessage": "Recording CONDUCTOR trajectory"
+              }
+            ]
+          }
+        },
+        "windsurf": {
+          "event": "post_cascade_response_with_transcript",
+          "handler": {
+            "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"",
+            "show_output": false
+          }
+        }
+      }
+    },
+    {
+      "id": "loop-budget",
+      "source": "core/hooks/pretool-loop-guard.sh.template",
+      "feature": "loop-engineering",
+      "intent": "pre-tool-loop-reminder",
+      "fallback": "loop-engineering-rule",
+      "targets": {
+        "codex": {
+          "event": "PreToolUse",
+          "group": {
+            "matcher": "^Bash$",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "CONDUCTOR_HOOK_DIALECT=codex CONDUCTOR_LOOP_RECIPE_PATH=.codex/conductor/recipes/loop-engineering.md bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-loop-guard.sh\"",
+                "timeout": 30,
+                "statusMessage": "Checking loop budget"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "git-hygiene-before-stop",
+      "source": "core/hooks/stop-git-hygiene-guard.sh.template",
+      "feature": "git-hygiene",
+      "intent": "turn-stop-continuation",
+      "fallback": "git-hygiene-rule",
+      "targets": {
+        "codex": {
+          "event": "Stop",
+          "group": {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "CONDUCTOR_HOOK_DIALECT=codex CONDUCTOR_GIT_HYGIENE_RECIPE_PATH=.codex/conductor/recipes/git-hygiene.md bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-git-hygiene-guard.sh\"",
+                "timeout": 30,
+                "statusMessage": "Checking git hygiene"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

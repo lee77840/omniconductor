@@ -559,7 +559,7 @@ do_uninstall() {
   fi
   conductor_manifest_refresh_projection
 
-  for d in .github/instructions .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .github/instructions .github/hooks/conductor .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -680,8 +680,13 @@ fi
 
 # ----- step 1: universal rules → .github/copilot-instructions.md ---------
 
+conductor_assert_portable_skill_collisions "copilot" ".agents/skills" || exit $?
+case "$MODE,$RECIPES," in
+  full,*|strict,*|*,self-improvement,*) conductor_validate_hook_config "copilot" ".github/hooks/conductor-reflect.json" || exit 1 ;;
+esac
 init_manifest
 conductor_install_project_profile
+conductor_install_portable_skills "copilot" ".agents/skills"
 
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
@@ -824,6 +829,22 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   fi
 fi
 
+COPILOT_HOOK_FEATURES=""
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  COPILOT_HOOK_FEATURES="baseline"
+  log "Step 2.5/4: native workflow guards → .github/hooks/conductor/"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.github/hooks/conductor"
+    for h in pretool-commit-current-work-check pretool-commit-test-coverage-check stop-r6-review-check; do
+      d="$TARGET_ABS/.github/hooks/conductor/$h.sh"
+      backup_if_exists "$d"
+      /bin/cp "$CORE_ROOT/hooks/$h.sh.template" "$d"
+      /bin/chmod +x "$d"
+      record_emit ".github/hooks/conductor/$h.sh" "core/hooks/$h.sh.template" "$MANIFEST_LAST_BACKUP"
+    done
+  fi
+fi
+
 if [ "$MODE" = "minimal" ]; then
   RECIPES_FOR_RUNTIME=""
   log "Step 2.6/4: self-improvement runtime — skipped (--mode=minimal ships text only)"
@@ -832,6 +853,7 @@ else
 fi
 case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
+    COPILOT_HOOK_FEATURES="${COPILOT_HOOK_FEATURES:+$COPILOT_HOOK_FEATURES,}self-improvement"
     log "Step 2.6/4: self-improvement (Reflector) → hooks/prompt/agent"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.github/hooks" "$TARGET_ABS/.github/prompts" "$TARGET_ABS/.github/agents"
@@ -847,22 +869,6 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
         record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
       done
-      hc="$TARGET_ABS/.github/hooks/conductor-reflect.json"
-      hc_entry="$(conductor_manifest_entry_for_path ".github/hooks/conductor-reflect.json" 2>/dev/null || true)"
-      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
-        backup_if_exists "$hc"
-        /bin/cat > "$hc" <<'HOOK'
-{
-  "version": 1,
-  "hooks": {
-    "agentStop": [ { "type": "command", "bash": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "timeoutSec": 10 } ]
-  }
-}
-HOOK
-        record_emit ".github/hooks/conductor-reflect.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
-      else
-        log "  WARNING: .github/hooks/conductor-reflect.json is user-owned — preserved; merge the CONDUCTOR hook manually"
-      fi
       pr="$TARGET_ABS/.github/prompts/reflect.prompt.md"
       backup_if_exists "$pr"
       { printf -- "---\ndescription: 'Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only)'\nagent: 'agent'\n---\n\n"; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$pr"
@@ -883,6 +889,11 @@ HOOK
     fi
     ;;
 esac
+
+if [ -n "$COPILOT_HOOK_FEATURES" ]; then
+  log "Step 2.7/4: native hook registry → .github/hooks/conductor-reflect.json"
+  conductor_install_hook_config "copilot" ".github/hooks/conductor-reflect.json" "$COPILOT_HOOK_FEATURES" || exit 1
+fi
 
 # ----- step 3: docs templates --------------------------------------------
 

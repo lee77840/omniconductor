@@ -626,7 +626,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (children before parents).
-  for d in .gemini/commands .gemini/agents .gemini/hooks .conductor/reflect .conductor .gemini docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .gemini/commands .gemini/agents .gemini/hooks .conductor/reflect .conductor .gemini docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -761,8 +761,13 @@ conductor_validate_model_slug "$GEMINI_TIER_1_MODEL" "Gemini Tier 1 model" || ex
 conductor_validate_model_slug "$GEMINI_TIER_2_MODEL" "Gemini Tier 2 model" || exit 1
 conductor_validate_model_slug "$GEMINI_TIER_3_MODEL" "Gemini Tier 3 model" || exit 1
 
+conductor_assert_portable_skill_collisions "gemini" ".agents/skills" || exit $?
+case "$MODE,$RECIPES," in
+  full,*|strict,*|*,self-improvement,*) conductor_validate_hook_config "gemini" ".gemini/settings.json" || exit 1 ;;
+esac
 init_manifest
 conductor_install_project_profile
+conductor_install_portable_skills "gemini" ".agents/skills"
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 GEMINI_DEST="$TARGET_ABS/GEMINI.md"
@@ -1107,8 +1112,10 @@ fi
 # a byte-capping awk truncator before the
 # command runs (see core/hooks/output-cap.sh.template, gemini dialect).
 GEMINI_CAP_APPLIES="false"
+GEMINI_HOOK_FEATURES=""
 if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   GEMINI_CAP_APPLIES="true"
+  GEMINI_HOOK_FEATURES="baseline,output-cap"
   log "Step: output-cap (BeforeTool shell-arg rewrite) → .gemini/hooks/output-cap.sh"
   if [ "$DRY_RUN" = "true" ]; then
     log "would write $TARGET_ABS/.gemini/hooks/output-cap.sh"
@@ -1119,6 +1126,11 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
     /bin/cp "$CORE_ROOT/hooks/output-cap.sh.template" "$cap_dest"
     /bin/chmod +x "$cap_dest"
     record_emit ".gemini/hooks/output-cap.sh" "core/hooks/output-cap.sh.template" "$MANIFEST_LAST_BACKUP"
+    review_dest="$TARGET_ABS/.gemini/hooks/stop-r6-review-check.sh"
+    backup_and_remember "$review_dest"
+    /bin/cp "$CORE_ROOT/hooks/stop-r6-review-check.sh.template" "$review_dest"
+    /bin/chmod +x "$review_dest"
+    record_emit ".gemini/hooks/stop-r6-review-check.sh" "core/hooks/stop-r6-review-check.sh.template" "$MANIFEST_LAST_BACKUP"
   fi
 fi
 
@@ -1132,6 +1144,7 @@ GEMINI_REFLECTOR_APPLIES="false"
 case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
     GEMINI_REFLECTOR_APPLIES="true"
+    GEMINI_HOOK_FEATURES="${GEMINI_HOOK_FEATURES:+$GEMINI_HOOK_FEATURES,}self-improvement"
     log "Step: self-improvement (Reflector) → .gemini hooks/command/agent"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.gemini/commands" "$TARGET_ABS/.gemini/agents"
@@ -1163,51 +1176,10 @@ case ",$RECIPES_FOR_RUNTIME," in
     ;;
 esac
 
-# ----- unified .gemini/settings.json (BeforeTool cap + SessionEnd reflector) -
-# Compose whichever native hooks apply into ONE settings.json write. Only-if-
-# absent or manifest-owned (same safety pattern the reflector-only write used
-# before this was unified) — merging arbitrary user JSON in bash is unsafe, so
-# a user-owned file is preserved (with a warning) instead of overwritten.
-# GEMINI_REFLECTOR_APPLIES is set inside the self-improvement case arm above
-# (reused here, not recomputed) so the two can't drift apart.
-if [ "$GEMINI_CAP_APPLIES" = "true" ] || [ "$GEMINI_REFLECTOR_APPLIES" = "true" ]; then
-  log "Step: .gemini/settings.json → BeforeTool cap ($GEMINI_CAP_APPLIES) + SessionEnd reflector ($GEMINI_REFLECTOR_APPLIES)"
-  if [ "$DRY_RUN" = "true" ]; then
-    log "would write $TARGET_ABS/.gemini/settings.json"
-  else
-    mkdir_if_real "$TARGET_ABS/.gemini"
-    hc="$TARGET_ABS/.gemini/settings.json"
-    hc_entry="$(conductor_manifest_entry_for_path ".gemini/settings.json" 2>/dev/null || true)"
-    if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
-      backup_and_remember "$hc"
-      {
-        echo '{'
-        echo '  "hooks": {'
-        _gemini_hooks_emitted="false"
-        if [ "$GEMINI_CAP_APPLIES" = "true" ]; then
-          cat <<'HOOKJSON'
-    "BeforeTool": [
-      { "matcher": "run_shell_command", "hooks": [ { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=gemini bash \"$GEMINI_PROJECT_DIR\"/.gemini/hooks/output-cap.sh", "timeout": 30000 } ] }
-    ]
-HOOKJSON
-          _gemini_hooks_emitted="true"
-        fi
-        if [ "$GEMINI_REFLECTOR_APPLIES" = "true" ]; then
-          if [ "$_gemini_hooks_emitted" = "true" ]; then echo '    ,'; fi
-          cat <<'HOOKJSON'
-    "SessionEnd": [
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "\"$GEMINI_PROJECT_DIR\"/.conductor/reflect/trajectory-log.sh", "timeout": 30000 } ] }
-    ]
-HOOKJSON
-        fi
-        echo '  }'
-        echo '}'
-      } > "$hc"
-      record_emit ".gemini/settings.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
-    else
-      log "  WARNING: .gemini/settings.json is user-owned — preserved; merge the CONDUCTOR hooks manually"
-    fi
-  fi
+# ----- unified .gemini/settings.json -------------------------------------
+if [ -n "$GEMINI_HOOK_FEATURES" ]; then
+  log "Step: .gemini/settings.json → schema-aware native hook composition"
+  conductor_install_hook_config "gemini" ".gemini/settings.json" "$GEMINI_HOOK_FEATURES" || exit 1
 fi
 
 # ----- step 3: docs templates --------------------------------------------

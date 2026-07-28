@@ -21,6 +21,7 @@
  *   D10 work-state drift     — CURRENT_WORK branch/base/head vs real Git state
  *   D11 model routing        — saved Tier mappings, adapter coverage, enforcement truth
  *   D12 document paths       — canonical seeds + undeclared legacy precedents
+ *   D13 runtime compatibility — local CLI/version/lifecycle/auth contract (offline)
  *
  * Severity: FAIL = broken install · WARN = degraded/attention · OK.
  * Exit codes: 0 = all OK · 1 = warnings only · 2 = failures (or unusable target).
@@ -33,6 +34,7 @@ const { spawnSync } = require('child_process');
 const modelRouting = require('./model-routing.js');
 const pathSafety = require('./path-safety.js');
 const claudeHookify = require('./claude-hookify.js');
+const runtimeContract = require('./runtime-contract.js');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -41,14 +43,8 @@ function readPkgVersion() {
   catch { return null; }
 }
 
-// Claude Code version at/after which PostToolUse `updatedToolOutput` is honored for all tools
-// (AC7). Single source of truth — referenced by both the numeric compare and the human-readable
-// "vX.Y.Z" text below, so a future floor bump only needs to change this one literal.
-const CLAUDE_OUTPUT_CAP_MIN = { major: 2, minor: 1, patch: 121 };
-const CLAUDE_OUTPUT_CAP_MIN_LABEL = `v${CLAUDE_OUTPUT_CAP_MIN.major}.${CLAUDE_OUTPUT_CAP_MIN.minor}.${CLAUDE_OUTPUT_CAP_MIN.patch}`;
-
 // major.minor comparison when `patch` is omitted (existing D11 call sites); a patch-level
-// 3-part compare when supplied (needed for the Claude output-cap floor, CLAUDE_OUTPUT_CAP_MIN).
+// 3-part compare when supplied.
 function versionAtLeast(value, major, minor, patch) {
   const match = String(value || '').replace(/^v/, '').match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
   if (!match) return false;
@@ -532,28 +528,6 @@ function run(targetDir, opts) {
       }
     }
   }
-  // Claude output-cap version floor (AC7). `updatedToolOutput` (the PostToolUse mechanism
-  // output-cap.sh relies on) silently no-ops below CLAUDE_OUTPUT_CAP_MIN — warn only when a
-  // below-floor version is actually detected. AC7 says "warn when below the floor", not "warn
-  // when unknown"; an unrunnable/absent `claude` CLI is left quiet (informational OK) so a
-  // CLI-less CI install does not flip green -> WARN on every run.
-  const claudeCapEmitted = manifest.emitted_files.some((ef) => ef && ef._adapter === 'claude' && ef.path === '.claude/hooks/output-cap.sh');
-  if (claudeCapEmitted && fs.existsSync(path.join(targetAbs, '.claude', 'hooks', 'output-cap.sh'))) {
-    const claudeVersion = spawnSync('claude', ['--version'], { encoding: 'utf8', timeout: 5000 });
-    if (claudeVersion.error || claudeVersion.status !== 0) {
-      add('D5', 'OK', `Claude CLI unavailable — output-cap version floor (>=${CLAUDE_OUTPUT_CAP_MIN_LABEL} for updatedToolOutput) is unverifiable here`);
-    } else {
-      const raw = String(claudeVersion.stdout || '').trim();
-      if (!/^v?\d+\.\d+\.\d+/.test(raw)) {
-        add('D5', 'OK', `Claude CLI version output '${raw}' did not parse — output-cap version floor is unverifiable here`);
-      } else if (!versionAtLeast(raw, CLAUDE_OUTPUT_CAP_MIN.major, CLAUDE_OUTPUT_CAP_MIN.minor, CLAUDE_OUTPUT_CAP_MIN.patch)) {
-        add('D5', 'WARN', `Claude CLI ${raw} is below the ${CLAUDE_OUTPUT_CAP_MIN_LABEL} floor for PostToolUse 'updatedToolOutput' — output-cap.sh is installed but silently will not trim large tool results until Claude Code is upgraded`);
-      } else {
-        add('D5', 'OK', `Claude CLI ${raw} meets the output-cap 'updatedToolOutput' floor (>=${CLAUDE_OUTPUT_CAP_MIN_LABEL})`);
-      }
-    }
-  }
-
   // Codex tool_output_token_limit recognition (AC1). Codex silently ignores unknown TOML keys,
   // and exposes no `codex config get`/echo subcommand to confirm a key was recognized (verified:
   // `codex doctor --json`'s config.load check reports a fixed detail set — model/provider/mcp/log
@@ -820,6 +794,28 @@ function run(targetDir, opts) {
     add('D12', 'WARN', `undeclared legacy document root(s) may override visible CONDUCTOR precedent: ${undeclaredLegacy.join(', ')} — migrate them or declare an intentional artifact-class override in docs/INDEX.md`);
   } else {
     add('D12', 'OK', 'no undeclared legacy plan/spec/research roots detected');
+  }
+
+  // ---- D13 local runtime compatibility -------------------------------------
+  // This is deliberately offline and read-only. It only runs each installed
+  // adapter's declared version command. Authentication, policy eligibility, and
+  // model-backed rule loading remain opt-in `tools/live-verify.sh` concerns.
+  for (const source of manifestSources) {
+    const { adapter, meta } = source;
+    if (!meta) {
+      add('D13', 'FAIL', `${adapter}: adapter metadata is unavailable`);
+      continue;
+    }
+    const emittedPaths = source.manifest.emitted_files
+      .map((entry) => entry && entry.path)
+      .filter(Boolean);
+    const report = runtimeContract.inspectRuntime(adapter, { meta, emittedPaths });
+    const contract = meta.runtime_contract;
+    const gates = contract && contract.policy_gates && contract.policy_gates.length
+      ? contract.policy_gates.join(', ')
+      : 'none declared';
+    add('D13', report.severity,
+      `${adapter} [${report.status}] ${report.detail}; auth=${contract.auth.status}; policy gates=${gates}; probe=${contract.probe.kind}`);
   }
 
   return finish();

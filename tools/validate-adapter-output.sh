@@ -324,6 +324,23 @@ validate_no_claude_model_aliases() {
   fi
 }
 
+validate_portable_skill_set() {
+  local root
+  case "$ADAPTER" in
+    claude) root=".claude/skills" ;;
+    cursor|copilot|gemini|codex|windsurf) root=".agents/skills" ;;
+  esac
+  if node "$SCRIPT_ROOT/bin/portable-skills.js" \
+    --installed "$TARGET" "$ADAPTER" "$SCRIPT_ROOT/core/skills" >/dev/null 2>&1; then
+    emit_pass "$root (3 byte-identical portable skills)"
+  else
+    local details
+    details="$(node "$SCRIPT_ROOT/bin/portable-skills.js" \
+      --installed "$TARGET" "$ADAPTER" "$SCRIPT_ROOT/core/skills" 2>&1 || true)"
+    emit_fail "$root" "$details"
+  fi
+}
+
 # Detect unsubstituted ${...} template placeholders OUTSIDE fenced code blocks.
 # Legit bash parameter expansions live inside ```...``` fences and are ignored.
 # Prints the first offending "line: text" or empty if clean.
@@ -410,30 +427,32 @@ run_gemini() {
       fi
     fi
   fi
-  # output-cap.sh (Spec E, token-economy): only emitted in full/strict mode.
-  # When present it must be executable AND registered as a BeforeTool entry
-  # in the combined (only-if-absent) .gemini/settings.json, which must remain
-  # valid JSON (ADR-045 dialect boundary: this hook is gemini-dialect only).
+  # Full/strict mode emits both the output cap and native review-stop guard.
+  # Their BeforeTool / AfterAgent registrations share one schema-aware merge.
   local gcap="$TARGET/.gemini/hooks/output-cap.sh"
   if [ -e "$gcap" ]; then
-    if [ ! -x "$gcap" ]; then
-      emit_fail ".gemini/hooks/output-cap.sh" "hook exists but is not executable (chmod +x)"
+    local greview="$TARGET/.gemini/hooks/stop-r6-review-check.sh"
+    if [ ! -x "$gcap" ] || [ ! -x "$greview" ]; then
+      emit_fail ".gemini/hooks" "output-cap or review-stop hook is missing/not executable"
     else
       local gsettings="$TARGET/.gemini/settings.json"
       if [ ! -s "$gsettings" ]; then
-        emit_fail ".gemini/settings.json" "output-cap hook exists but settings.json is missing"
+        emit_fail ".gemini/settings.json" "native hooks exist but settings.json is missing"
       elif node -e '
         const fs = require("fs");
         try {
           const s = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
           const before = (s.hooks && s.hooks.BeforeTool) || [];
-          const ok = before.some((g) => (g.hooks || []).some((h) => /output-cap\.sh/.test(h.command || "")));
+          const after = (s.hooks && s.hooks.AfterAgent) || [];
+          const ok = before.some((g) => (g.hooks || []).some((h) => /output-cap\.sh/.test(h.command || "")))
+            && after.some((g) => (g.hooks || []).some((h) => /stop-r6-review-check\.sh/.test(h.command || "")));
           process.exit(ok ? 0 : 1);
         } catch { process.exit(1); }
       ' "$gsettings" 2>/dev/null; then
-        emit_pass ".gemini/settings.json (valid JSON; BeforeTool -> output-cap.sh registered)"
+        emit_pass ".gemini/hooks (executable output-cap + review-stop guards)"
+        emit_pass ".gemini/settings.json (valid JSON; BeforeTool + AfterAgent registered)"
       else
-        emit_fail ".gemini/settings.json" "invalid JSON, or missing a BeforeTool entry registering output-cap.sh"
+        emit_fail ".gemini/settings.json" "invalid JSON, or missing BeforeTool/AfterAgent registration"
       fi
     fi
   fi
@@ -671,6 +690,27 @@ run_cursor() {
   fi
   validate_role_set cursor
   validate_no_claude_model_aliases cursor "$TARGET/.cursorrules" "$TARGET/.cursor/rules" "$TARGET/.cursor/agents"
+
+  local hook="$TARGET/.cursor/hooks/stop-r6-review-check.sh"
+  local config="$TARGET/.cursor/hooks.json"
+  if [ -e "$hook" ] || [ -e "$config" ]; then
+    if [ ! -x "$hook" ]; then
+      emit_fail ".cursor/hooks/stop-r6-review-check.sh" "native stop hook missing or not executable"
+    elif node -e '
+      const fs=require("fs");
+      try {
+        const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+        const stop=c.hooks?.stop;
+        process.exit(c.version===1 && Array.isArray(stop)
+          && stop.some((h)=>/stop-r6-review-check\.sh/.test(h.command||"")) ? 0 : 1);
+      } catch { process.exit(1) }
+    ' "$config" 2>/dev/null; then
+      emit_pass ".cursor/hooks (executable review-stop guard)"
+      emit_pass ".cursor/hooks.json (valid v1 stop-hook registry)"
+    else
+      emit_fail ".cursor/hooks.json" "invalid JSON/version or missing review-stop registration"
+    fi
+  fi
 }
 
 # ---- copilot mode --------------------------------------------------------
@@ -757,6 +797,36 @@ run_copilot() {
   fi
   validate_role_set copilot
   validate_no_claude_model_aliases copilot "$TARGET/.github/copilot-instructions.md" "$TARGET/.github/instructions" "$TARGET/.github/agents"
+
+  local hooks_dir="$TARGET/.github/hooks/conductor"
+  local config="$TARGET/.github/hooks/conductor-reflect.json"
+  if [ -e "$hooks_dir" ] || [ -e "$config" ]; then
+    local script missing=0
+    for script in pretool-commit-current-work-check pretool-commit-test-coverage-check stop-r6-review-check; do
+      if [ ! -x "$hooks_dir/$script.sh" ]; then
+        emit_fail ".github/hooks/conductor/$script.sh" "native hook missing or not executable"
+        missing=$((missing + 1))
+      fi
+    done
+    if [ "$missing" -eq 0 ] && node -e '
+      const fs=require("fs");
+      try {
+        const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+        const strings=JSON.stringify(c);
+        const pre=c.hooks?.preToolUse, stop=c.hooks?.agentStop;
+        const ok=c.version===1 && Array.isArray(pre) && Array.isArray(stop)
+          && /pretool-commit-current-work-check\.sh/.test(strings)
+          && /pretool-commit-test-coverage-check\.sh/.test(strings)
+          && /stop-r6-review-check\.sh/.test(strings);
+        process.exit(ok ? 0 : 1);
+      } catch { process.exit(1) }
+    ' "$config" 2>/dev/null; then
+      emit_pass ".github/hooks (3 executable native guards)"
+      emit_pass ".github/hooks/conductor-reflect.json (valid v1 preToolUse/agentStop registry)"
+    elif [ "$missing" -eq 0 ]; then
+      emit_fail ".github/hooks/conductor-reflect.json" "invalid JSON/version or incomplete native guard registry"
+    fi
+  fi
 }
 
 # ---- claude mode ---------------------------------------------------------
@@ -914,6 +984,7 @@ case "$ADAPTER" in
   codex)    run_codex    ;;
   windsurf) run_windsurf ;;
 esac
+validate_portable_skill_set
 validate_canonical_docs
 
 echo ""

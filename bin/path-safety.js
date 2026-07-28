@@ -11,12 +11,12 @@ const COMMON = [
   '.conductor-manifest.json',
 ];
 const MANAGED = {
-  claude: ['CLAUDE.md', '.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/settings.json'],
-  cursor: ['.cursorrules', '.cursor/rules', '.cursor/agents', '.cursor/skills', '.cursor/hooks.json'],
-  copilot: ['.github/copilot-instructions.md', '.github/instructions', '.github/agents', '.github/hooks', '.github/prompts'],
-  gemini: ['GEMINI.md', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.gemini/settings.json'],
+  claude: ['CLAUDE.md', '.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/skills', '.claude/settings.json'],
+  cursor: ['.cursorrules', '.cursor/rules', '.cursor/agents', '.cursor/skills', '.cursor/hooks', '.cursor/hooks.json', '.agents/skills'],
+  copilot: ['.github/copilot-instructions.md', '.github/instructions', '.github/agents', '.github/hooks', '.github/prompts', '.agents/skills'],
+  gemini: ['GEMINI.md', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.gemini/settings.json', '.agents/skills'],
   codex: ['AGENTS.md', '.codex/conductor', '.codex/agents', '.codex/hooks', '.codex/hooks.json', '.codex/config.toml', '.agents/skills'],
-  windsurf: ['.windsurfrules', '.windsurf/workflows', '.windsurf/hooks', '.windsurf/hooks.json', '.devin/rules'],
+  windsurf: ['.windsurfrules', '.windsurf/workflows', '.windsurf/hooks', '.windsurf/hooks.json', '.devin/rules', '.agents/skills'],
 };
 const COMMON_MANIFEST_FILES = new Set([
   'docs/CURRENT_WORK.md', 'docs/REMAINING_TASKS.md', 'docs/PLANS.md',
@@ -25,12 +25,12 @@ const COMMON_MANIFEST_FILES = new Set([
   '.conductor/project.json', '.conductor/trajectories/.gitignore',
 ]);
 const MANIFEST_DIRS = {
-  claude: ['.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands'],
-  cursor: ['.cursor/rules', '.cursor/agents', '.cursor/skills'],
-  copilot: ['.github/instructions', '.github/agents', '.github/hooks', '.github/prompts'],
-  gemini: ['.gemini/agents', '.gemini/commands', '.gemini/hooks'],
+  claude: ['.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/skills'],
+  cursor: ['.cursor/rules', '.cursor/agents', '.cursor/skills', '.cursor/hooks', '.agents/skills'],
+  copilot: ['.github/instructions', '.github/agents', '.github/hooks', '.github/prompts', '.agents/skills'],
+  gemini: ['.gemini/agents', '.gemini/commands', '.gemini/hooks', '.agents/skills'],
   codex: ['.codex/conductor', '.codex/agents', '.codex/hooks', '.agents/skills'],
-  windsurf: ['.windsurf/workflows', '.windsurf/hooks', '.devin/rules'],
+  windsurf: ['.windsurf/workflows', '.windsurf/hooks', '.devin/rules', '.agents/skills'],
 };
 
 function isInside(root, candidate) {

@@ -24,6 +24,10 @@
 #       with '| **<tier> — ') must name the adapter's display_name
 #   M9: install.ala_carte strategy matches the code — "block" iff transform.sh
 #       contains the conductor:block marker machinery (ADR-044)
+#   M10: runtime_contract exists and passes the shared schema validator
+#   M11: agent_skills exists and passes the portable-skills schema validator
+#   M12: hook_compiler matches the central registry path and the exact native /
+#        fallback partition for the three portable guard policies
 #
 # Dependency: node (already required by the CLI + CI). No jq.
 
@@ -53,7 +57,8 @@ flatten_metadata() {
     const fs = require("fs");
     const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const die = (msg) => { console.error("INCOMPLETE: " + msg); process.exit(3); };
-    const req = ["tool","display_name","tier","outputs","reflector_outputs","legacy_paths","capabilities","live_verification","headless_cli"];
+    const runtime = require("./bin/runtime-contract.js");
+    const req = ["tool","display_name","tier","outputs","reflector_outputs","legacy_paths","capabilities","runtime_contract","agent_skills","hook_compiler","live_verification","headless_cli"];
     for (const k of req) if (!(k in m)) die("missing key " + k);
     const nonEmpty = (v, name) => { if (typeof v !== "string" || !v.trim()) die(name + " must be a non-empty string"); };
     nonEmpty(m.tool, "tool"); nonEmpty(m.display_name, "display_name"); nonEmpty(m.tier, "tier");
@@ -69,6 +74,34 @@ flatten_metadata() {
     if (m.live_verification.status === "verified") nonEmpty(m.live_verification.date, "live_verification.date (required when verified)");
     if (!m.headless_cli) die("headless_cli missing");
     nonEmpty(m.headless_cli.command, "headless_cli.command");
+    const runtimeProblems = runtime.validateRuntimeContract(m);
+    if (runtimeProblems.length) die("runtime_contract: " + runtimeProblems.join("; "));
+    const portableSkills = require("./bin/portable-skills.js");
+    const skillProblems = portableSkills.validateAgentSkillsMetadata(m);
+    if (skillProblems.length) die("agent_skills: " + skillProblems.join("; "));
+    const hookRegistry = require("./bin/hook-config.js").readRegistry();
+    const hook = m.hook_compiler;
+    if (!hook || hook.schema_version !== 1) die("hook_compiler.schema_version must be 1");
+    nonEmpty(hook.config_path, "hook_compiler.config_path");
+    if (hook.config_path !== hookRegistry.adapters[m.tool]?.config_path) {
+      die("hook_compiler.config_path does not match core/hooks/registry.json");
+    }
+    if (!Array.isArray(hook.native_policies) || !Array.isArray(hook.fallback_policies)) {
+      die("hook_compiler native_policies/fallback_policies must be arrays");
+    }
+    if (!hook.source) die("hook_compiler.source missing");
+    nonEmpty(hook.source.url, "hook_compiler.source.url");
+    nonEmpty(hook.source.checked, "hook_compiler.source.checked");
+    const portablePolicies = ["commit-current-work","commit-test-coverage","review-before-stop"];
+    const expectedNative = portablePolicies.filter((id) => {
+      const registration = hookRegistry.registrations.find((item) => item.id === id);
+      return Boolean(registration?.targets?.[m.tool]);
+    }).sort();
+    const native = [...hook.native_policies].sort();
+    const fallback = [...hook.fallback_policies].sort();
+    const expectedFallback = portablePolicies.filter((id) => !expectedNative.includes(id)).sort();
+    if (JSON.stringify(native) !== JSON.stringify(expectedNative)) die("hook_compiler.native_policies drift from registry");
+    if (JSON.stringify(fallback) !== JSON.stringify(expectedFallback)) die("hook_compiler.fallback_policies drift from registry");
     if (!m.install || (m.install.ala_carte !== "block" && m.install.ala_carte !== "per-file")) die("install.ala_carte must be block|per-file");
     for (const o of m.outputs) console.log(["OUTPUT", o.path, o.validated ? "true" : "false"].join("\t"));
     for (const r of m.reflector_outputs) console.log(["REFLECTOR", r.path].join("\t"));
@@ -97,6 +130,9 @@ for tool in $TOOLS; do
     continue
   fi
   ok "M1" "$meta valid + complete"
+  ok "M10" "$tool: runtime compatibility contract valid"
+  ok "M11" "$tool: portable Agent Skills contract valid"
+  ok "M12" "$tool: hook compiler native/fallback contract matches registry"
 
   tier="";     display=""
   live_status=""; live_date=""; headless=""; ala_carte=""

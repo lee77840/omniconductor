@@ -10,7 +10,7 @@ Windsurf (the AI-IDE) is a T3 target because:
 
 **Tier**: T3 (see `docs/COMPATIBILITY-MATRIX.md` — the missing session/stop hook events keep it below T2).
 
-> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+> Enumerable facts about this adapter (output paths / tier / capabilities / runtime compatibility / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and checked against the shared runtime schema, `transform.sh`, and the validator (ADR-040/054).
 
 
 ## Installation path
@@ -38,6 +38,7 @@ bypass.
 ```
 <target>/
 ├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules)
+├── .agents/skills/                             # plan-change, verify-change, review-change
 ├── .devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
 │   └── rules/
 │       ├── workflow.md
@@ -58,6 +59,11 @@ bypass.
     └── research/README.md
 ```
 
+Full, minimal, and strict installs emit the three portable procedures at Devin's
+recommended `.agents/skills` path. Devin may select them automatically or by
+`@skills:<name>` and activates one skill at a time. Recipes-only and Reflector-only
+do not emit them.
+
 - `--recipes=self-improvement` additionally emits the Reflector loop: trajectory hook config (`.windsurf/hooks.json`, riding `post_cascade_response_with_transcript` — Windsurf has no session/stop event), the `/reflect` workflow (`.windsurf/workflows/reflect.md`), a reflector persona rule (`.devin/rules/reflector.md`, `trigger: manual`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
 ## Native features supported (emitted today)
@@ -67,6 +73,7 @@ bypass.
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
 - ✅ Eight native invocable role workflows in `.windsurf/workflows/`, including Tier 3 utility.
+- ✅ Three portable Agent Skills (`plan-change`, `verify-change`, `review-change`).
 - ✅ Reflector loop (opt-in recipe).
 
 ## Capability boundary

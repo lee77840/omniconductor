@@ -13,7 +13,7 @@ complete universal rules and selected recipes as explicitly routed on-demand ref
 
 **Tier**: T2 (see `docs/COMPATIBILITY-MATRIX.md`). Live-verified via the automated headless probe (`tools/live-verify.sh` — current status in `docs/ADAPTER-LIVE-VERIFICATION.md`).
 
-> Enumerable facts about this adapter (output paths / tier / capabilities / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and CI-checked against `transform.sh` + the validator (ADR-040).
+> Enumerable facts about this adapter (output paths / tier / capabilities / runtime compatibility / live verification / headless CLI) are machine-readable in [`metadata.json`](./metadata.json) and checked against the shared runtime schema, `transform.sh`, and the validator (ADR-040/054).
 
 
 ## Installation path
@@ -34,6 +34,7 @@ bypass.
 ```
 <target>/
 ├── AGENTS.md                                   # Bounded always-loaded runtime kernel
+├── .agents/skills/                             # plan-change, verify-change, review-change
 ├── .codex/
 │   ├── conductor/rules/*.md                    # Complete universal-rule references
 │   ├── conductor/recipes/*.md                  # Complete selected recipes
@@ -52,6 +53,10 @@ bypass.
     └── research/README.md
 ```
 
+Full, minimal, and strict installs emit the three portable procedures at Codex's
+native repository skill path. Recipes-only and Reflector-only do not emit the
+baseline set; the opt-in Reflector retains its separate `reflect` skill.
+
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.codex/hooks.json`), `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
 ## Native features supported (emitted today)
@@ -60,6 +65,7 @@ bypass.
 - ✅ Compact always-loaded execution contract plus complete on-demand universal rule text.
 - ✅ All doc templates.
 - ✅ Eight native `.codex/agents/*.toml` role profiles, including Tier 3 utility.
+- ✅ Three portable Agent Skills (`plan-change`, `verify-change`, `review-change`).
 - ✅ Verified Codex-native commit/session/review guards.
 - ✅ Reflector loop (opt-in recipe).
 - ✅ Strong shell-task execution (Codex's primary strength).

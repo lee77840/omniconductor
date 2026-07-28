@@ -10,17 +10,19 @@ Detailed matrix of which CONDUCTOR features Copilot supports natively.
 | **Per-pattern rule scoping** | ✅ Native | `applyTo:` front-matter (CSV glob list) | Closest analog to Claude `paths:` and Cursor `globs:`. |
 | **Instructions IN the repo** | ✅ Native | `.github/instructions/` is committed to the repo | All collaborators automatically share rules. Strong feature. |
 | **Inline completion + chat** | ✅ Native | Copilot's primary feature | |
+| **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | CLI visibility is local; organization and enterprise policy remain authoritative. |
 | **PR review automation** | ✅ Native | Copilot's PR review feature (configurable per repo) | Useful Stage B analog. |
 | **MCP servers** | ⚠️ Partial | Copilot has limited MCP support depending on version | CONDUCTOR doesn't depend; project may add own. |
 | **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.github/agents/*.agent.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
-| **Hooks (agentStop)** | ✅ Native (2026) | `.github/hooks/*.json` | CONDUCTOR emits the verified Reflector hook; other guard translations remain excluded until their contracts are verified. |
+| **Hooks (preToolUse / agentStop)** | ✅ Native (2026) | `.github/hooks/conductor-reflect.json` + `.github/hooks/conductor/*.sh` | Full/strict emits two commit `ask` soft-confirmations and review-stop continuation. Reflector is composed when selected. |
 | **Per-task model routing** | ✅ Configured native (2026) | Saved Tier model in each repository agent | Availability remains dependent on plan, client, and organization policy. |
 | **Custom slash commands** | ✅ Native (2026) | Prompt files at `.github/prompts/*.prompt.md` | Was unavailable as of late 2025; supported now (ADR-031). |
+| **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Copilot documents this alternative project path; surface and organization policy still govern availability. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Universal | Plain markdown; Copilot Chat reads on demand | |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule in `.instructions.md` with `applyTo: 'docs/specs/**,**/*.md'` reminds when relevant files are touched | Self-policed. |
-| **Two-stage code review enforcement** | ⚠️ Partial | Stage A: rule reminder; Stage B: configure Copilot PR review feature | |
-| **Tool-output cap (store-time)** | ❌ N/A | — | Copilot's only verified hook contract is `agentStop`; its extensibility beyond that is MCP, not a per-tool-call output-rewrite surface, so there is no mechanism to cap an individual tool result before it's stored. CONDUCTOR does not fake enforcement here. See ADR-051. |
+| **Two-stage code review enforcement** | ✅ Native guard + PR review | `agentStop` review continuation plus Copilot PR review | The local hook reminds before merge; repository PR review remains separately configurable. |
+| **Tool-output cap (store-time)** | ❌ N/A | — | Copilot has verified `preToolUse`/`agentStop` lifecycle hooks but no output-replacement surface that can cap a tool result before storage. CONDUCTOR does not fake enforcement here. See ADR-051. |
 
 ## Universal-rule → Copilot `.instructions.md` translation
 
@@ -47,7 +49,7 @@ applyTo: '<csv-glob-list>'
 Still true:
 
 - No built-in memory directory — DIY at `.memory/` (gitignored).
-- CONDUCTOR emits eight repository agents, including Tier 3 utility. Hook emission remains limited to the verified self-improvement Reflector lifecycle hook; pair with repository CI or pre-commit hooks for other mechanical gates.
+- CONDUCTOR emits eight repository agents, including Tier 3 utility, plus the verified commit/review guard bundle. Pair with repository CI for hard merge policy.
 
 ## Difficulty translation
 
@@ -65,7 +67,7 @@ still restrict the requested model; CONDUCTOR never silently changes the Tier.
 
 With `--recipes=self-improvement`, the Copilot adapter emits the Reflector loop (ADR-032):
 
-- **Hook**: `.github/hooks/conductor-reflect.json` — registers `.conductor/reflect/trajectory-log.sh` on the `agentStop` event. Written only if absent; if a hook config already exists, the adapter emits a manual-merge log entry instead of overwriting.
+- **Hook**: `.github/hooks/conductor-reflect.json` — schema-composes `.conductor/reflect/trajectory-log.sh` on `agentStop` beside the baseline guard registrations, preserving arbitrary existing user entries.
 - **Command**: `.github/prompts/reflect.prompt.md` — the `/reflect` prompt that distills the trajectory log into lesson candidates.
 - **Agent**: `.github/agents/reflector.agent.md` — named reflector agent for the distillation pass.
 - **Scripts**: `.conductor/reflect/trajectory-log.sh` (session trajectory capture) and `.conductor/reflect/prune-lessons.sh` (lesson-file size pruning).

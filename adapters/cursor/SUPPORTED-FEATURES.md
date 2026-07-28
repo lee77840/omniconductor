@@ -11,10 +11,12 @@ Detailed matrix of which CONDUCTOR features Cursor supports natively.
 | **Custom slash commands (project)** | ⚠️ Partial | `.cursor/commands/*.md` (where Cursor version supports) | Not as flexible as Claude slash commands; usable but limited. |
 | **MCP servers** | ✅ Native | Cursor settings | Not used by CONDUCTOR; project may add own. |
 | **In-IDE chat / completion** | ✅ Native | Cursor's primary feature set | Inline completion + chat — Cursor's strength. |
+| **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Project hooks require Cursor ≥1.7 only when `.cursor/hooks.json` is emitted; account/policy eligibility remains provider-controlled. |
 | **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.cursor/agents/*.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
-| **Hooks (stop)** | ✅ Native (2026) | `.cursor/hooks.json` | CONDUCTOR emits the verified Reflector hook; other guard translations remain excluded until their contracts are verified. |
+| **Hooks (stop)** | ✅ Native (2026) | `.cursor/hooks.json` + `.cursor/hooks/stop-r6-review-check.sh` | Full/strict emits verified review continuation; commit soft-confirmations remain rule fallbacks because Cursor's verified shell decision does not expose `ask`. Reflector is recipe-gated. |
 | **Per-task model routing** | ✅ Configured native | Emitted agents use the saved Tier model | Cursor may still apply account, plan, Max Mode, or administrator fallback; `doctor` does not misreport that as guaranteed. |
 | **Custom agent personas** | ✅ Native (2026) | `.cursor/agents/*.md` named agents | Previously a `.cursorrules` paste-in workaround; now first-class. |
+| **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Full/minimal/strict emit three instruction-only procedures; Cursor supports automatic matching and explicit invocation. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Native | Plain markdown; Cursor reads on demand | Universal across all adapters. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `.cursorrules` + `.cursor/rules/spec-as-you-go.mdc` | Self-policed. Pair with pre-commit git hook for mechanical enforcement. |
@@ -64,14 +66,14 @@ the role files. A provider fallback does not change the declared Tier.
 
 What remains true on the CONDUCTOR side:
 
-- CONDUCTOR emits eight native role profiles, including Tier 3 utility. Hook emission remains limited to the verified self-improvement Reflector lifecycle hook; unsupported Claude hook contracts are not copied.
+- CONDUCTOR emits eight native role profiles, including Tier 3 utility, plus verified review-stop continuation. Unsupported commit soft-confirmations remain rule text.
 - Until then, commit-blocking enforcement still relies on project-level pre-commit git hooks, and orchestration discipline remains partly a human practice.
 
 ## Self-improvement (Reflector) — opt-in
 
 With `--recipes=self-improvement`, the Cursor adapter emits the Reflector loop (ADR-032):
 
-- **Hook**: `.cursor/hooks.json` — registers `.conductor/reflect/trajectory-log.sh` on the `stop` event. Written only if no hook config exists; if one is already present, the adapter emits a manual-merge log entry instead of overwriting.
+- **Hook**: `.cursor/hooks.json` — schema-composes `.conductor/reflect/trajectory-log.sh` on `stop` beside the baseline review guard, preserving arbitrary existing user entries.
 - **Command**: `.cursor/skills/reflect/SKILL.md` — the `/reflect` command that distills the trajectory log into lesson candidates.
 - **Agent**: `.cursor/agents/reflector.md` — named reflector agent for the distillation pass.
 - **Scripts**: `.conductor/reflect/trajectory-log.sh` (session trajectory capture) and `.conductor/reflect/prune-lessons.sh` (lesson-file size pruning).

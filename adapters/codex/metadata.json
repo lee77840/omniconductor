@@ -10,6 +10,7 @@
     { "path": ".codex/hooks", "kind": "hooks", "validated": true },
     { "path": ".codex/hooks.json", "kind": "config", "validated": true },
     { "path": ".codex/config.toml", "kind": "config", "validated": true },
+    { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
   "reflector_outputs": [
@@ -25,15 +26,70 @@
       "model_routing": "yes",
       "commands": "yes",
       "glob_scoping": "no",
-      "scheduler": "local"
+      "scheduler": "local",
+      "skills": "yes"
     },
     "conductor_emitted": {
       "rules": "bounded-kernel+full-references",
       "guard_hooks": "supported-native",
       "reflector_loop": "recipe",
       "role_agents": "full",
-      "model_routing": "saved-tier-native+effort"
+      "model_routing": "saved-tier-native+effort",
+      "skills": "full"
     }
+  },
+  "agent_skills": {
+    "schema_version": 1,
+    "project_path": ".agents/skills",
+    "path_status": "native",
+    "activation": "automatic-and-explicit",
+    "explicit_invocation": "$plan-change",
+    "source": {
+      "url": "https://developers.openai.com/codex/skills",
+      "checked": "2026-07-27"
+    }
+  },
+  "hook_compiler": {
+    "schema_version": 1,
+    "config_path": ".codex/hooks.json",
+    "native_policies": ["commit-current-work", "commit-test-coverage", "review-before-stop"],
+    "fallback_policies": [],
+    "source": {
+      "url": "https://learn.chatgpt.com/docs/hooks",
+      "checked": "2026-07-27"
+    }
+  },
+  "runtime_contract": {
+    "schema_version": 1,
+    "product": {
+      "canonical_name": "Codex",
+      "aliases": ["Codex CLI"],
+      "lifecycle": "active",
+      "note": "Codex remains active across CLI, IDE, app, and cloud surfaces."
+    },
+    "version": {
+      "args": ["--version"],
+      "capability_floors": []
+    },
+    "auth": {
+      "status": "documented",
+      "modes": ["chatgpt-account", "api-key"],
+      "note": "The local prompt-input probe does not require a model call; model-backed execution has separate authentication."
+    },
+    "policy_gates": ["project-trust"],
+    "probe": {
+      "kind": "local-renderer",
+      "requires_auth": false,
+      "requires_network": false,
+      "note": "live-verify uses codex debug prompt-input with an isolated CODEX_HOME."
+    },
+    "sources": [
+      {
+        "label": "Codex customization",
+        "url": "https://developers.openai.com/codex/concepts/customization",
+        "checked": "2026-07-27"
+      }
+    ]
   },
   "live_verification": { "status": "verified", "date": "2026-07-13", "cli": "codex-cli 0.144.0", "note": "native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand" },
   "headless_cli": { "command": "codex", "invocation": "codex exec" }

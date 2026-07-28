@@ -92,6 +92,6 @@ This separation is universal in `core/memory-pattern/` and is honored by every a
 
 In Claude Code, "orchestrator" = the main session reading `CLAUDE.md`, dispatching sub-agents via the Agent tool, blocked by hooks. The system enforces it.
 
-In Cursor, Copilot, Gemini, and Codex, the main session can select the emitted project role profiles. Windsurf uses emitted role workflows. Mechanical enforcement remains platform-specific: Claude has the full hook set, Codex has the verified guard subset, and the remaining products retain explicit workflow obligations plus their verified Reflector lifecycle hook.
+In Cursor, Copilot, Gemini, and Codex, the main session can select the emitted project role profiles. Windsurf uses emitted role workflows. Mechanical enforcement remains platform-specific: within P2's three-policy set, Claude, Copilot, and Codex receive all three portable native guards, while Cursor and Gemini receive review continuation. Unsupported decisions remain explicit workflow obligations. Full Codex separately retains its session-state Stop guard, full Gemini retains output-cap BeforeTool, and optional Reflector lifecycle hooks compose separately.
 
 Both modes are first-class CONDUCTOR users. We document both flows in `docs/HOW-IT-WORKS-PER-TOOL.md`.

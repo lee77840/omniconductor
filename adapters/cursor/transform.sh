@@ -517,7 +517,7 @@ do_uninstall() {
 
   # Try to clean up empty .cursor/rules and .cursor dirs left behind.
   # (children before parents so nested empties collapse in one pass)
-  for d in .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor/hooks .cursor .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -647,8 +647,13 @@ fi
 
 # ----- step 1: universal rules -> .cursor/rules/*.mdc --------------------
 
+conductor_assert_portable_skill_collisions "cursor" ".agents/skills" || exit $?
+case "$MODE,$RECIPES," in
+  full,*|strict,*|*,self-improvement,*) conductor_validate_hook_config "cursor" ".cursor/hooks.json" || exit 1 ;;
+esac
 init_manifest
 conductor_install_project_profile
+conductor_install_portable_skills "cursor" ".agents/skills"
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
@@ -789,6 +794,20 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   fi
 fi
 
+CURSOR_HOOK_FEATURES=""
+if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+  CURSOR_HOOK_FEATURES="baseline"
+  log "Step 2.5/4: review-stop guard → .cursor/hooks/stop-r6-review-check.sh"
+  if [ "$DRY_RUN" != "true" ]; then
+    /bin/mkdir -p "$TARGET_ABS/.cursor/hooks"
+    d="$TARGET_ABS/.cursor/hooks/stop-r6-review-check.sh"
+    backup_and_remember "$d"
+    /bin/cp "$CORE_ROOT/hooks/stop-r6-review-check.sh.template" "$d"
+    /bin/chmod +x "$d"
+    record_emit ".cursor/hooks/stop-r6-review-check.sh" "core/hooks/stop-r6-review-check.sh.template" "$MANIFEST_LAST_BACKUP"
+  fi
+fi
+
 if [ "$MODE" = "minimal" ]; then
   RECIPES_FOR_RUNTIME=""
   log "Step 2.6/4: self-improvement runtime — skipped (--mode=minimal ships text only)"
@@ -797,6 +816,7 @@ else
 fi
 case ",$RECIPES_FOR_RUNTIME," in
   *",self-improvement,"*)
+    CURSOR_HOOK_FEATURES="${CURSOR_HOOK_FEATURES:+$CURSOR_HOOK_FEATURES,}self-improvement"
     log "Step 2.6/4: self-improvement (Reflector) → hooks/skills/agents"
     if [ "$DRY_RUN" != "true" ]; then
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect" "$TARGET_ABS/.cursor/skills/reflect" "$TARGET_ABS/.cursor/agents"
@@ -813,23 +833,6 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$m.md" "$d"
         record_emit ".conductor/reflect/$m.md" "core/reflector/$m.md" "$MANIFEST_LAST_BACKUP"
       done
-      # hook config — write only if absent (never clobber a user's hooks.json)
-      hc="$TARGET_ABS/.cursor/hooks.json"
-      hc_entry="$(conductor_manifest_entry_for_path ".cursor/hooks.json" 2>/dev/null || true)"
-      if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
-        backup_and_remember "$hc"
-        /bin/cat > "$hc" <<'HOOK'
-{
-  "version": 1,
-  "hooks": {
-    "stop": [ { "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"" } ]
-  }
-}
-HOOK
-        record_emit ".cursor/hooks.json" "<synthesized>" "$MANIFEST_LAST_BACKUP"
-      else
-        log "  WARNING: .cursor/hooks.json is user-owned — preserved; merge the CONDUCTOR stop hook manually"
-      fi
       # /reflect skill (self-contained brief)
       sk="$TARGET_ABS/.cursor/skills/reflect/SKILL.md"
       backup_and_remember "$sk"
@@ -846,6 +849,11 @@ HOOK
     fi
     ;;
 esac
+
+if [ -n "$CURSOR_HOOK_FEATURES" ]; then
+  log "Step 2.7/4: native hook registry → .cursor/hooks.json"
+  conductor_install_hook_config "cursor" ".cursor/hooks.json" "$CURSOR_HOOK_FEATURES" || exit 1
+fi
 
 # ----- step 3: docs templates --------------------------------------------
 

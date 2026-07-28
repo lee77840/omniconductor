@@ -6,7 +6,7 @@ The beliefs CONDUCTOR is built on. If you disagree with any of these, you will f
 
 ### 1. Discipline is portable. Enforcement is not.
 
-You can write down "always update the spec when you change the code" and it will read the same in any tool. CONDUCTOR's job is to make that discipline portable across every tool while describing the verified enforcement precisely: Claude Code receives the full guard set, Codex receives the verified native subset, and the other four adapters receive their verified lifecycle/recipe hooks plus explicit workflow obligations.
+You can write down "always update the spec when you change the code" and it will read the same in any tool. CONDUCTOR's job is to make that discipline portable across every tool while describing verified enforcement precisely: within P2's three-policy set, Claude, Copilot, and Codex receive all three portable guards; Cursor and Gemini receive verified review continuation; Windsurf and every unsupported decision retain explicit workflow obligations. Separate baseline mechanics—such as Codex's session-state Stop guard and Gemini's output-cap BeforeTool hook—remain visible instead of being hidden by that three-policy count.
 
 The wrong move would be to fake unsupported enforcement. That is fragile, surprises users, and lies about the platform contract. Better: emit the strongest verified native mechanism for each tool and state the remaining manual obligation explicitly.
 
@@ -18,7 +18,7 @@ The orchestrator pattern is therefore portable: classify the task, choose the ma
 
 ### 3. Spec drift is the silent killer.
 
-Every team starts with great docs. Six months later, the docs lie. New contributors trust the lie. Bugs ship. CONDUCTOR makes spec updates ABSOLUTE — Claude and Codex receive verified completion guards, while the other adapters carry the same mandatory completion checklist through their native instruction surfaces. The reminder is annoying on purpose. The alternative is months-old docs misleading the next agent (or the next human, or future-you).
+Every team starts with great docs. Six months later, the docs lie. New contributors trust the lie. Bugs ship. CONDUCTOR makes spec updates ABSOLUTE — native completion guards are compiled where provider contracts support them, while every adapter carries the same mandatory checklist through its instruction surface. The reminder is annoying on purpose. The alternative is months-old docs misleading the next agent (or the next human, or future-you).
 
 ### 4. Two-stage review is cheap insurance.
 

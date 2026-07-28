@@ -410,6 +410,75 @@ conductor_manifest_identical_shared_owner() {
   return 1
 }
 
+# Portable skills are instruction-only, canonical core assets. Claude uses its
+# native project root; the other five adapters intentionally share .agents/skills.
+CONDUCTOR_PORTABLE_SKILLS="plan-change verify-change review-change"
+
+# Strict mode may share an identical skill, but must reject every conflicting
+# pre-existing entry before manifest staging or adapter output begins.
+conductor_assert_portable_skill_collisions() {
+  local adapter="$1" skill_root="$2" skill src dest skill_dir extra
+  case "${MODE:-}" in full|minimal|strict) ;; *) return 0 ;; esac
+
+  if [ -e "$TARGET_ABS/$skill_root" ] && [ ! -d "$TARGET_ABS/$skill_root" ]; then
+    echo "Error: portable skill root is not a directory: $TARGET_ABS/$skill_root" >&2
+    return 1
+  fi
+
+  for skill in $CONDUCTOR_PORTABLE_SKILLS; do
+    src="$CORE_ROOT/skills/$skill/SKILL.md"
+    skill_dir="$TARGET_ABS/$skill_root/$skill"
+    dest="$skill_dir/SKILL.md"
+    [ -f "$src" ] || {
+      echo "Error: portable skill source missing: $src" >&2
+      return 1
+    }
+    if [ -e "$skill_dir" ] && [ ! -d "$skill_dir" ]; then
+      echo "Error: portable skill directory is not a directory: $skill_dir" >&2
+      return 1
+    fi
+    [ "$MODE" = "strict" ] || continue
+    if [ -d "$skill_dir" ]; then
+      extra="$(/usr/bin/find "$skill_dir" -mindepth 1 -maxdepth 1 ! -name SKILL.md -print -quit 2>/dev/null)"
+      if [ -n "$extra" ]; then
+        echo "Error (--mode=strict): $skill_dir contains a non-CONDUCTOR entry; no adapter output was written." >&2
+        return 3
+      fi
+    fi
+    [ -e "$dest" ] || continue
+    if [ ! -f "$dest" ] || ! /usr/bin/cmp -s "$src" "$dest"; then
+      echo "Error (--mode=strict): $dest conflicts with the CONDUCTOR $skill skill; no adapter output was written." >&2
+      echo "  Use --mode=full for manifest-backed preservation, or move the conflicting entry first." >&2
+      return 3
+    fi
+  done
+  [ "$MODE" != "strict" ] || log "  strict portable-skill preflight passed for $adapter ($skill_root)"
+}
+
+conductor_install_portable_skills() {
+  local adapter="$1" skill_root="$2" skill src dest rel
+  case "${MODE:-}" in full|minimal|strict) ;; *) return 0 ;; esac
+
+  log "  portable skills → $skill_root/ (plan-change, verify-change, review-change)"
+  for skill in $CONDUCTOR_PORTABLE_SKILLS; do
+    src="$CORE_ROOT/skills/$skill/SKILL.md"
+    dest="$TARGET_ABS/$skill_root/$skill/SKILL.md"
+    rel="$skill_root/$skill/SKILL.md"
+    [ -f "$src" ] || {
+      echo "Error: portable skill source missing: $src" >&2
+      return 1
+    }
+    if [ "$DRY_RUN" = "true" ]; then
+      log "  would emit $rel for $adapter"
+      continue
+    fi
+    /bin/mkdir -p "$(dirname "$dest")"
+    conductor_manifest_backup_and_remember "$dest"
+    /bin/cp "$src" "$dest"
+    record_emit "$rel" "core/skills/$skill/SKILL.md" "$MANIFEST_LAST_BACKUP"
+  done
+}
+
 # Return a simple string-valued JSON field from a manifest entry.
 conductor_manifest_field() {
   local line="$1" key="$2"
@@ -465,6 +534,17 @@ conductor_manifest_backup_and_remember() {
       return 0
     fi
 
+    # A different adapter may already have refreshed a shared, byte-identical
+    # asset from the same core source. Treat that as an owned update, not as a
+    # user edit, and retain this adapter's original pre-CONDUCTOR backup.
+    if conductor_manifest_identical_shared_owner "$rel" "$dest"; then
+      if [ -n "$prior_backup" ] && [ -f "$TARGET_ABS/$prior_backup" ]; then
+        MANIFEST_LAST_BACKUP="$prior_backup"
+      fi
+      log "  reusing shared owner update for $dest"
+      return 0
+    fi
+
     if [ -n "$prior_sha" ]; then
       log "  preserved user-modified file before re-install: $dest"
     else
@@ -476,6 +556,64 @@ conductor_manifest_backup_and_remember() {
   /bin/cp "$dest" "$backup"
   MANIFEST_LAST_BACKUP="${backup#$TARGET_ABS/}"
   log "  backed up existing $dest -> $backup"
+}
+
+# Compose one adapter-native JSON hook registry without replacing user-owned
+# keys or hook entries. Rendering happens before backup/mutation, so invalid
+# JSON or an unsupported shape leaves both the target and manifest stage
+# untouched. The adapter's normal manifest lifecycle provides exact uninstall
+# restoration and unchanged-reinstall backup retention.
+conductor_validate_hook_config() {
+  local adapter="$1" rel="$2"
+  local dest="$TARGET_ABS/$rel"
+  [ -f "$CONDUCTOR_ROOT/bin/hook-config.js" ] || {
+    echo "Error: hook config compiler missing from CONDUCTOR package" >&2
+    return 1
+  }
+  if ! /usr/bin/env node "$CONDUCTOR_ROOT/bin/hook-config.js" render \
+    "--adapter=$adapter" "--config=$dest" "--features=" >/dev/null; then
+    echo "Error: refusing to modify invalid or unsupported hook config: $dest" >&2
+    return 1
+  fi
+}
+
+conductor_install_hook_config() {
+  local adapter="$1" rel="$2" features="$3"
+  local dest="$TARGET_ABS/$rel" dir tmp entry mode=""
+  if [ "$DRY_RUN" = "true" ]; then
+    log "would semantically compose $rel from core/hooks/registry.json (features: ${features:-none})"
+    return 0
+  fi
+  [ -f "$CONDUCTOR_ROOT/bin/hook-config.js" ] || {
+    echo "Error: hook config compiler missing from CONDUCTOR package" >&2
+    return 1
+  }
+  dir="$(dirname "$dest")"
+  /bin/mkdir -p "$dir"
+  tmp="$dir/.${rel##*/}.conductor-render-$$.tmp"
+  /bin/rm -f "$tmp"
+  if ! /usr/bin/env node "$CONDUCTOR_ROOT/bin/hook-config.js" render \
+    "--adapter=$adapter" "--config=$dest" "--features=$features" > "$tmp"; then
+    /bin/rm -f "$tmp"
+    echo "Error: refusing to modify invalid or unsupported hook config: $dest" >&2
+    return 1
+  fi
+
+  entry="$(conductor_manifest_entry_for_path "$rel" 2>/dev/null || true)"
+  if [ -f "$dest" ] && /usr/bin/cmp -s "$dest" "$tmp" && [ -n "$entry" ]; then
+    /bin/rm -f "$tmp"
+    log "  $rel already contains the selected CONDUCTOR hook registry; preserved"
+    return 0
+  fi
+
+  if [ -f "$dest" ]; then
+    mode="$(/usr/bin/stat -f '%Lp' "$dest" 2>/dev/null || /usr/bin/stat -c '%a' "$dest" 2>/dev/null || true)"
+  fi
+  conductor_manifest_backup_and_remember "$dest"
+  if [ -n "$mode" ]; then /bin/chmod "$mode" "$tmp"; else /bin/chmod 644 "$tmp"; fi
+  /bin/mv -f "$tmp" "$dest"
+  record_emit "$rel" "<semantic-merge:core/hooks/registry.json>" "$MANIFEST_LAST_BACKUP"
+  log "  composed $rel (existing non-CONDUCTOR settings preserved)"
 }
 
 conductor_manifest_file_matches() {

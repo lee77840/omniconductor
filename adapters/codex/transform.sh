@@ -623,7 +623,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (deepest first).
-  for d in .agents/skills/reflect .agents/skills .agents .codex/agents .codex .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/reflect .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .codex/agents .codex/hooks .codex .conductor/reflect .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -754,8 +754,13 @@ CODEX_TIER_3_MODEL="${CONDUCTOR_CODEX_MODEL_TIER_3:-${CONDUCTOR_CODEX_MODEL_FAST
 [ -z "$CODEX_TIER_2_MODEL" ] || conductor_validate_model_slug "$CODEX_TIER_2_MODEL" "Codex Tier 2 model" || exit 1
 [ -z "$CODEX_TIER_3_MODEL" ] || conductor_validate_model_slug "$CODEX_TIER_3_MODEL" "Codex Tier 3 model" || exit 1
 
+conductor_assert_portable_skill_collisions "codex" ".agents/skills" || exit $?
+case "$MODE,$RECIPES," in
+  full,*|strict,*|*,self-improvement,*) conductor_validate_hook_config "codex" ".codex/hooks.json" || exit 1 ;;
+esac
 init_manifest
 conductor_install_project_profile
+conductor_install_portable_skills "codex" ".agents/skills"
 
 UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-discipline"
 
@@ -946,6 +951,15 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ] || { [ "$MODE" = "reflector-on
 fi
 if [ "$INSTALL_CODEX_HOOKS" = "true" ]; then
   log "Step: Codex-native hooks → .codex/hooks.json + .codex/hooks/"
+  CODEX_HOOK_FEATURES=""
+  if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
+    CODEX_HOOK_FEATURES="baseline"
+    has_recipe loop-engineering && CODEX_HOOK_FEATURES="$CODEX_HOOK_FEATURES,loop-engineering"
+    has_recipe git-hygiene && CODEX_HOOK_FEATURES="$CODEX_HOOK_FEATURES,git-hygiene"
+    has_recipe self-improvement && CODEX_HOOK_FEATURES="$CODEX_HOOK_FEATURES,self-improvement"
+  elif has_recipe self-improvement; then
+    CODEX_HOOK_FEATURES="self-improvement"
+  fi
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.codex/hooks"
     if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
@@ -970,68 +984,8 @@ if [ "$INSTALL_CODEX_HOOKS" = "true" ]; then
       fi
     fi
 
-    hc="$TARGET_ABS/.codex/hooks.json"
-    hc_entry="$(conductor_manifest_entry_for_path ".codex/hooks.json" 2>/dev/null || true)"
-    if [ ! -f "$hc" ] || [ -n "$hc_entry" ]; then
-      backup_and_remember "$hc"
-      if [ "$MODE" = "reflector-only" ]; then
-        /bin/cat > "$hc" <<'HOOKJSON'
-{
-  "hooks": {
-    "Stop": [
-      { "hooks": [
-        { "type": "command", "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "timeout": 30, "statusMessage": "Recording CONDUCTOR trajectory" }
-      ] }
-    ]
-  }
-}
-HOOKJSON
-      else
-        {
-          /bin/cat <<'HOOKJSON'
-{
-  "hooks": {
-    "PreToolUse": [
-      { "matcher": "^Bash$", "hooks": [
-        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-commit-current-work-check.sh\"", "timeout": 30, "statusMessage": "Checking CURRENT_WORK synchronization" },
-        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-commit-test-coverage-check.sh\"", "timeout": 30, "statusMessage": "Checking staged test coverage" }
-HOOKJSON
-          if has_recipe loop-engineering; then
-            /bin/cat <<'HOOKJSON'
-        ,{ "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex CONDUCTOR_LOOP_RECIPE_PATH=.codex/conductor/recipes/loop-engineering.md bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pretool-loop-guard.sh\"", "timeout": 30, "statusMessage": "Checking loop budget" }
-HOOKJSON
-          fi
-          /bin/cat <<'HOOKJSON'
-      ] }
-    ],
-    "Stop": [
-      { "hooks": [
-        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-session-log-check.sh\"", "timeout": 30, "statusMessage": "Checking session and spec state" },
-        { "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-r6-review-check.sh\"", "timeout": 30, "statusMessage": "Checking pre-merge review state" }
-HOOKJSON
-          if has_recipe git-hygiene; then
-            /bin/cat <<'HOOKJSON'
-        ,{ "type": "command", "command": "CONDUCTOR_HOOK_DIALECT=codex CONDUCTOR_GIT_HYGIENE_RECIPE_PATH=.codex/conductor/recipes/git-hygiene.md bash \"$(git rev-parse --show-toplevel)/.codex/hooks/stop-git-hygiene-guard.sh\"", "timeout": 30, "statusMessage": "Checking git hygiene" }
-HOOKJSON
-          fi
-          if has_recipe self-improvement; then
-            /bin/cat <<'HOOKJSON'
-        ,{ "type": "command", "command": "bash \"$(git rev-parse --show-toplevel)/.conductor/reflect/trajectory-log.sh\"", "timeout": 30, "statusMessage": "Recording CONDUCTOR trajectory" }
-HOOKJSON
-          fi
-          /bin/cat <<'HOOKJSON'
-      ] }
-    ]
-  }
-}
-HOOKJSON
-        } > "$hc"
-      fi
-      record_emit ".codex/hooks.json" "<synthesized:codex-native>" "$MANIFEST_LAST_BACKUP"
-    else
-      log "  WARNING: .codex/hooks.json is user-owned; preserved unchanged. Merge the CONDUCTOR hooks manually or reinstall after moving it."
-    fi
   fi
+  conductor_install_hook_config "codex" ".codex/hooks.json" "$CODEX_HOOK_FEATURES" || exit 1
 fi
 
 # ----- native config: tool_output_token_limit (Spec E, token-economy) -----
