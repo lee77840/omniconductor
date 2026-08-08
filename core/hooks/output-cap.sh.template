@@ -40,7 +40,7 @@
 # Overrides (runtime env, not compile-time placeholders):
 #   CONDUCTOR_SKIP_OUTPUT_CAP=1       disable entirely
 #   CONDUCTOR_OUTPUT_CAP_TOKENS       token budget before truncation (default
-#                                     12000; non-numeric input is clamped
+#                                     8000; non-numeric input is clamped
 #                                     back to the default, fail-open)
 #   CONDUCTOR_HOOK_DIALECT            claude (default) | gemini
 
@@ -53,7 +53,7 @@ set -u
 # default rather than letting it reach arithmetic (fail-open, same spirit as
 # the envint() coercion in pretool-loop-guard.sh.template).
 case "${CONDUCTOR_OUTPUT_CAP_TOKENS:-}" in
-  ''|*[!0-9]*) LIMIT=12000 ;;
+  ''|*[!0-9]*) LIMIT=8000 ;;
   *) LIMIT="$CONDUCTOR_OUTPUT_CAP_TOKENS" ;;
 esac
 DIALECT="${CONDUCTOR_HOOK_DIALECT:-claude}"

@@ -96,6 +96,22 @@ Target: ≥ 60% on a steady-state dev session. If the rate is lower:
 - Verify prefix order is stable (no per-turn re-ordering of CONDUCTOR rules).
 - Verify the prefix is large enough to clear the model's minimum cache size (1024 tokens for Opus / Sonnet, 2048 for Haiku).
 
+For a multi-session effectiveness audit, use the read-only local JSONL analyzer:
+
+```bash
+node tools/audit-token-economy.js \
+  --sessions="$HOME/.claude/projects/<encoded-project-directory>" \
+  --since=2026-07-28T00:00:00Z
+```
+
+It reports tool-result counts, visible CONDUCTOR truncation markers, candidate
+threshold reach and estimated elidable tokens, prompt-cache reuse, observed Git
+branches, and sub-agent role counts. The threshold estimate is
+`ceil(serialized characters / 4)` and excludes marker/schema overhead, so use it to
+select a controlled comparison—not as a billing total. A high cache-reuse percentage
+does not prove the output cap or low-cost role routing fired; inspect those rows
+separately and run `omniconductor doctor <project>` on the active branch.
+
 ## Common cache misses
 
 | Cause | Fix |

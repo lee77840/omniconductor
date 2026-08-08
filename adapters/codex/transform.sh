@@ -996,7 +996,7 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   log "Step: native config → .codex/config.toml"
   cfg="$TARGET_ABS/.codex/config.toml"
   cfg_entry="$(conductor_manifest_entry_for_path ".codex/config.toml" 2>/dev/null || true)"
-  limit=12000
+  limit=8000
   if [ ! -f "$cfg" ] || [ -n "$cfg_entry" ]; then
     if [ "$DRY_RUN" = "true" ]; then
       log "would write $cfg (tool_output_token_limit = $limit)"

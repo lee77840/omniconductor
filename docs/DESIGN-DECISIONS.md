@@ -1568,7 +1568,7 @@ entries); the migration guide makes this tradeoff explicit instead of risking da
 
 ## ADR-051 — Tool-output / context-size cap (three-tool store-time cap)
 
-**Status**: Accepted (2026-07-23)
+**Status**: Accepted (2026-07-23); default threshold amended by ADR-058 (2026-08-08)
 
 **Context**: `docs/KPI.md` F1 records aggregate cache-hit at **100.0%** across 9 real
 sessions (~11 uncached tokens/turn) — prompt caching is already saturated, so the
@@ -2075,3 +2075,55 @@ without adding independent evidence.
   produce independent coverage proportional to their cost.
 - *Trust timestamps or a 30-minute cooldown as review identity.* Rejected — time does
   not prove that code is unchanged.
+
+## ADR-058 — Field evidence gates output-cap defaults and activation claims
+
+**Status**: Accepted (2026-08-08)
+
+**Context**: A read-only adopter audit found that a correctly implemented output-cap
+can still have no effect when work continues on a branch without the generated hook
+registration. Across 26 Claude session files after the audit cutoff, 1,986 tool
+results contained zero CONDUCTOR truncation markers; only 4 exceeded the former
+12,000-token heuristic threshold. Prompt-cache reuse was independently healthy at
+95.84%, and all 39 observed sub-agent calls used `code-reviewer`, demonstrating that
+cache health, output capping, and low-cost role routing are separate levers. No raw
+transcript content or adopter identity enters this repository.
+
+**Decision**:
+
+1. Doctor D5 verifies effective cap activation for every full/strict Claude, Codex,
+   and Gemini manifest without relying on the cap artifact already being manifest-owned.
+   Missing branch-local registration or a preserved Codex config without the native key
+   is a failure with a current-branch reinstall instruction.
+2. Ship `tools/audit-token-economy.js` as a dependency-free, zero-telemetry local
+   analyzer. It reports threshold reach, heuristic elidable tokens, visible markers,
+   cache reuse, observed branches, and role dispatch distribution from Claude JSONL.
+3. Change the default from 12,000 to 8,000 tokens for Claude/Gemini's heuristic hook
+   and Codex's native config. In the field sample, both thresholds affected the same
+   4/1,986 results, while estimated elidable content increased from 13,276 to 29,276
+   tokens. This is a conservative gain with no additional truncation incidents in the
+   observed sample.
+4. Do not adopt 6,000 or 4,000 yet. They affected 6 and 25 results respectively;
+   added incidents require controlled capped/uncapped quality comparisons before a
+   universal default can move further.
+
+**Consequences**:
+
+- Installation preservation and feature activation are reported separately.
+- A version stamp or valid manifest no longer implies that a cap is active on the
+  branch where the model session runs.
+- The 8,000 default is evidence-informed but not claimed as universally optimal;
+  adopters can audit representative workloads and override the hook environment or
+  edit the Codex baked value deliberately.
+- Role distribution is measured rather than inferred. The auditor exposes underuse,
+  while Tier definitions and the eight baseline roles remain unchanged.
+
+**Alternatives considered**:
+
+- *Keep 12,000 until more projects are sampled.* Rejected for the first correction:
+  the observed 8,000 cohort adds no incident in the available sample and more than
+  doubles its estimated elidable content.
+- *Move directly to 4,000.* Rejected — 21 additional results would be truncated in
+  the observed sample without paired task-quality evidence.
+- *Treat D2 version drift as sufficient.* Rejected — it does not name the missing
+  enforcement surface, and a same-version checkout can still omit or deregister it.

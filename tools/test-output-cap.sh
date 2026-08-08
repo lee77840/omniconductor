@@ -59,7 +59,7 @@ s=json.dumps(u)
 assert len(s) < in_len, 'output must be smaller than input (%d vs %d)' % (len(s), in_len)
 # Shape-preserving cap cannot elide JSON STRUCTURE (keys/braces), only string
 # content — contract: never grow, and land within max(budget*1.15, input*0.45).
-assert len(s)//4 <= max(12000*1.15, (in_len//4)*0.45), 'result not bounded: est %d (in %d)' % (len(s)//4, in_len//4)
+assert len(s)//4 <= max(8000*1.15, (in_len//4)*0.45), 'result not bounded: est %d (in %d)' % (len(s)//4, in_len//4)
 assert isinstance(u,dict) and isinstance(u['content'],list) and len(u['content'])==1000, 'MCP shape not preserved'
 " || fail "many-medium-leaf payload not bounded/shape-preserved"
 
@@ -99,7 +99,7 @@ lines=sys.stdin.read().split('\n',1)
 in_len=int(lines[0]); u=json.loads(lines[1])['hookSpecificOutput']['updatedToolOutput']
 s=json.dumps(u)
 assert len(s) < in_len, '5000-leaf output not smaller than input'
-assert len(s)//4 <= max(12000*1.15, (in_len//4)*0.45), '5000-leaf result not bounded: est %d (in %d)' % (len(s)//4, in_len//4)
+assert len(s)//4 <= max(8000*1.15, (in_len//4)*0.45), '5000-leaf result not bounded: est %d (in %d)' % (len(s)//4, in_len//4)
 " || fail "5000-leaf payload not bounded"
 rm -f "$big_payload_file"
 
@@ -131,7 +131,7 @@ out5="$(printf '%s' "$malformed" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_OUTPU
 [ "$rc" -eq 0 ] || fail "hook must exit 0 on malformed input, got $rc"
 [ -z "$out5" ] || fail "malformed input should produce no output"
 
-# Non-numeric token budget -> clamps to default (12000), does not error.
+# Non-numeric token budget -> clamps to default (8000), does not error.
 rc=0
 out6="$(printf '%s' "$payload" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_OUTPUT_CAP_TOKENS=abc bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0 with non-numeric budget, got $rc"
@@ -144,7 +144,7 @@ grep -q 'output-cap.sh' "$TMP/.claude/settings.json" || fail "claude settings mi
 
 CX="$(mktemp -d)"
 node "$ROOT/bin/omniconductor.js" init --target=codex "$CX" --no-prompt --accept-model-defaults >/dev/null 2>&1 || true
-grep -q '^tool_output_token_limit = 12000' "$CX/.codex/config.toml" || fail "codex tool_output_token_limit not emitted"
+grep -q '^tool_output_token_limit = 8000' "$CX/.codex/config.toml" || fail "codex tool_output_token_limit not emitted"
 rm -rf "$CX"
 
 # Gemini dialect: rewrite run_shell_command to append a truncator, as a clean success.
@@ -238,6 +238,25 @@ for a in claude codex gemini; do
   rm -rf "$T6" "$VALIDATE_LOG" "$DOCTOR_LOG"
 done
 
+# Effective-activation regression: a valid full-mode install can still lack the
+# cap when a user-owned Codex config predates the feature. The validator keeps
+# preserving that config, but doctor must now distinguish preservation from
+# activation and fail with an actionable branch-local reinstall message.
+CAP_GAP="$(mktemp -d)"
+/bin/mkdir -p "$CAP_GAP/.codex"
+printf 'model = "example"\n' > "$CAP_GAP/.codex/config.toml"
+node "$ROOT/bin/omniconductor.js" init --target=codex "$CAP_GAP" --no-prompt --accept-model-defaults >/dev/null 2>&1 || true
+if grep -q '^tool_output_token_limit' "$CAP_GAP/.codex/config.toml"; then
+  fail "pre-existing Codex config fixture unexpectedly gained an output cap"
+fi
+CAP_GAP_LOG="$(mktemp)"
+rc=0
+node "$ROOT/bin/omniconductor.js" doctor "$CAP_GAP" >"$CAP_GAP_LOG" 2>&1 || rc=$?
+[ "$rc" -eq 2 ] || fail "doctor must fail a full Codex install whose preserved config has no effective cap (got $rc)"
+grep -q 'codex full/strict install has no effective output cap' "$CAP_GAP_LOG" \
+  || fail "doctor did not explain the effective Codex cap gap"
+rm -rf "$CAP_GAP" "$CAP_GAP_LOG"
+
 echo "PASS: output-cap Claude dialect"
 echo "PASS: output-cap Gemini dialect"
-echo "PASS: output-cap validator + doctor accept claude/codex/gemini surfaces"
+echo "PASS: output-cap validator + doctor verify effective claude/codex/gemini activation"

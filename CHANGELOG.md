@@ -3,6 +3,29 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.3.2] — 2026-08-08
+
+### Changed
+
+- **Measured output-cap default (ADR-058)** — lowers the Claude/Gemini heuristic
+  and Codex native store-time budget from 12,000 to 8,000 tokens. In a sanitized
+  26-session adopter audit, both thresholds affected the same 4 of 1,986 tool
+  results, while estimated elidable content increased from about 13,276 to
+  29,276 tokens. Lower 6,000/4,000 candidates remain deferred because they add
+  truncation incidents and require paired quality measurement.
+
+### Added
+
+- **Token-economy evidence audit** — `tools/audit-token-economy.js` recursively
+  analyzes local Claude JSONL sessions for output-cap threshold reach, visible
+  truncation markers, prompt-cache reuse, branch history, and role dispatches.
+  Estimates are explicitly heuristic and the tool performs local reads only.
+- **Effective activation diagnosis** — doctor D5 now verifies the actual output-cap
+  file/config registration for every Claude, Codex, and Gemini full/strict install,
+  independent of whether an older manifest or preserved user config owns that
+  surface. A branch-local missing cap is a repairable failure, not a successful
+  preservation result.
+
 ## [1.3.1] — 2026-07-28
 
 ### Changed

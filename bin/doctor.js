@@ -23,6 +23,10 @@
  *   D12 document paths       — canonical seeds + undeclared legacy precedents
  *   D13 runtime compatibility — local CLI/version/lifecycle/auth contract (offline)
  *
+ * D5 checks effective registration, not only manifest-owned syntax. This is
+ * intentional: an older branch or a preserved user config can have a valid
+ * manifest while an expected full/strict guard is absent at runtime.
+ *
  * Severity: FAIL = broken install · WARN = degraded/attention · OK.
  * Exit codes: 0 = all OK · 1 = warnings only · 2 = failures (or unusable target).
  */
@@ -145,6 +149,18 @@ function frontmatterField(source, key) {
 function tomlStringField(source, key) {
   const match = String(source).match(new RegExp(`^${key}[ \\t]*=[ \\t]*"([^"]*)"[ \\t]*$`, 'm'));
   return { present: !!match, value: match ? match[1] : '' };
+}
+
+function geminiOutputCapRegistered(settingsPath) {
+  try {
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    const groups = settings && settings.hooks && settings.hooks.BeforeTool;
+    if (!Array.isArray(groups)) return false;
+    return groups.some((group) => Array.isArray(group && group.hooks)
+      && group.hooks.some((hook) => /(?:^|\/)output-cap\.sh(?:"|$)/.test(String(hook && hook.command || ''))));
+  } catch {
+    return false;
+  }
 }
 
 function routingOutputProblems(targetAbs, manifestSources, routing, tools) {
@@ -528,6 +544,47 @@ function run(targetDir, opts) {
       }
     }
   }
+
+  // Effective output-cap activation. Do not anchor this check on the cap file's
+  // manifest entry: that is precisely what pre-feature installs and preserved
+  // user-owned configs lack. A full/strict manifest declares the intended
+  // installation mode, so the current doctor can detect a checkout/branch that
+  // is carrying older generated surfaces even when D1-D3 are internally valid.
+  const capInstallSources = manifestSources.filter(({ manifest: sourceManifest, adapter }) =>
+    ['claude', 'codex', 'gemini'].includes(adapter)
+      && ['full', 'strict'].includes(sourceManifest.mode));
+  for (const { adapter } of capInstallSources) {
+    let active = false;
+    if (adapter === 'claude') {
+      const capAbs = path.join(targetAbs, '.claude', 'hooks', 'output-cap.sh');
+      const settingsAbs = path.join(targetAbs, '.claude', 'settings.json');
+      try {
+        active = fs.existsSync(capAbs)
+          && !!(fs.statSync(capAbs).mode & 0o111)
+          && !claudeHookify.missingCoreHooks(settingsAbs).includes('.claude/hooks/output-cap.sh');
+      } catch { active = false; }
+    } else if (adapter === 'codex') {
+      try {
+        active = /^tool_output_token_limit\s*=\s*[^\s#]+/m.test(
+          fs.readFileSync(path.join(targetAbs, '.codex', 'config.toml'), 'utf8'));
+      } catch { active = false; }
+    } else if (adapter === 'gemini') {
+      const capAbs = path.join(targetAbs, '.gemini', 'hooks', 'output-cap.sh');
+      active = fs.existsSync(capAbs)
+        && !!(fs.statSync(capAbs).mode & 0o111)
+        && geminiOutputCapRegistered(path.join(targetAbs, '.gemini', 'settings.json'));
+    }
+    if (active) {
+      add('D5', 'OK', `${adapter} output cap is effectively installed for this full/strict checkout`);
+    } else {
+      hookProblems++;
+      const repair = adapter === 'codex'
+        ? 'add tool_output_token_limit = <budget> to .codex/config.toml, or move the preserved config and re-run the current adapter installer on this branch'
+        : 're-run the current adapter installer on this branch';
+      add('D5', 'FAIL', `${adapter} full/strict install has no effective output cap in this checkout — ${repair}`);
+    }
+  }
+
   // Codex tool_output_token_limit recognition (AC1). Codex silently ignores unknown TOML keys,
   // and exposes no `codex config get`/echo subcommand to confirm a key was recognized (verified:
   // `codex doctor --json`'s config.load check reports a fixed detail set — model/provider/mcp/log
