@@ -55,7 +55,7 @@
     "fallback_policies": [],
     "source": {
       "url": "https://code.claude.com/docs/en/hooks",
-      "checked": "2026-07-27"
+      "checked": "2026-08-09"
     }
   },
   "runtime_contract": {
@@ -94,7 +94,12 @@
       {
         "label": "Claude Code changelog",
         "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md",
-        "checked": "2026-07-27"
+        "checked": "2026-08-09"
+      },
+      {
+        "label": "Claude Code tools reference",
+        "url": "https://code.claude.com/docs/en/tools-reference",
+        "checked": "2026-08-09"
       }
     ]
   },

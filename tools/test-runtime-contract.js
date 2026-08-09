@@ -176,9 +176,18 @@ check('new hook floors are artifact-scoped for Cursor and Copilot', () => {
   assert.ok(copilotWithAsk.detail.includes('pretool-ask-decision>=1.0.4'));
 });
 
-check('doctor D13 applies the Claude floor only when output-cap is emitted', () => {
+check('full Claude settings bind Agent routing and retain the complete-hook-set runtime floor', () => {
   const target = path.join(base, 'claude-old');
   install('claude', target);
+  const settings = JSON.parse(fs.readFileSync(path.join(target, '.claude', 'settings.json'), 'utf8'));
+  const routingGroups = settings.hooks.PreToolUse.filter((group) =>
+    group.hooks?.some((hook) => String(hook.command).includes('pretool-agent-routing.sh')));
+  assert.strictEqual(routingGroups.length, 1);
+  assert.strictEqual(routingGroups[0].matcher, 'Agent');
+  const manifest = JSON.parse(fs.readFileSync(path.join(target, '.conductor', 'manifests', 'claude.json'), 'utf8'));
+  const emitted = new Set(manifest.emitted_files.map((entry) => entry.path));
+  assert.ok(emitted.has('.claude/hooks/pretool-agent-routing.sh'));
+  assert.ok(emitted.has('.claude/hooks/output-cap.sh'));
   const report = doctor(target, fakeCli('claude', '2.1.120 (Claude Code)'));
   const d13 = report.checks.find((entry) => entry.id === 'D13' && entry.detail.includes('claude'));
   assert.ok(d13, JSON.stringify(report.checks, null, 2));

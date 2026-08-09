@@ -6,7 +6,7 @@ Detailed matrix of which CONDUCTOR features Claude Code supports natively.
 
 | Feature | Claude support | Mechanism | Notes |
 |---|---|---|---|
-| **Sub-agent dispatch** | ✅ Native | `Agent` tool with `subagent_type` arg | Named personas live in `.claude/agents/*.md`. Each is isolated — does NOT inherit `CLAUDE.md`. |
+| **Sub-agent dispatch** | ✅ Native | `Agent` tool with `subagent_type` arg | Named personas live in `.claude/agents/*.md`. Each is isolated — does NOT inherit `CLAUDE.md`. Full/strict installs target the current `Agent` matcher contract; historical `Task`-name compatibility is not claimed. |
 | **Per-call model routing** | ✅ Native | Agent `model` accepts family alias or exact ID | Orchestrator classifies the invariant Tier first, then passes the configured Claude translation. |
 | **Hooks (PreToolUse, Stop, etc.)** | ✅ Native | `.claude/settings.json` `hooks:` block | Stop hooks are CONDUCTOR's spec-as-you-go enforcement. PreToolUse for routing. |
 | **Lazy rule loading** | ✅ Native | `paths:` front-matter on `.claude/rules/*.md` | Rule loads when matching file path is touched. |
@@ -56,6 +56,12 @@ CONDUCTOR ships 11 hooks, all registered in the generated `.claude/settings.json
 | `stop-git-hygiene-guard.sh` | `Stop` | Remind on orphan worktrees, local-only commits, or branch sprawl when git-hygiene is selected. |
 
 `transform.sh` registers all 11 in `.claude/settings.json` (5 `PreToolUse` + 1 `PostToolUse` + 5 `Stop`). Users customize paths and conditions in that generated file, or override per-user in `settings.local.json` (gitignored).
+
+The routing registration deliberately matches the current official tool name
+`Agent`. Full/strict installs co-emit the 2.1.121-gated output-cap surface, so doctor
+D13 warns on older runtimes before CONDUCTOR claims the complete hook set is active.
+The historical `Task` name is not added as an unverified fallback, and no separate
+rename floor is guessed without a first-party version boundary. See ADR-059.
 
 ## Hookify activation contract
 

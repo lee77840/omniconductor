@@ -8,6 +8,8 @@
 #          package.json version (policy: re-stamped on EVERY release, patches
 #          included — ADR-039).
 #      A2: CHANGELOG.md has a section for the current version.
+#      A4-A6: when the private Claude bootstrap exists, its current version,
+#             recipe count, and ADR ceiling match their canonical sources.
 #   B. Stale-claim tokens — known-false claims (data-driven from tools/stale-tokens.txt).
 #      A line matching a token fails UNLESS its CONTENT (not its file path) matches the
 #      token's allow_regex (legacy/historical qualifiers) or carries an inline waiver
@@ -65,6 +67,38 @@ if grep -qF "## [${PKG_VERSION}]" CHANGELOG.md; then
 else
   echo "FAIL[A2] CHANGELOG.md has no section for [${PKG_VERSION}] (R7 checklist: [Unreleased] -> [${PKG_VERSION}] — <date>)"
   FAIL=1
+fi
+
+# CLAUDE.md is intentionally private-only, but it is the first bootstrap read by
+# Claude Code in the working repository. Validate it when present; public mirror
+# and npm snapshots omit it by policy and therefore skip these three checks.
+if [ -f CLAUDE.md ]; then
+  CLAUDE_VERSION_LINES="$(grep -cF "**v${PKG_VERSION}**" CLAUDE.md || true)"
+  if [ "$CLAUDE_VERSION_LINES" -eq 1 ]; then
+    echo "OK  [A4] CLAUDE.md current-stage stamp matches v${PKG_VERSION}"
+  else
+    echo "FAIL[A4] CLAUDE.md must contain exactly one current-stage stamp '**v${PKG_VERSION}**' (found ${CLAUDE_VERSION_LINES})"
+    FAIL=1
+  fi
+
+  RECIPE_COUNT="$(find core/recipes -maxdepth 1 -type f -name '*.md' ! -name README.md | wc -l | tr -d ' ')"
+  CLAUDE_RECIPE_LINES="$(grep -cF "# ${RECIPE_COUNT}개 opt-in recipe (" CLAUDE.md || true)"
+  if [ "$CLAUDE_RECIPE_LINES" -eq 1 ]; then
+    echo "OK  [A5] CLAUDE.md recipe catalog count matches ${RECIPE_COUNT} sources"
+  else
+    echo "FAIL[A5] CLAUDE.md recipe catalog must state '${RECIPE_COUNT}개 opt-in recipe' exactly once"
+    FAIL=1
+  fi
+
+  LATEST_ADR="$(sed -n -E 's/^## ADR-([0-9]+).*/\1/p' docs/DESIGN-DECISIONS.md | sort -n | tail -n 1)"
+  [ -n "$LATEST_ADR" ] || { echo "ERROR: cannot determine latest ADR" >&2; exit 2; }
+  CLAUDE_ADR_LINES="$(grep -cF "ADR-001~${LATEST_ADR}" CLAUDE.md || true)"
+  if [ "$CLAUDE_ADR_LINES" -eq 2 ]; then
+    echo "OK  [A6] CLAUDE.md ADR ceiling matches ADR-${LATEST_ADR}"
+  else
+    echo "FAIL[A6] CLAUDE.md must state 'ADR-001~${LATEST_ADR}' in both its rule and tree inventory (found ${CLAUDE_ADR_LINES})"
+    FAIL=1
+  fi
 fi
 
 # A3 (advisory, never fails the check): npm registry lag. The docs say "published to

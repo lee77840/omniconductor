@@ -416,6 +416,31 @@ else
   bad "stale-token registry advisory can block deterministic validation"
 fi
 
+# A release gate is only a recurrence guard if it also rejects the three private
+# bootstrap drifts it was added to catch. Exercise all three against an isolated
+# repository-shaped fixture; never mutate the checkout under test.
+STALE_FIXTURE="$BASE/stale-fixture"
+mkdir -p "$STALE_FIXTURE/tools"
+cp package.json README.md CHANGELOG.md VISION.md CLAUDE.md "$STALE_FIXTURE/"
+cp -R core adapters docs "$STALE_FIXTURE/"
+cp tools/check-stale-tokens.sh tools/stale-tokens.txt "$STALE_FIXTURE/tools/"
+/usr/bin/sed -E -i.bak \
+  -e 's/\*\*v[0-9]+\.[0-9]+\.[0-9]+\*\*/**v0.0.0**/' \
+  -e 's/# [0-9]+개 opt-in recipe \(/# 0개 opt-in recipe (/' \
+  -e 's/ADR-001~[0-9]+/ADR-001~000/g' \
+  "$STALE_FIXTURE/CLAUDE.md"
+/bin/rm -f "$STALE_FIXTURE/CLAUDE.md.bak"
+STALE_OUTPUT="$(cd "$STALE_FIXTURE" && CONDUCTOR_SKIP_REGISTRY_CHECK=1 bash tools/check-stale-tokens.sh 2>&1)"
+STALE_STATUS=$?
+if [ "$STALE_STATUS" -eq 1 ] \
+  && printf '%s\n' "$STALE_OUTPUT" | /usr/bin/grep -q 'FAIL\[A4\]' \
+  && printf '%s\n' "$STALE_OUTPUT" | /usr/bin/grep -q 'FAIL\[A5\]' \
+  && printf '%s\n' "$STALE_OUTPUT" | /usr/bin/grep -q 'FAIL\[A6\]'; then
+  ok "private bootstrap drift gate rejects stale version, recipe count, and ADR ceiling"
+else
+  bad "private bootstrap drift gate accepted a stale CLAUDE.md fixture"
+fi
+
 echo
 [ "$FAIL" -eq 0 ] && echo "multitool runtime suite: PASS ($BASE)" || echo "multitool runtime suite: FAIL ($BASE)"
 exit "$FAIL"

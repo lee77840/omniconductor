@@ -2127,3 +2127,45 @@ transcript content or adopter identity enters this repository.
   the observed sample without paired task-quality evidence.
 - *Treat D2 version drift as sufficient.* Rejected — it does not name the missing
   enforcement surface, and a same-version checkout can still omit or deregister it.
+
+## ADR-059 — Bootstrap facts and Claude agent matcher claims fail closed
+
+**Status**: Accepted (2026-08-09)
+
+**Context**: The private `CLAUDE.md` bootstrap remained outside the public stale-claim
+scan and drifted behind three canonical facts: package version, recipe count, and the
+latest ADR number. Separately, current Claude Code documentation names the sub-agent
+tool and hook matcher `Agent`, while historical runtimes used `Task`; first-party
+changelog evidence does not establish a precise rename version. A silent bootstrap
+drift changes repository-agent decisions even when public packages remain correct,
+and an invented compatibility floor would overstate evidence.
+
+**Decision**:
+
+1. When private `CLAUDE.md` exists, the release stale-token gate derives and verifies
+   its package version, recipe count, and ADR ceiling from `package.json`,
+   `core/recipes/`, and this decision log. Public/npm snapshots omit the file and skip
+   only these private-bootstrap assertions.
+2. Claude full/strict settings keep the first-party current `Agent` matcher. Do not add
+   an unverified `Task` fallback or guess a rename version.
+3. Full/strict co-emission of `pretool-agent-routing.sh` and the output-cap surface is
+   regression-tested. Doctor D13's existing artifact-scoped 2.1.121 floor warns older
+   runtimes before CONDUCTOR claims the complete emitted hook set is active.
+4. Adapter documentation states the Task-era non-claim, and metadata source dates bind
+   the current hooks and tools references reviewed for this decision.
+
+**Consequences**:
+
+- A future release cannot pass the private release gate with stale Claude bootstrap
+  version, recipe-count, or ADR inventory claims.
+- Supported current Claude installs retain one exact matcher and no speculative alias.
+- Older runtimes receive an explicit unsupported-version warning, but CONDUCTOR does
+  not claim a separately versioned agent-routing floor without primary evidence.
+
+**Alternatives considered**:
+
+- *Update only the three stale lines.* Rejected — the same manual drift would recur.
+- *Register `Agent|Task` immediately.* Rejected — current first-party Claude contracts
+  name `Agent`, and the historical alias was not live-verified in this release cycle.
+- *Invent a Task-to-Agent minimum version.* Rejected — available first-party changelog
+  text shows both names across the transition but does not publish an exact boundary.

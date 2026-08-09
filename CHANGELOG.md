@@ -3,6 +3,17 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.3.3] — 2026-08-09
+
+### Fixed
+
+- **Private bootstrap drift guard (ADR-059)** — synchronizes `CLAUDE.md` with the
+  current package version, 13-recipe catalog, and ADR ceiling, and makes the release
+  stale-token gate derive and enforce those facts automatically.
+- **Claude matcher support boundary** — documents and regression-tests the current
+  `Agent` matcher plus the existing pre-2.1.121 unsupported-runtime warning instead
+  of silently implying Task-era compatibility or inventing an unverified rename floor.
+
 ## [1.3.2] — 2026-08-08
 
 ### Changed
