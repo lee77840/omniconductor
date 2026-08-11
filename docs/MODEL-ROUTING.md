@@ -31,6 +31,25 @@ npx omniconductor models configure --target=all . --force
 `--force` is explicit replacement after reviewing an invalid or obsolete file;
 normal installs never silently repair or downgrade a user selection.
 
+### Interrupted install and lock recovery
+
+Model-routing setup and installation share the project-local
+`.conductor/model-routing.lock`. If the process is interrupted after publishing a
+valid owner PID, the next `init` or `models configure` verifies that the PID is no
+longer alive and recovers the lock immediately.
+
+An ownerless, malformed, or partially written lock is different: it may belong to a
+live process in the brief interval between creating the lock directory and publishing
+`owner.json`. CONDUCTOR therefore preserves the 30-second creation window and reports
+the approximate remaining delay. `--force` never removes a possibly live lock, and a
+live owner is never reclaimed. Unsafe lock shapes fail closed instead of being
+followed or deleted.
+
+`npx omniconductor doctor .` reports this read-only state as D15 even when an
+interrupted first install left no manifest. Doctor does not recover or delete the
+lock; the next eligible mutating command performs recovery. The diagnostic includes
+the exact project-relative lock path and safe next action.
+
 ## Recommended mappings
 
 | Adapter | Tier 1 — conceptual/complex | Tier 2 — routine | Tier 3 — trivial | Enforcement |

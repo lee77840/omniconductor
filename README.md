@@ -44,9 +44,9 @@ If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
 
 Every issue, discussion, and success story helps shape future releases.
 
-> **Status (v1.4.1 — 2026-08-10)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors and D14 checks local work claims; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.4.2 — 2026-08-11)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors, D14 checks local work claims, and D15 diagnoses model-routing locks; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.4.1**: outcome-first key-feature positioning, 37 searchable npm capability keywords, and a shipped Korean Token Economy guide that separates native enforcement, portable rules, local evidence, and provider guidance. Runtime behavior, Tier definitions, eight baseline roles, and saved model routing remain unchanged. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.4.2**: an interrupted install's verified dead-owner routing lock is recovered immediately, while live and still-initializing locks remain fail-closed. Doctor D15 now explains the exact lock state and safe next action even before a first manifest exists. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -330,7 +330,7 @@ install, update, checkout, or agent-execution path. See
 [`docs/PARALLEL-WORK.md`](./docs/PARALLEL-WORK.md) and
 [`docs/WORKSPACE-FEDERATION.md`](./docs/WORKSPACE-FEDERATION.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` performs the one-time model setup, then dispatches to the adapter scripts. `models configure/show`, `list`, `audit extensions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing and checks local work claims in D14.
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` performs the one-time model setup, then dispatches to the adapter scripts. `models configure/show`, `list`, `audit extensions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, and diagnoses live/orphaned/incomplete routing locks in D15.
 
 > **What you keep going Claude → other tools**: rule text, docs, workflow phases, the eight-role topology including Tier 3 utility, and the opt-in Reflector loop. Mechanical guard coverage is intentionally not claimed as identical: each adapter emits only contracts verified for that product.
 
@@ -622,6 +622,15 @@ bash ~/conductor/tools/measure-tokens.sh --latest --export-csv=/tmp/after.csv
 ---
 
 ## Troubleshooting
+
+#### "Installation was interrupted and model-routing.lock remains"
+
+Run `npx omniconductor doctor .`. D15 distinguishes a live owner from a lock left by
+an exited process. A valid dead-owner lock is recovered immediately by the next
+`init` or `models configure`; an ownerless or partially written lock keeps a bounded
+30-second creation window and reports the approximate remaining delay. `--force`
+does not remove a possibly live lock. Do not delete the lock blindly: an unsafe shape
+fails closed and should be inspected at `.conductor/model-routing.lock`.
 
 #### "Permission denied: transform.sh"
 

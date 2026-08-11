@@ -30,6 +30,7 @@ const ENFORCEMENT = {
   codex: 'native-agent-model-and-reasoning-effort',
   windsurf: 'advisory-session',
 };
+const LOCK_REL = path.join('.conductor', 'model-routing.lock');
 const LOCK_STALE_MS = 30_000;
 const TRANSACTION_REL = path.join('.conductor', 'model-routing-transaction.json');
 const ROLE_DIRS = {
@@ -237,18 +238,67 @@ function processIsAlive(pid) {
   catch (error) { return error.code === 'EPERM'; }
 }
 
-function reclaimStaleLock(lock) {
+function inspectLockPath(lock) {
   let stat;
-  try { stat = fs.lstatSync(lock); } catch { return false; }
-  if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+  try { stat = fs.lstatSync(lock); }
+  catch (error) {
+    if (error.code === 'ENOENT') return { status: 'absent', path: LOCK_REL };
+    return { status: 'unsafe', path: LOCK_REL, reason: `cannot inspect lock: ${error.message}` };
+  }
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    return { status: 'unsafe', path: LOCK_REL, reason: 'lock is not a real directory' };
+  }
   let names;
-  try { names = fs.readdirSync(lock); } catch { return false; }
-  if (names.some((name) => name !== 'owner.json')) return false;
+  try { names = fs.readdirSync(lock).sort(); }
+  catch (error) { return { status: 'unsafe', path: LOCK_REL, reason: `cannot read lock: ${error.message}` }; }
+  const unexpected = names.filter((name) => name !== 'owner.json');
+  if (unexpected.length) {
+    return { status: 'unsafe', path: LOCK_REL, reason: `unexpected lock entries: ${unexpected.join(', ')}` };
+  }
+
   let owner = null;
-  try { owner = JSON.parse(fs.readFileSync(path.join(lock, 'owner.json'), 'utf8')); } catch { /* use directory age */ }
-  const created = owner && typeof owner.created_at === 'string' ? Date.parse(owner.created_at) : stat.mtimeMs;
-  if (!Number.isFinite(created) || Date.now() - created < LOCK_STALE_MS) return false;
-  if (owner && processIsAlive(owner.pid)) return false;
+  if (names.includes('owner.json')) {
+    const ownerFile = path.join(lock, 'owner.json');
+    try {
+      const ownerStat = fs.lstatSync(ownerFile);
+      if (!ownerStat.isFile() || ownerStat.isSymbolicLink() || ownerStat.nlink !== 1 || ownerStat.size > 64 * 1024) {
+        return { status: 'unsafe', path: LOCK_REL, reason: 'owner.json is not a safe bounded regular file' };
+      }
+      owner = JSON.parse(fs.readFileSync(ownerFile, 'utf8'));
+    } catch { /* An incomplete owner is protected by the creation-window TTL. */ }
+  }
+
+  const ownerCreated = owner && typeof owner.created_at === 'string' ? Date.parse(owner.created_at) : NaN;
+  const created = Number.isFinite(ownerCreated) ? ownerCreated : stat.mtimeMs;
+  const ageMs = Math.max(0, Date.now() - created);
+  const remainingMs = Math.max(0, LOCK_STALE_MS - ageMs);
+  if (owner && Number.isInteger(owner.pid) && owner.pid > 0) {
+    return {
+      status: processIsAlive(owner.pid) ? 'live' : 'orphaned',
+      path: LOCK_REL,
+      pid: owner.pid,
+      created_at: Number.isFinite(ownerCreated) ? owner.created_at : null,
+      age_ms: ageMs,
+      recovery_in_ms: 0,
+    };
+  }
+  return {
+    status: 'incomplete',
+    path: LOCK_REL,
+    age_ms: ageMs,
+    recovery_in_ms: remainingMs,
+  };
+}
+
+function inspectLock(targetAbs) {
+  return inspectLockPath(path.join(targetAbs, LOCK_REL));
+}
+
+function reclaimStaleLock(lock) {
+  const state = inspectLockPath(lock);
+  const reclaimable = state.status === 'orphaned'
+    || (state.status === 'incomplete' && state.recovery_in_ms === 0);
+  if (!reclaimable) return false;
 
   const tombstone = `${lock}.stale.${process.pid}.${Date.now()}`;
   try { fs.renameSync(lock, tombstone); } catch { return false; }
@@ -262,8 +312,26 @@ function reclaimStaleLock(lock) {
   return true;
 }
 
+function lockConflictMessage(targetAbs) {
+  const state = inspectLock(targetAbs);
+  if (state.status === 'live') {
+    return `${LOCK_REL} is held by live process ${state.pid}; retry after that process completes`;
+  }
+  if (state.status === 'incomplete') {
+    const seconds = Math.max(1, Math.ceil(state.recovery_in_ms / 1000));
+    return `${LOCK_REL} is initializing or incomplete; if no process is active, automatic recovery becomes eligible in about ${seconds}s. Retry then; --force never removes a possibly live lock`;
+  }
+  if (state.status === 'unsafe') {
+    return `${LOCK_REL} is unsafe (${state.reason}); inspect it manually because CONDUCTOR will not remove it`;
+  }
+  if (state.status === 'orphaned') {
+    return `${LOCK_REL} belongs to dead process ${state.pid}, but safe recovery lost a race; retry now`;
+  }
+  return `${LOCK_REL} changed while it was being acquired; retry now`;
+}
+
 function acquireLock(targetAbs) {
-  const lock = path.join(targetAbs, '.conductor', 'model-routing.lock');
+  const lock = path.join(targetAbs, LOCK_REL);
   fs.mkdirSync(path.dirname(lock), { recursive: true });
   const deadline = Date.now() + 5000;
   while (true) {
@@ -282,7 +350,7 @@ function acquireLock(targetAbs) {
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
       if (reclaimStaleLock(lock)) continue;
-      if (Date.now() >= deadline) throw new Error('another model-routing configuration is active; retry after it completes');
+      if (Date.now() >= deadline) throw new Error(lockConflictMessage(targetAbs));
       sleep(50);
     }
   }
@@ -644,9 +712,9 @@ function resolveConfigured(targetAbs, tool) {
 }
 
 module.exports = {
-  CONFIG_REL, RECOMMENDED, SCHEMA_VERSION, TOOLS,
+  CONFIG_REL, LOCK_REL, RECOMMENDED, SCHEMA_VERSION, TOOLS,
   acquireInstallLock, collectChoices, configure, defaultChoices, envForConfig, loadConfig,
-  missingTargets, recommendationLines, resolveConfigured, show,
+  inspectLock, missingTargets, recommendationLines, resolveConfigured, show,
   validateAdapterEntry, validateConfig, validateModel,
 };
 

@@ -496,13 +496,13 @@ function files(dir) {
     assert.deepStrictEqual(leftovers, []);
   });
 
-  await check('a crashed process stale lock is reclaimed without weakening live-lock ownership', async () => {
+  await check('a dead lock owner is reclaimed immediately without weakening live-lock ownership', async () => {
     const dir = temp('stale-lock');
     const lock = path.join(dir, '.conductor', 'model-routing.lock');
     fs.mkdirSync(lock, { recursive: true });
     fs.writeFileSync(path.join(lock, 'owner.json'), JSON.stringify({
       pid: 2147483647,
-      created_at: new Date(Date.now() - 120_000).toISOString(),
+      created_at: new Date().toISOString(),
     }) + '\n');
     await routing.configure({
       targetAbs: dir,
@@ -511,6 +511,84 @@ function files(dir) {
       generatorVersion: 'test',
     });
     assert.ok(routing.loadConfig(dir));
+    assert.strictEqual(fs.existsSync(lock), false);
+  });
+
+  await check('SIGKILL recovery is immediate and leaves the next install usable', async () => {
+    const dir = temp('sigkill-lock');
+    const holderScript = `const routing=require(${JSON.stringify(path.join(ROOT, 'bin/model-routing.js'))});`+
+      `routing.acquireInstallLock(${JSON.stringify(dir)});process.stdout.write('locked\\n');setInterval(()=>{},1000)`;
+    const holder = spawn(process.execPath, ['-e', holderScript], {
+      cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('lock holder did not become ready')), 5000);
+      holder.stdout.once('data', (chunk) => {
+        clearTimeout(timer);
+        if (!String(chunk).includes('locked')) return reject(new Error(`unexpected holder output: ${chunk}`));
+        resolve();
+      });
+      holder.once('error', reject);
+    });
+    holder.kill(process.platform === 'win32' ? undefined : 'SIGKILL');
+    await new Promise((resolve) => holder.once('exit', resolve));
+
+    const lock = path.join(dir, routing.LOCK_REL);
+    assert.strictEqual(routing.inspectLock(dir).status, 'orphaned');
+    const result = run(['init', '--target=claude', dir, '--no-prompt', '--accept-model-defaults']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(fs.existsSync(lock), false);
+    assert.ok(routing.loadConfig(dir));
+  });
+
+  await check('fresh ownerless locks keep the creation window and doctor explains recovery', () => {
+    const dir = temp('ownerless-lock');
+    const lock = path.join(dir, routing.LOCK_REL);
+    fs.mkdirSync(lock, { recursive: true });
+    const state = routing.inspectLock(dir);
+    assert.strictEqual(state.status, 'incomplete');
+    assert.ok(state.recovery_in_ms > 0);
+
+    const result = run(['doctor', dir, '--json']);
+    assert.strictEqual(result.status, 2, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    const diagnosis = report.checks.find((entry) => entry.id === 'D15');
+    assert.strictEqual(diagnosis.status, 'WARN');
+    assert.match(diagnosis.detail, /model-routing\.lock.*automatic recovery.*--force/);
+    assert.strictEqual(fs.existsSync(lock), true, 'doctor must remain read-only');
+  });
+
+  await check('doctor distinguishes a live lock from an orphan while remaining read-only', () => {
+    const dir = temp('doctor-lock-state');
+    let result = run(['init', '--target=claude', dir, '--no-prompt', '--accept-model-defaults']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    const lock = path.join(dir, routing.LOCK_REL);
+
+    fs.mkdirSync(lock, { recursive: true });
+    fs.writeFileSync(path.join(lock, 'owner.json'), `${JSON.stringify({
+      pid: process.pid, nonce: 'live-test', created_at: new Date().toISOString(),
+    })}\n`);
+    assert.strictEqual(routing.inspectLock(dir).status, 'live');
+    result = run(['doctor', dir, '--json']);
+    let report = JSON.parse(result.stdout);
+    let diagnosis = report.checks.find((entry) => entry.id === 'D15');
+    assert.strictEqual(diagnosis.status, 'WARN');
+    assert.match(diagnosis.detail, new RegExp(`live process ${process.pid}`));
+    assert.strictEqual(fs.existsSync(lock), true);
+
+    fs.writeFileSync(path.join(lock, 'owner.json'), `${JSON.stringify({
+      pid: 2147483647, nonce: 'dead-test', created_at: new Date().toISOString(),
+    })}\n`);
+    assert.strictEqual(routing.inspectLock(dir).status, 'orphaned');
+    result = run(['doctor', dir, '--json']);
+    report = JSON.parse(result.stdout);
+    diagnosis = report.checks.find((entry) => entry.id === 'D15');
+    assert.strictEqual(diagnosis.status, 'WARN');
+    assert.match(diagnosis.detail, /dead process 2147483647.*recover it immediately/);
+    assert.strictEqual(fs.existsSync(lock), true, 'doctor must not perform recovery');
+
+    result = run(['init', '--target=claude', dir, '--no-prompt', '--force']);
+    assert.strictEqual(result.status, 0, result.stderr);
     assert.strictEqual(fs.existsSync(lock), false);
   });
 

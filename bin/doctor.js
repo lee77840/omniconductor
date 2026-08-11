@@ -23,6 +23,7 @@
  *   D12 document paths       — canonical seeds + undeclared legacy precedents
  *   D13 runtime compatibility — local CLI/version/lifecycle/auth contract (offline)
  *   D14 parallel work state — local clone/worktree claim ledger integrity
+ *   D15 model-routing lock — live, orphaned, incomplete, or unsafe lock diagnosis
  *
  * D5 checks effective registration, not only manifest-owned syntax. This is
  * intentional: an older branch or a preserved user config can have a valid
@@ -239,6 +240,24 @@ function run(targetDir, opts) {
   if (!fs.existsSync(targetAbs) || !fs.statSync(targetAbs).isDirectory()) {
     add('D1', 'FAIL', `target directory does not exist: ${targetAbs}`);
     return finish();
+  }
+
+  // ---- D15 model-routing lock state ---------------------------------------
+  // Run before D1 so an interrupted first install with no manifest still gets
+  // an actionable lock diagnosis. Inspection is read-only; the next init or
+  // models configure command performs any eligible recovery.
+  const routingLock = modelRouting.inspectLock(targetAbs);
+  if (routingLock.status === 'absent') {
+    add('D15', 'OK', 'no model-routing lock is present');
+  } else if (routingLock.status === 'live') {
+    add('D15', 'WARN', `${routingLock.path} is held by live process ${routingLock.pid}; retry after that process completes`);
+  } else if (routingLock.status === 'orphaned') {
+    add('D15', 'WARN', `${routingLock.path} belongs to dead process ${routingLock.pid}; the next init or models configure command will recover it immediately`);
+  } else if (routingLock.status === 'incomplete') {
+    const seconds = Math.max(0, Math.ceil(routingLock.recovery_in_ms / 1000));
+    add('D15', 'WARN', `${routingLock.path} has no valid owner; automatic recovery becomes eligible in about ${seconds}s. --force does not remove a possibly live lock`);
+  } else {
+    add('D15', 'FAIL', `${routingLock.path} is unsafe: ${routingLock.reason}; inspect it manually because CONDUCTOR will not remove it`);
   }
 
   // ---- D1 manifest validity ------------------------------------------------

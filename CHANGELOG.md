@@ -3,6 +3,20 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.4.2] — 2026-08-11
+
+### Fixed
+
+- Recover `.conductor/model-routing.lock` immediately when its recorded owner PID is
+  no longer alive, so an interrupted install or model-routing configuration does not
+  impose the former 30-second retry delay.
+- Preserve the fail-closed 30-second creation window for ownerless or malformed locks,
+  never let `--force` remove a possibly live lock, and report the exact lock path,
+  owner/recovery state, and safe next action instead of claiming another operation is
+  necessarily active.
+- Add read-only doctor D15 lock diagnosis before manifest discovery, including live,
+  orphaned, incomplete, and unsafe states for interrupted first installs.
+
 ## [1.4.1] — 2026-08-10
 
 ### Documentation
