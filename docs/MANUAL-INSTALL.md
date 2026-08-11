@@ -21,8 +21,8 @@ For each tool there are two paths:
 - `<target>` = your project directory (e.g. `~/Projects/my-app`).
 - "Mac" = macOS native shell (zsh by default, bash also OK).
 - "Windows / Git Bash" = [Git for Windows](https://git-scm.com/download/win) Bash terminal. POSIX-compatible.
-- "Windows / WSL2" = Ubuntu running under WSL2. Same commands as Mac.
-- "Windows / PowerShell" = native PowerShell. **Currently unsupported** (P3+ port). Use Git Bash or WSL2 for now.
+- "Windows / WSL2" = a named Ubuntu/Debian development distro with Linux Node.js and bash. Never use `docker-desktop` as the default shell.
+- "Windows / PowerShell" = supported only as an `npx` launcher when Git Bash is installed; the adapter itself is not a PowerShell implementation.
 
 > **GNU vs BSD `sed` warning**: macOS ships BSD `sed` which requires `-i ''` for inline edits, while GNU `sed` (Linux / Git Bash / WSL2) uses `-i` with no argument. Manual-install commands below avoid `sed -i` for portability — they use `cat > new-file` + `mv` instead.
 
@@ -452,10 +452,15 @@ Yes. Every tool now has an adapter, but you can still mix (e.g. run `adapters/cl
 
 ### "Windows native PowerShell support?"
 
-Currently unsupported (tracked under ADR-023 as P3+ work). Workarounds:
+PowerShell may launch `npx omniconductor ...`, but the adapter scripts still require
+Bash. Supported choices:
 
-- **Git Bash for Windows** — POSIX shell on top of MSYS2. Bundled with Git for Windows. Use `bash transform.sh ...` exactly like on Mac.
-- **WSL2 (Ubuntu)** — full Linux environment. `bash transform.sh ...` works identically to Mac/Linux.
+- **Windows Node.js + Git Bash** — POSIX shell on top of MSYS2, bundled with Git for Windows. The CLI resolves it and preflights all selected adapters before writes.
+- **Named WSL2 Ubuntu/Debian distro** — run Linux Node.js and `bash transform.sh ...` entirely inside the same distro.
+
+Do not mix Windows Node.js with an arbitrary default WSL shell, and never use
+`docker-desktop` / `docker-desktop-data` as a development distro. A native PowerShell
+adapter implementation remains future work under ADR-023.
 
 ### "Encoding issues on Windows (CRLF vs LF)?"
 

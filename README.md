@@ -8,7 +8,7 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 ## Why OMNICONDUCTOR stands out
 
-**6 adapters · 8 baseline roles · 5 universal rules · 13 opt-in recipes · 5 portable skills · 15 metadata gates**
+**6 adapters · 8 baseline roles · 5 universal rules · 17 opt-in recipes · 5 portable skills · 15 metadata gates**
 
 OMNICONDUCTOR brings **AI agent governance**, **multi-agent orchestration**,
 cross-tool **hooks**, portable **Agent Skills**, **MCP security auditing**, saved
@@ -22,6 +22,7 @@ into one reversible installer.
 | **Native-first enforcement without fake parity** | Each adapter emits the strongest contract verified for that product—native hooks where they exist, explicit rule fallback where they do not. The generated compatibility matrix says exactly which is which. |
 | **Token economy as a system, not a prompt tip** | Large-read prevention, an 8,000-token tool-result cap where store-time control exists, lazy/scoped instructions, bounded dispatches, prompt-cache discipline, context editing guidance, and local before/after measurement work together. [한국어 상세 설명](./docs/TOKEN-ECONOMY-KO.md). |
 | **Evidence instead of “it should work”** | `eval coverage`, runtime contracts, doctor checks, M1–M15 metadata gates, generated docs, adversarial regressions, and opt-in live probes separate emitted, contract-tested, and live-verified claims. |
+| **Honest release evidence** | `evidence validate/check` preserves passed, failed, blocked, not-run, environment-limited, and verification-required outcomes instead of flattening every green-looking workflow into PASS. Strict DB, non-vacuous test, visual baseline, multi-surface, and release-provenance recipes use the same snapshot-bound contract. |
 | **Safe and reversible adoption** | Dry-run, strict conflict mode, SHA-256 ownership manifests, byte-preserving backup/restore, user-edit preservation, extension/MCP trust audit, and lossless uninstall make installation auditable. |
 | **Built for parallel agent work** | Clone-local scope claims, exact-snapshot handoff, immutable release tombstones, multi-repo workspace diagnosis, and saved Tier routing reduce collisions without pretending to grant push or merge authority. |
 
@@ -44,9 +45,9 @@ If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
 
 Every issue, discussion, and success story helps shape future releases.
 
-> **Status (v1.4.2 — 2026-08-11)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors, D14 checks local work claims, and D15 diagnoses model-routing locks; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.5.0 — 2026-08-11)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.4.2**: an interrupted install's verified dead-owner routing lock is recovered immediately, while live and still-initializing locks remain fail-closed. Doctor D15 now explains the exact lock state and safe next action even before a first manifest exists. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.5.0**: snapshot-bound evidence preserves blocked/not-run/environment-limited results; four new opt-in recipes strengthen DB changes, non-vacuous tests, visual baselines, and release provenance. The release also includes the tested native Windows Node.js + Git Bash six-adapter contract and doctor D16. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -63,7 +64,7 @@ Every issue, discussion, and success story helps shape future releases.
 - [Tool coverage matrix](#tool-coverage-matrix)
 - [Install paths (3 options)](#install-paths)
 - [Cross-platform: Mac and Windows](#cross-platform-mac-and-windows)
-- [Recipes catalog (13)](#recipes-catalog)
+- [Recipes catalog (17)](#recipes-catalog)
 - [`transform.sh` options reference](#transformsh-options-reference)
 - [Update / Maintenance / Uninstall](#update--maintenance--uninstall)
 - [Token measurement & KPI baseline](#token-measurement--kpi-baseline)
@@ -102,6 +103,9 @@ Every issue, discussion, and success story helps shape future releases.
 - **주장을 테스트 가능한 증거로 바꿉니다.** 여섯 adapter install mode, runtime
   compatibility, hook contract, package boundary, generated docs와 adversarial case를
   전체 회귀 체인에 연결합니다.
+- **검증 불가를 PASS로 포장하지 않습니다.** `evidence validate/check`는 통과·실패뿐
+  아니라 blocked, not-run, environment-limited, verification-required를 exact snapshot과
+  함께 보존합니다.
 
 ### 강제하는 워크플로
 
@@ -176,12 +180,12 @@ bash ~/conductor/adapters/claude/transform.sh . \
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions` · `eval coverage` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions` · `eval coverage` · `evidence validate/check` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
 - **Path B — 로컬 bash 래퍼**: OMNICONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
-- **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
+- **Windows**: PowerShell/CMD에서 `npx`를 실행해도 되지만 **Git for Windows의 Git Bash가 설치되어 있어야** 합니다. 또는 Ubuntu/Debian WSL 안에서 Linux Node.js와 bash를 함께 사용하세요. [Cross-platform](#cross-platform-mac-and-windows) 참조.
 
-### Recipe 카탈로그 (13개, opt-in)
+### Recipe 카탈로그 (17개, opt-in)
 
 5개 universal rule 은 항상 설치되고, recipe 는 프로젝트에 맞게 골라 담습니다 (`--recipes=`).
 
@@ -194,18 +198,26 @@ bash ~/conductor/adapters/claude/transform.sh . \
 | `web-mobile-parity` | 웹+모바일 로직 공유 — 버그·기능 양쪽 반영 |
 | `auto-mock-data` | DB 스키마 변경 시 mock seed 자동생성 |
 | `tdd` | 테스트 프레임워크 + Red-Green-Refactor |
+| `non-vacuous-testing` | 테스트가 보호 대상 결함을 실제로 RED로 만드는지 증명 |
 | `debugging` | 재현→원인→수정→회귀테스트 (증상 패치 금지) |
 | `database-discipline` | 관계형 DB — 마이그레이션 우선·접근제어·dev/prod 패리티 |
+| `database-change-assurance` | 고위험 DB 변경 — 의도·승인·영향 행 수·사전/사후 조건·복구 증거 |
 | `design-system` | 디자인 토큰 시스템 — 토큰 우선·컴포넌트 재사용·접근성 |
+| `visual-baseline-integrity` | 고정 렌더 환경·expected/actual/diff·update/verify 분리·flaky 정직성 |
+| `release-provenance` | 출처·라이선스·정책 승인·릴리스 artifact 증거 (법률 인증 아님) |
 | `self-improvement` | 세션 회고 Reflector (propose-only, 사람이 승인) |
 | `git-hygiene` | git 프로젝트 (특히 멀티세션/공유 repo) — worktree·push·브랜치 위생 |
 | `loop-engineering` | 에이전트 루프 (fix→verify 반복) — 종료조건·예산·**외부검증** |
 
-### 신규 안전·제안·패키지 명령
+### 신규 안전·증거·제안·패키지 명령
 
 ```bash
 # 프로젝트의 provider extension/MCP 설정을 값 노출 없이 읽기 전용 감사
 npx omniconductor audit extensions . --target=all
+
+# 검증 결과 스키마 확인 / 모든 claim이 passed인지 gate
+npx omniconductor evidence validate verification-evidence.json
+npx omniconductor evidence check verification-evidence.json
 
 # 반복 근거가 있는 skill 후보를 proposal inbox에만 기록
 npx omniconductor skills propose . --from=proposal.json
@@ -330,7 +342,7 @@ install, update, checkout, or agent-execution path. See
 [`docs/PARALLEL-WORK.md`](./docs/PARALLEL-WORK.md) and
 [`docs/WORKSPACE-FEDERATION.md`](./docs/WORKSPACE-FEDERATION.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` performs the one-time model setup, then dispatches to the adapter scripts. `models configure/show`, `list`, `audit extensions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, and diagnoses live/orphaned/incomplete routing locks in D15.
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` preflights adapter dispatch, performs the one-time model setup, then runs the adapter scripts. `models configure/show`, `list`, `audit extensions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, diagnoses live/orphaned/incomplete routing locks in D15, and reports installer-platform support in D16.
 
 > **What you keep going Claude → other tools**: rule text, docs, workflow phases, the eight-role topology including Tier 3 utility, and the opt-in Reflector loop. Mechanical guard coverage is intentionally not claimed as identical: each adapter emits only contracts verified for that product.
 
@@ -394,16 +406,21 @@ bash /c/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conve
 #### Windows / WSL2
 
 ```bash
-# Inside WSL2 Ubuntu — same commands as Mac/Linux
-wsl
+# Enter a named development distro; do not rely on a docker-desktop default.
+wsl --distribution Ubuntu-24.04
+# Inside WSL: use Linux Node.js + bash for the whole command.
 git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
 bash ~/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
 ```
 
-#### Windows / native PowerShell
+#### Windows / PowerShell or CMD launcher
 
-> **Currently unsupported (Phase 3+, see ADR-023)**. PowerShell port is a near-rewrite of the bash adapters due to differing `sed` / `cat` / `mkdir` semantics. Use Git Bash or WSL2 instead.
+`npx omniconductor ...` may be launched from PowerShell or CMD. The Windows Node.js
+CLI locates Git Bash and runs the adapters there; it does not reinterpret them as
+PowerShell. A native PowerShell adapter implementation remains unsupported (ADR-023).
+Set `CONDUCTOR_BASH_PATH` to an absolute `bash.exe` only when Git is installed in a
+non-standard location.
 
 ### Path C — Manual file copy (no script, fully manual)
 
@@ -421,9 +438,11 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 |---|---|---|---|
 | **macOS** (zsh, bash) | ✅ Reference platform | zsh / bash | Native bash 3.2 works; bash 5.x via Homebrew also supported. |
 | **Linux** (Ubuntu, Debian, Fedora, Arch) | ✅ Supported | bash | Supported by the local validation suite and manual-only GitHub release workflows. |
-| **Windows / Git Bash** | ✅ Supported | bash from MSYS2 | Bundled with Git for Windows. |
-| **Windows / WSL2 (Ubuntu)** | ✅ Supported | bash | Treat as Linux. |
-| **Windows / PowerShell** | ❌ Phase 3+ (ADR-023) | — | Use Git Bash or WSL2. |
+| **Windows Node.js + Git Bash** | ✅ Release-tested | PowerShell/CMD/Git Bash launcher → Git Bash adapter | All six CLI and direct-wrapper paths are exercised on `windows-latest`. |
+| **WSL2 Ubuntu/Debian + Linux Node.js** | ✅ Supported | bash inside the named distro | Run the complete command inside WSL; do not mix Windows Node.js with WSL bash. |
+| **Windows Node.js → default WSL** | ❌ Unsupported | mixed runtime | The default may be `docker-desktop`; CONDUCTOR never auto-falls back to it. |
+| **Docker Desktop WSL distros** | ❌ Unsupported | infrastructure-only | `docker-desktop` and `docker-desktop-data` are not development environments. |
+| **Native PowerShell adapter runtime** | ❌ Phase 3+ (ADR-023) | — | PowerShell may launch `npx`, but Git Bash executes the adapter scripts. |
 
 ### Common gotchas
 
@@ -436,12 +455,15 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 
 - **`python3` requirement**: macOS 12+ ships Python 3 by default; Linux distros generally have it; Windows / Git Bash needs explicit install (`pacman -S python` in MSYS2, or use the Windows Python installer). Used by `tools/measure-tokens.sh` only — not required for the install itself.
 - **Path quoting**: spaces in target paths work, but always quote: `bash adapters/claude/transform.sh "/c/Users/My Name/Projects/app"`.
+- **Before-write preflight**: `init` validates the selected adapter dispatch path
+  before creating `.conductor/model-routing.json` or any managed project file. If the
+  preflight fails, fix Git Bash/WSL selection and retry; do not force-copy partial output.
 
 ---
 
 ## Recipes catalog
 
-13 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
+17 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
 
 | Recipe | Install when | Adds |
 |---|---|---|
@@ -452,9 +474,13 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 | `web-mobile-parity` | Web + mobile sharing logic | Bug fixes check both surfaces; features ship together |
 | `auto-mock-data` | Frequent DB schema changes | Mock-seed SQL auto-generation on schema change |
 | `tdd` | Test framework present + want Red-Green-Refactor | Test-first loop: failing test before implementation, refactor under green |
+| `non-vacuous-testing` | Tests or gates are used as release evidence | RED/mutation/fault/reachability proof that the named defect is actually detected |
 | `debugging` | Any project (root-cause-first discipline) | Reproduce → isolate → root-cause → fix → regression-test; no symptom patching |
 | `database-discipline` | Relational store + migrations + dev/prod split | Migration-first schema changes, access-control on new tables, dev/prod parity |
+| `database-change-assurance` | High-risk production, bulk, destructive, policy, or migration writes | Snapshot-bound intent, direct approval, expected/actual impact, pre/postconditions, rollback evidence |
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
+| `visual-baseline-integrity` | Screenshot/rendered-output comparison is a gate | Pinned render contract, reviewable expected/actual/diff, separate update/verify, honest flaky status |
+| `release-provenance` | Release includes third-party, regulated, or policy-bound material | Source/license/authority inventory and expiry-aware evidence; never claims legal certification |
 | `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads recent session trajectories + git and **proposes** lessons-learned to `docs/REFLECTION-PROPOSALS.md` (propose-only; you apply). Emits a session-end trajectory hook, a `/reflect` command, a reflector agent, a deterministic prune, and a weekly runner + scheduling guide — on all six tools. See ADR-030/032/033. |
 | `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7) plus the six-tool `coordinate-work` skill for clone-local scope claims and snapshot-bound handoff. Claude and Codex add verified non-blocking Stop reminders; other adapters install the checklist. See ADR-037/045/064. |
 | `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Claude and Codex add verified `PreToolUse` reminders in their own hook dialects; other adapters install the rule text. See ADR-038/045. |
@@ -681,6 +707,17 @@ git config --global core.autocrlf input
 git checkout -- .       # re-checkout with LF
 ```
 
+#### Windows-specific: recursion, `/bin/bash` missing, or `docker-desktop`
+
+Run `npx omniconductor doctor . --json` and inspect D16. The supported choices are:
+
+1. Windows Node.js with Git for Windows installed (Git Bash is resolved automatically), or
+2. `wsl --distribution <Ubuntu-or-Debian>` followed by Linux Node.js + bash entirely inside that distro.
+
+Do not use `docker-desktop` as the WSL distro and do not route Windows Node.js into an
+arbitrary default WSL shell. If Git Bash is installed outside standard locations, set
+`CONDUCTOR_BASH_PATH=C:\\path\\to\\Git\\bin\\bash.exe` for the `npx` process.
+
 ---
 
 ## Memory pattern + ADR index
@@ -742,7 +779,9 @@ A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles
 
 **Q: Windows native PowerShell?**
 
-A: Phase 3+ (ADR-023). Use Git Bash (ships with Git for Windows) or WSL2.
+A: PowerShell can launch the Node CLI (`npx omniconductor ...`) when Git Bash is
+installed. The adapter runtime itself is Bash, not a PowerShell port. Alternatively,
+run Linux Node.js + bash entirely inside a named Ubuntu/Debian WSL distro.
 
 **Q: How do I add custom project-specific rules?**
 

@@ -84,4 +84,32 @@ The `recipes/i18n.md` recipe handles the translation-key parity concern (8-local
 | Bug-fix parity | Rule text + pre-commit review (Q1) prompts |
 | Pair-development | Planner gate + reviewer checklist |
 
-This recipe has no automated cross-surface check beyond rule text. The reviewer role is the final gate that catches single-surface PRs that should have been pair-developed.
+## 6. Multi-surface evidence matrix
+
+For releases or high-risk flows, maintain a machine-readable or tabular matrix with
+one row per material contract:
+
+| Field | Required meaning |
+|---|---|
+| Surface | Web, mobile, desktop, API, extension, store artifact, or another declared surface |
+| Feature/state | Named behavior plus normal, empty, loading, error, offline, denied, or other relevant state |
+| Locale/fixture | Locale and deterministic data/entitlement/permission fixture used |
+| Expected parity | Shared invariant, surface-specific invariant, or intentional absence |
+| Evidence | Test, build, runtime observation, artifact, and exact snapshot |
+| Release gate | Passed, failed, blocked, not-run, environment-limited, or verification-required |
+
+Intentional differences are first-class rows with a reason and approving project
+policy. Parity means equivalent product contracts where required, not pixel-identical
+interfaces or forced support for capabilities a surface cannot provide.
+
+Inventory every declared surface before completion. A row covered only by a source
+search is not runtime evidence. Store submission, hardware, production authentication,
+or external review that cannot run locally stays non-passed until its own authority
+confirms it.
+
+## 7. Cross-tool enforcement
+
+This recipe's matrix and reviewer checklist are portable instruction enforcement. The
+project's compiler, CI, E2E runners, accessibility tools, and store/release systems
+provide the actual observations. No adapter is described as providing a native
+cross-surface gate unless its metadata and regression tests prove one.

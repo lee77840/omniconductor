@@ -84,7 +84,12 @@
         "conductor.shellPath": {
           "type": "string",
           "default": "",
-          "description": "Override path to bash. Leave empty for auto-detection (Mac/Linux: 'bash'; Windows: Git Bash → WSL2 fallback)."
+          "description": "Override path to bash. Leave empty for auto-detection (Mac/Linux: bash; Windows: Git Bash, then a named development WSL distro)."
+        },
+        "conductor.wslDistribution": {
+          "type": "string",
+          "default": "",
+          "description": "Development WSL distro used when Git Bash is unavailable (for example Ubuntu-24.04). Docker Desktop utility distros are never selected."
         }
       }
     }

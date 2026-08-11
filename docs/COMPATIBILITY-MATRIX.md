@@ -48,6 +48,24 @@ This matrix describes which CONDUCTOR features are supported by each target tool
 14. **Portable Agent Skills (ADR-055/061/064)** — full/minimal/strict installs emit the same instruction-only `plan-change`, `verify-change`, and `review-change` sources. `self-improvement` adds `propose-skill`; `git-hygiene` adds `coordinate-work`. Claude uses its native `.claude/skills`; Cursor, Copilot, Gemini, Codex, and Windsurf/Devin share byte-identical `.agents/skills`. Native activation differs by tool and is shown in the generated table below. This is emit-verified; model-backed discovery remains subject to each runtime, policy, and consent flow.
 15. **Claude sub-agent matcher boundary (ADR-059)** — current first-party hook and tool references name the sub-agent tool `Agent`, so full/strict Claude settings register `PreToolUse` with the exact `Agent` matcher. Independently, those modes emit the 2.1.121-gated output cap, so doctor D13 warns on runtimes below that complete-hook-set floor. CONDUCTOR does not claim historical `Task`-name compatibility, guess a separate rename version, or add an unverified fallback.
 
+## Installer platform contract
+
+This platform contract applies equally to all six adapters and does not change their
+feature tier or native enforcement rating.
+
+| Node runtime | Adapter shell | Status | Contract |
+|---|---|---|---|
+| Windows Node.js | Git Bash from Git for Windows | ✅ release-tested | One-use CLI dispatch proof, six CLI + six direct-entry regressions, no-write preflight, doctor D16. |
+| Linux Node.js inside named Ubuntu/Debian WSL | bash in the same distro | ✅ supported | Run the entire command in that distro. |
+| Windows Node.js | default/arbitrary WSL bash | ❌ unsupported | Mixed runtime/path semantics; no automatic fallback. |
+| Any | `docker-desktop` / `docker-desktop-data` | ❌ unsupported | Infrastructure-only WSL distros are filtered out. |
+| Windows Node.js | native PowerShell script execution | ❌ unsupported | PowerShell may launch `npx`; it does not execute `transform.sh`. |
+
+All selected adapters are preflighted before model routing or managed project files
+are written. The proof prevents CLI→adapter recursion and is consumed once; normal
+path containment, model-routing, manifest, lock, validator, and uninstall contracts
+remain independently enforced.
+
 ## Tier assignment
 
 Compatibility tiers reflect **how completely CONDUCTOR can map the full workflow** (rule scoping, verified lifecycle events, native role surface, and scheduler). They are unrelated to the task difficulty Tier 1/2/3 contract in `meta-discipline.md`.
@@ -88,6 +106,21 @@ Source of truth: `adapters/<tool>/metadata.json` (ADR-040) — CI regenerates an
 
 The skills are procedures, not roles. They do not change the eight baseline roles,
 optional Reflector, task-difficulty Tier 1/2/3 definitions, or saved model routing.
+
+## Verification evidence and assurance recipes
+
+Evidence schema v1 and `omniconductor evidence validate/check` are provider-neutral
+CLI contracts, so they apply identically regardless of which coding agent produced the
+report. The commands read one bounded JSON report, do not execute recorded commands or
+open references, and distinguish schema validity from a completed all-passed gate.
+
+`database-change-assurance`, `non-vacuous-testing`,
+`visual-baseline-integrity`, and `release-provenance` are instruction-only opt-in
+recipes on all six adapters. Their portable obligations are emit-verified through the
+existing install-mode and lifecycle suites. They do **not** imply a native database,
+test-mutation, screenshot, CI, legal, or policy engine in any provider. Project tools
+create the observations; the shared evidence contract prevents unresolved results from
+being flattened into PASS (ADR-067~069).
 
 ## Version-gated hook compiler contract (generated)
 

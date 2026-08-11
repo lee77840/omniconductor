@@ -38,7 +38,9 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/MODEL-ROUTING.md` | One-time Tier-model setup, six-adapter recommendations, enforcement boundaries, CI and lifecycle behavior. |
 | `docs/specs/2026-07-13-vendor-neutral-model-routing.md` | Model-routing invariants and acceptance criteria. |
 | `docs/plans/2026-07-13-vendor-neutral-model-routing.md` | Implementation and verification plan. |
-| `core/recipes/README.md` | The 13 opt-in recipes catalog + selection guidance. |
+| `docs/specs/2026-08-11-verification-assurance-contracts.md` | Evidence schema and DB/test/visual/provenance/multi-surface invariants. |
+| `docs/plans/2026-08-11-verification-assurance-contracts.md` | P0→P2 implementation and verification checklist. |
+| `core/recipes/README.md` | The 17 opt-in recipes catalog + selection guidance. |
 | `core/recipes/self-improvement.md` | Opt-in Reflector loop — propose-only session self-review (ADR-030/032/033). |
 | `core/recipes/web-mobile-parity.md` | P1 + P2 (feature + bug parity). |
 | `core/recipes/i18n.md` | Multi-locale translation key sync. |
@@ -47,9 +49,13 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/recipes/auto-mock-data.md` | Mock seed autogen on schema change. |
 | `core/recipes/coding-conventions.md` | TypeScript naming, Result-pattern, error-handling. |
 | `core/recipes/tdd.md` | Test-first Red-Green-Refactor loop. |
+| `core/recipes/non-vacuous-testing.md` | Negative-sensitivity evidence that a test/gate detects its named defect. |
 | `core/recipes/debugging.md` | Root-cause-first debugging discipline. |
 | `core/recipes/database-discipline.md` | Migration-first schema changes + access control + dev/prod parity. |
+| `core/recipes/database-change-assurance.md` | High-risk database intent/approval/impact/postcondition/rollback evidence. |
 | `core/recipes/design-system.md` | Design-token adherence, component reuse, accessibility. |
+| `core/recipes/visual-baseline-integrity.md` | Pinned visual baseline, reviewable diffs, separate update/verify, fail-closed evidence. |
+| `core/recipes/release-provenance.md` | Source/license/policy-authority release envelope; not a legal certification. |
 | `core/recipes/git-hygiene.md` | Git hygiene / shared-repo discipline — no orphan worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (ADR-037). |
 | `core/recipes/loop-engineering.md` | Bounded, externally-verified agent loops — done-criterion, budget, progress, escalate-on-stall, verify-not-self-judge, oscillation guard (ADR-038). |
 | `core/anti-patterns/README.md` | The 8 token-waste anti-pattern catalog index + how to use in code review. |
@@ -108,6 +114,8 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `tools/check-stale-tokens.sh` + `tools/stale-tokens.txt` | **v0.7.0 (ADR-039).** Known-false-claim + version-stamp guard over living docs. CI job `stale-tokens`. |
 | `tools/check-adapter-metadata.sh` | **v0.7.0 (ADR-040).** Asserts `adapters/*/metadata.json` agrees with transform.sh / validator / matrix / live-verification doc. CI job `adapter-metadata`. |
 | `tools/test-doc-path-policy.sh` | Six-adapter canonical-document emission plus doctor legacy/override regression suite (ADR-052). |
+| `bin/evidence-contract.js` + `tools/test-evidence-contract.js` | Read-only schema validation and completeness gate for snapshot-bound verification evidence. |
+| `tools/test-assurance-recipes.sh` | Six-adapter emit/manifest/uninstall and coverage regression for the four assurance recipes. |
 | `tools/check-release-version.js` + `tools/test-release-version.js` | Fail-closed npm candidate uniqueness/order guard and its regressions (ADR-053). |
 
 ## `docs/` — Repo-internal documentation
@@ -117,7 +125,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-065. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-069. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |
@@ -128,6 +136,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/PROMPT-CACHING-GUIDE.md` | **P1 ✅** Anthropic prompt caching structure + measurement. |
 | `docs/CONTEXT-EDITING-GUIDE.md` | Instruction-fidelity-first context reduction — lossless `clear_tool_uses` before lossy `/compact` (Claude-only, ADR-035). |
 | `docs/TOKEN-ECONOMY-KO.md` | Korean single-entry guide to read prevention, tool-output caps, scoped context, caching, context editing, Tier routing, and local measurement. |
+| `docs/VERIFICATION-EVIDENCE.md` | Evidence schema v1, status semantics, CLI usage, and recipe integration. |
 | `docs/KPI.md` | **P1.5 ✅** Baseline metrics (cache hit 100%, output tokens/turn, etc.). |
 | `docs/MANUAL-INSTALL.md` | Path C — no-Node fallback manual `cp` / `cat` install; public `transform.sh` wrappers require Node and enter the guided CLI. |
 | `docs/PUBLISH-GUIDE.md` | VSCode Marketplace + Open VSX publish steps (Phase 2 / v0.3+, ADR-025). |

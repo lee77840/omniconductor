@@ -22,12 +22,12 @@ export interface ShellRunOptions {
  * Resolution:
  *   1. `conductor.shellPath` setting if non-empty.
  *   2. Mac/Linux: `bash` (assumed on PATH).
- *   3. Windows: try Git Bash standard install paths, then `wsl bash`,
- *      then surface an actionable error.
+ *   3. Windows: try Git Bash standard install paths, then an explicit
+ *      development WSL distro (never docker-desktop), then surface an error.
  *
  * Returns either:
  *   - `{ kind: 'native', cmd, args: [] }` — invoke directly.
- *   - `{ kind: 'wsl',    cmd: 'wsl', args: ['bash'] }` — invoke via WSL.
+ *   - `{ kind: 'wsl', cmd: 'wsl.exe', args: [...] }` — invoke in one named WSL distro.
  *   - `undefined` — bash not found; caller surfaces install instructions.
  */
 export type BashLauncher =
@@ -60,9 +60,23 @@ export async function detectBash(): Promise<BashLauncher> {
     }
   }
 
-  // Fall back to WSL2 if available.
-  if (await commandExists('wsl')) {
-    return { kind: 'wsl', cmd: 'wsl', prefixArgs: ['bash'] };
+  // WSL is safe only when Node + bash run together inside a named development
+  // distro. The Docker Desktop utility distros are not user environments and
+  // must never be selected from the machine's default-distro setting.
+  const distributions = await listWslDistributions();
+  const configuredDistro = vscode.workspace
+    .getConfiguration('conductor')
+    .get<string>('wslDistribution', '')
+    .trim();
+  const distro = configuredDistro
+    ? distributions.find((item) => item.toLowerCase() === configuredDistro.toLowerCase())
+    : distributions[0];
+  if (distro) {
+    return {
+      kind: 'wsl',
+      cmd: 'wsl.exe',
+      prefixArgs: ['--distribution', distro, '--', 'bash'],
+    };
   }
 
   return undefined;
@@ -130,13 +144,33 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
-async function commandExists(cmd: string): Promise<boolean> {
+async function listWslDistributions(): Promise<string[]> {
   return new Promise((resolve) => {
-    const probe = spawn(os.platform() === 'win32' ? 'where' : 'which', [cmd], {
-      shell: false,
+    const child = spawn('wsl.exe', ['--list', '--quiet'], { shell: false, windowsHide: true });
+    const chunks: Buffer[] = [];
+    let settled = false;
+    const finish = (value: string[]) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => {
+      child.kill();
+      finish([]);
+    }, 5000);
+    child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+    child.on('error', () => finish([]));
+    child.on('close', (code) => {
+      if (code !== 0) return finish([]);
+      const raw = Buffer.concat(chunks);
+      const encoding: BufferEncoding = raw.includes(0) ? 'utf16le' : 'utf8';
+      const names = raw.toString(encoding).replace(/\0/g, '').split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+        .filter((item) => !['docker-desktop', 'docker-desktop-data'].includes(item.toLowerCase()));
+      finish(names);
     });
-    probe.on('error', () => resolve(false));
-    probe.on('close', (code) => resolve(code === 0));
   });
 }
 

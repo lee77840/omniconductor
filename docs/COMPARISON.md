@@ -7,7 +7,7 @@ Honest comparison of CONDUCTOR against the major existing options. Updated 2026-
 | | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR** |
 |---|---|---|---|---|---|---|
 | **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 6 tools, all with working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) — npm-published (`npx omniconductor`) |
-| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 8 roles) + 13 opt-in recipes + verified hook set |
+| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 8 roles) + 17 opt-in recipes + verified hook set |
 | **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — five native profile formats plus Windsurf role workflows |
 | **Spec-as-you-go enforcement** | Soft (encouraged) | Yes (gates) | Yes (artifacts) | No | No | ABSOLUTE everywhere; verified Stop guard on Claude/Codex, installed completion checklist elsewhere |
 | **Two-stage code review** | Yes | Yes | Yes | No | No | Eight-role topology on all six; mechanical guard subset on Claude/Codex and native review/checklist elsewhere |
@@ -47,7 +47,7 @@ You only use Claude Code, want zero framework, and prefer to extend incrementall
 
 CONDUCTOR is NOT just a tool that translates rules between formats. It is opinionated content + workflow + memory pattern that happens to be portable.
 
-If you only want format conversion, you can write a 50-line script that reads `*.md` and re-emits them with different front-matter. CONDUCTOR's universal rules (operations / quality-gates / meta-discipline / spec-as-you-go / workflow) plus the 13 opt-in recipes are the value; the multi-tool transform is the delivery vehicle.
+If you only want format conversion, you can write a 50-line script that reads `*.md` and re-emits them with different front-matter. CONDUCTOR's universal rules (operations / quality-gates / meta-discipline / spec-as-you-go / workflow) plus the 17 opt-in recipes are the value; the multi-tool transform is the delivery vehicle.
 
 ## Honest weaknesses of CONDUCTOR
 

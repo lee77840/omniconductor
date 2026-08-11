@@ -24,6 +24,7 @@
  *   D13 runtime compatibility — local CLI/version/lifecycle/auth contract (offline)
  *   D14 parallel work state — local clone/worktree claim ledger integrity
  *   D15 model-routing lock — live, orphaned, incomplete, or unsafe lock diagnosis
+ *   D16 installer platform — supported Node/shell pairing and Windows/WSL guidance
  *
  * D5 checks effective registration, not only manifest-owned syntax. This is
  * intentional: an older branch or a preserved user config can have a valid
@@ -42,6 +43,7 @@ const pathSafety = require('./path-safety.js');
 const claudeHookify = require('./claude-hookify.js');
 const runtimeContract = require('./runtime-contract.js');
 const workContract = require('./work-contract.js');
+const installerPlatform = require('./installer-platform.js');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -240,6 +242,25 @@ function run(targetDir, opts) {
   if (!fs.existsSync(targetAbs) || !fs.statSync(targetAbs).isDirectory()) {
     add('D1', 'FAIL', `target directory does not exist: ${targetAbs}`);
     return finish();
+  }
+
+  // ---- D16 installer platform ---------------------------------------------
+  // Keep the supported combinations explicit. Windows Node dispatches only to
+  // Git Bash; WSL must run Linux Node and bash inside a development distro.
+  const installer = installerPlatform.installerEnvironment();
+  if (installer.mode === 'windows-git-bash') {
+    add('D16', 'OK', `Windows Node + Git Bash (${installer.bash.source}); one-use adapter dispatch preflight is available`);
+  } else if (installer.mode === 'windows-no-git-bash') {
+    const alternatives = installer.wsl_distributions.length
+      ? ` Available development WSL distro(s): ${installer.wsl_distributions.join(', ')}.`
+      : '';
+    add('D16', 'WARN', `Windows Node requires Git Bash; native PowerShell and Windows-Node-to-WSL mixing are unsupported.${alternatives} Install Git for Windows or run entirely inside Ubuntu/Debian WSL with Linux Node.js.`);
+  } else if (installer.mode === 'wsl-linux' && !installer.supported) {
+    add('D16', 'WARN', `WSL distro '${installer.distro}' is infrastructure-only; use Ubuntu/Debian WSL with Linux Node.js and bash`);
+  } else if (installer.mode === 'wsl-linux') {
+    add('D16', 'OK', `WSL distro '${installer.distro}' uses the supported Linux Node.js + bash execution path`);
+  } else {
+    add('D16', 'OK', `${installer.platform} uses the supported native Node.js + bash execution path`);
   }
 
   // ---- D15 model-routing lock state ---------------------------------------
@@ -581,7 +602,7 @@ function run(targetDir, opts) {
       const settingsAbs = path.join(targetAbs, '.claude', 'settings.json');
       try {
         active = fs.existsSync(capAbs)
-          && !!(fs.statSync(capAbs).mode & 0o111)
+          && installerPlatform.shellScriptUsable(capAbs)
           && !claudeHookify.missingCoreHooks(settingsAbs).includes('.claude/hooks/output-cap.sh');
       } catch { active = false; }
     } else if (adapter === 'codex') {
@@ -592,7 +613,7 @@ function run(targetDir, opts) {
     } else if (adapter === 'gemini') {
       const capAbs = path.join(targetAbs, '.gemini', 'hooks', 'output-cap.sh');
       active = fs.existsSync(capAbs)
-        && !!(fs.statSync(capAbs).mode & 0o111)
+        && installerPlatform.shellScriptUsable(capAbs)
         && geminiOutputCapRegistered(path.join(targetAbs, '.gemini', 'settings.json'));
     }
     if (active) {

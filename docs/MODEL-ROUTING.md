@@ -18,6 +18,12 @@ adapters and asks whether to accept all recommendations. If the user chooses
 `customize`, only the selected adapter asks for three values: Tier 1, Tier 2,
 and Tier 3. Named roles do not ask separately; they inherit the saved Tier.
 
+Before that setup can write `.conductor/model-routing.json`, every selected adapter
+must complete a no-write dispatch preflight. This is especially important on Windows:
+native Windows Node.js must resolve Git Bash, while a WSL install must run Linux Node.js
+and bash together inside a named development distro. A failed preflight leaves no
+model-routing or adapter residue.
+
 The project-local selection is saved atomically in
 `.conductor/model-routing.json`. Reinstall and update reuse it without asking.
 To inspect or change it later:
@@ -104,6 +110,11 @@ one-time Tier summary, explicit choice, atomic project save, and reinstall reuse
 apply to both public install commands. The wrapper's internal adapter-child mode
 exists only to prevent recursion after the CLI has completed setup; it is not a
 separate user-facing installation path.
+
+The internal child proof is one-use, bound to the current CLI contents, adapter,
+target, parent process, and a short lifetime, then consumed before adapter parsing.
+It is a recursion boundary rather than user authority and does not replace normal
+path, manifest, model-routing, or install-lock validation.
 
 Only fully manual file-copy installation bypasses that transaction. The
 universal first-use gate remains as defense in depth for such manually copied or

@@ -18,7 +18,7 @@ v0.3.0 — first marketplace release. Phase 2 of the Conductor roadmap (ADR-025)
 
 2. **bash on PATH**:
    - macOS / Linux: built-in.
-   - Windows: install [Git for Windows](https://gitforwindows.org) (bundles Git Bash) or enable WSL2. The extension auto-detects both.
+   - Windows: install [Git for Windows](https://gitforwindows.org) (bundles Git Bash), or enable an Ubuntu/Debian WSL2 development distro with Linux Node.js. Docker Desktop utility distros are not eligible.
 
 ## Usage
 
@@ -36,7 +36,8 @@ Command Palette (`Ctrl/Cmd+Shift+P`):
 | `conductor.repoPath` | `~/.conductor` | Tilde expanded. Falls back to a folder picker if invalid. |
 | `conductor.recipes` | `""` | Comma-separated, e.g. `monorepo,coding-conventions,tdd`. |
 | `conductor.dryRun` | `false` | Pass `--dry-run` to preview changes. |
-| `conductor.shellPath` | `""` | Override bash binary. Auto-detected on Windows (Git Bash → WSL2). |
+| `conductor.shellPath` | `""` | Override bash binary. Auto-detected on Windows (Git Bash → named development WSL distro). |
+| `conductor.wslDistribution` | `""` | Optional exact distro name, e.g. `Ubuntu-24.04`; Docker Desktop distros are never selected. |
 
 ## Why a thin wrapper?
 

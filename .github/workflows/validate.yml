@@ -82,7 +82,13 @@ jobs:
             "${{ matrix.tool }}"
       - name: Doctor passes on a fresh install (ADR-041)
         run: |
-          node bin/omniconductor.js doctor "/tmp/ci-${{ matrix.tool }}"
+          set +e
+          node bin/omniconductor.js doctor "/tmp/ci-${{ matrix.tool }}" --json > /tmp/doctor-${{ matrix.tool }}.json
+          doctor_rc=$?
+          set -e
+          [ "$doctor_rc" -le 1 ] || { cat /tmp/doctor-${{ matrix.tool }}.json; exit "$doctor_rc"; }
+          node -e 'const d=require(process.argv[1]); if (!d.summary || d.summary.FAIL !== 0) process.exit(1)' \
+            /tmp/doctor-${{ matrix.tool }}.json
       - name: Doctor detects a broken install (negative)
         run: |
           t="/tmp/ci-${{ matrix.tool }}"
@@ -92,7 +98,13 @@ jobs:
             echo "ERROR: doctor exited 0 on a broken install" >&2; exit 1
           fi
           mv "$t/$first.hidden" "$t/$first"
-          node bin/omniconductor.js doctor "$t" >/dev/null
+          set +e
+          node bin/omniconductor.js doctor "$t" --json > /tmp/doctor-restored-${{ matrix.tool }}.json
+          doctor_rc=$?
+          set -e
+          [ "$doctor_rc" -le 1 ] || exit "$doctor_rc"
+          node -e 'const d=require(process.argv[1]); if (!d.summary || d.summary.FAIL !== 0) process.exit(1)' \
+            /tmp/doctor-restored-${{ matrix.tool }}.json
           echo "OK: doctor fails on breakage and recovers"
       - name: Self-improvement runtime is sane (hook script + hook config)
         run: |
@@ -161,6 +173,37 @@ jobs:
         run: npm run test:path-safety
       - name: Run six-adapter coexistence and semantic doctor fixtures
         run: npm run test:multitool
+
+  # ---------------------------------------------------------------------------
+  # 2d. Native Windows Node + Git Bash release contract (ADR-066).
+  #     Exercise every adapter through both CLI and direct-entry paths, plus
+  #     all-target dry-run and reversible lifecycle behavior.
+  # ---------------------------------------------------------------------------
+  windows-installer:
+    name: Windows Node + Git Bash installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate the Git Bash runtime
+        shell: pwsh
+        run: |
+          $candidates = @(
+            (Join-Path $env:ProgramFiles 'Git\bin\bash.exe'),
+            (Join-Path $env:ProgramFiles 'Git\usr\bin\bash.exe')
+          )
+          if (${env:ProgramFiles(x86)}) {
+            $candidates += Join-Path ${env:ProgramFiles(x86)} 'Git\bin\bash.exe'
+          }
+          $bash = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $bash) { throw 'Git Bash is absent from windows-latest' }
+          "CONDUCTOR_BASH_PATH=$bash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Using Git Bash: $bash"
+      - name: Test platform discovery contracts
+        shell: pwsh
+        run: npm run test:installer-platform
+      - name: Run the six-adapter Windows installer regression
+        shell: pwsh
+        run: npm run test:windows-installer
 
   # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a

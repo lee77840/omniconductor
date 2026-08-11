@@ -2,6 +2,14 @@
 
 All notable changes to this extension are documented here. The extension version tracks the parent Conductor framework version once Phase 2 ships.
 
+## [Unreleased]
+
+### Fixed
+
+- Select WSL by explicit development-distribution name and never launch the
+  `docker-desktop` or `docker-desktop-data` utility distro.
+- Add `conductor.wslDistribution` for machines with multiple development distros.
+
 ## [0.3.0] — 2026-05-10 (first marketplace release)
 
 ### Added
@@ -12,7 +20,7 @@ All notable changes to this extension are documented here. The extension version
   - `Conductor: Install Cursor rules`
   - `Conductor: Install Copilot rules`
 - IDE auto-detection (`vscode.env.appName`) with adapter recommendation.
-- Windows shell discovery — Git Bash standard install paths, then WSL2 fallback.
+- Windows shell discovery — Git Bash standard install paths, then a named WSL2 development distro.
 - Output channel streaming for live `transform.sh` stdout/stderr.
 - Settings: `conductor.repoPath`, `conductor.recipes`, `conductor.dryRun`, `conductor.shellPath`.
 - Folder picker fallback when `conductor.repoPath` does not exist.

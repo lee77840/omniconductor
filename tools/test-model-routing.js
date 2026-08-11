@@ -8,6 +8,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const routing = require('../bin/model-routing.js');
+const adapterDispatch = require('../bin/adapter-dispatch.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'omniconductor.js');
@@ -83,29 +84,70 @@ function files(dir) {
     }
   });
 
-  await check('forged CLI-dispatch environment and proof fd cannot bypass first-use setup', () => {
+  await check('one-use CLI-dispatch proof rejects forgery and replay without bypassing setup', () => {
     const dir = temp('forged-dispatch-env');
     const transform = path.join(ROOT, 'adapters', 'gemini', 'transform.sh');
     let result = spawnSync('bash', [transform, dir, '--no-prompt'], {
-      cwd: ROOT, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '1' },
+      cwd: ROOT, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '2' },
     });
     assert.strictEqual(result.status, 2, result.stderr);
-    assert.match(result.stderr, /model setup required/);
+    assert.match(result.stderr, /invalid or expired CONDUCTOR CLI adapter-dispatch proof/);
     assert.deepStrictEqual(files(dir), []);
 
-    const fdDir = temp('forged-dispatch-fd');
-    const proofFd = fs.openSync(path.join(ROOT, 'bin', 'omniconductor.js'), 'r');
+    const proofDir = temp('one-use-dispatch-proof');
+    const proof = adapterDispatch.createProof('gemini', proofDir);
     try {
-      result = spawnSync('bash', [transform, fdDir, '--no-prompt'], {
+      result = spawnSync('bash', [transform, proofDir, '--no-prompt'], {
         cwd: ROOT,
         encoding: 'utf8',
-        env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '1' },
-        stdio: ['ignore', 'pipe', 'pipe', proofFd],
+        env: { ...process.env, ...proof.env },
       });
-    } finally { fs.closeSync(proofFd); }
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, /model-routing\.json is missing|valid Gemini Tier routing is required/);
+      assert.deepStrictEqual(files(proofDir), []);
+
+      result = spawnSync('bash', [transform, proofDir, '--no-prompt'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: { ...process.env, ...proof.env },
+      });
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, /invalid or expired CONDUCTOR CLI adapter-dispatch proof/);
+    } finally { proof.cleanup(); }
+  });
+
+  await check('adapter preflight fails before model routing or project files are written', () => {
+    if (process.platform === 'win32') return;
+    const dir = temp('preflight-no-write');
+    const fakeBin = temp('preflight-fake-bin');
+    const bash = path.join(fakeBin, 'bash');
+    fs.writeFileSync(bash, '#!/bin/sh\nexit 91\n');
+    fs.chmodSync(bash, 0o755);
+    const result = run(['init', '--target=copilot', dir, '--no-prompt', '--accept-model-defaults'], {
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH || ''}` },
+    });
     assert.strictEqual(result.status, 2, result.stderr);
-    assert.match(result.stderr, /model-routing\.json is missing|valid Gemini Tier routing is required/);
-    assert.deepStrictEqual(files(fdDir), []);
+    assert.match(result.stderr, /adapter dispatch preflight failed.*No project file was written/);
+    assert.deepStrictEqual(files(dir), []);
+  });
+
+  await check('reserved adapter preflight option cannot be invoked by users', () => {
+    const dir = temp('reserved-preflight');
+    const result = run(['init', '--target=claude', dir, '--conductor-preflight']);
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /reserved internal option refused/);
+    assert.deepStrictEqual(files(dir), []);
+  });
+
+  await check('Docker Desktop WSL distributions are refused before every project write', () => {
+    if (process.platform === 'win32') return;
+    const dir = temp('docker-wsl-refused');
+    const result = run(['init', '--target=copilot', dir, '--no-prompt', '--accept-model-defaults'], {
+      env: { ...process.env, WSL_DISTRO_NAME: 'docker-desktop' },
+    });
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /infrastructure-only.*Ubuntu\/Debian WSL/);
+    assert.deepStrictEqual(files(dir), []);
   });
 
   await check('direct adapter no-arg and help behavior never defaults to the current directory', () => {
@@ -338,7 +380,7 @@ function files(dir) {
     const fakeBin = path.join(fixture, 'bin');
     fs.mkdirSync(fakeBin);
     const fakeBash = path.join(fakeBin, 'bash');
-    fs.writeFileSync(fakeBash, `#!/bin/bash\ncase "\${1:-}" in *adapters/gemini/transform.sh) : > ${JSON.stringify(marker)}; while [ ! -e ${JSON.stringify(release)} ]; do sleep 0.01; done ;; esac\nexec /bin/bash "$@"\n`);
+    fs.writeFileSync(fakeBash, `#!/bin/bash\npreflight=false\nfor arg in "$@"; do [ "$arg" != "--conductor-preflight" ] || preflight=true; done\ncase "\${1:-}:$preflight" in *adapters/gemini/transform.sh:false) : > ${JSON.stringify(marker)}; while [ ! -e ${JSON.stringify(release)} ]; do sleep 0.01; done ;; esac\nexec /bin/bash "$@"\n`);
     fs.chmodSync(fakeBash, 0o755);
 
     const waitExit = (child) => new Promise((resolve) => child.on('exit', (code) => resolve(code)));

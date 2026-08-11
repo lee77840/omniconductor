@@ -46,16 +46,18 @@ npm test
 
 echo "[release] static, metadata, generated-doc, and source checks"
 for required_tracked_file in \
+  bin/adapter-dispatch.js bin/installer-platform.js \
   bin/claude-hookify.js bin/runtime-contract.js bin/portable-skills.js bin/hook-config.js \
-  bin/assurance-coverage.js bin/extension-trust.js bin/plugin-packager.js \
+  bin/assurance-coverage.js bin/evidence-contract.js bin/extension-trust.js bin/plugin-packager.js \
   bin/skill-proposals.js bin/work-contract.js bin/workspace-contract.js \
   core/hooks/registry.json core/skills/coordinate-work/SKILL.md \
   core/skills/propose-skill/SKILL.md docs/AGENT-EVAL-COVERAGE.json \
   docs/AGENT-EVAL-COVERAGE.md docs/PARALLEL-WORK.md docs/WORKSPACE-FEDERATION.md \
-  docs/TOKEN-ECONOMY-KO.md \
+  docs/TOKEN-ECONOMY-KO.md docs/VERIFICATION-EVIDENCE.md \
   tools/generate-assurance-coverage.js tools/test-hook-compiler.js \
-  tools/test-assurance-coverage.js tools/test-extension-trust.js \
+  tools/test-assurance-coverage.js tools/test-evidence-contract.js tools/test-assurance-recipes.sh tools/test-extension-trust.js \
   tools/test-plugin-packager.js tools/test-skill-proposals.js \
+  tools/test-installer-platform.js tools/test-windows-installer.js \
   tools/test-work-contract.js tools/test-workspace-contract.js; do
   git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
     echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
@@ -68,7 +70,7 @@ node tools/generate-adapter-docs.js --check
 bash tools/check-framework-purity.sh
 git diff --check
 for file in adapters/{claude,cursor,copilot,gemini,codex,windsurf}/transform.sh \
-  tools/{test-install-modes,test-multitool-runtime,test-npm-upgrade,live-verify}.sh \
+  tools/{test-install-modes,test-multitool-runtime,test-npm-upgrade,test-assurance-recipes,live-verify}.sh \
   tools/{test-output-cap,test-doc-path-policy,manifest-safety,validate-adapter-output,check-adapter-metadata,release-verify-local}.sh \
   core/hooks/*.sh.template; do
   bash -n "$file"
@@ -87,10 +89,10 @@ else
   echo "          rerun with CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 after the release commit"
   SNAPSHOT_STATUS="DEFERRED (uncommitted working tree)"
 fi
-for file in bin/{omniconductor,doctor,model-routing,path-safety,claude-hookify,runtime-contract,portable-skills,hook-config}.js \
-  bin/{assurance-coverage,extension-trust,plugin-packager,skill-proposals,work-contract,workspace-contract}.js \
-  tools/{test-model-routing,test-path-safety,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-release-version,check-release-version}.js \
-  tools/{generate-assurance-coverage,test-assurance-coverage,test-extension-trust,test-plugin-packager,test-skill-proposals,test-work-contract,test-workspace-contract}.js; do
+for file in bin/{omniconductor,doctor,model-routing,path-safety,adapter-dispatch,installer-platform,claude-hookify,runtime-contract,portable-skills,hook-config}.js \
+  bin/{assurance-coverage,evidence-contract,extension-trust,plugin-packager,skill-proposals,work-contract,workspace-contract}.js \
+  tools/{test-model-routing,test-path-safety,test-installer-platform,test-windows-installer,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-release-version,check-release-version}.js \
+  tools/{generate-assurance-coverage,test-assurance-coverage,test-evidence-contract,test-extension-trust,test-plugin-packager,test-skill-proposals,test-work-contract,test-workspace-contract}.js; do
   node --check "$file"
 done
 

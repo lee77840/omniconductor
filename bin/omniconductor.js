@@ -12,6 +12,7 @@
  *   omniconductor doctor [target-dir] [--json]
  *   omniconductor audit extensions [target-dir] [--target=<tool|all>] [--json]
  *   omniconductor eval coverage [--json] [--compare=<report.json>]
+ *   omniconductor evidence validate|check <report.json> [--json]
  *   omniconductor work claim|status|handoff|release ...
  *   omniconductor workspace doctor [workspace-dir] [--json]
  *   omniconductor skills propose|list|review ...
@@ -30,6 +31,8 @@ const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
 const readline = require('readline/promises');
+const adapterDispatch = require('./adapter-dispatch.js');
+const installerPlatform = require('./installer-platform.js');
 const modelRouting = require('./model-routing.js');
 const pathSafety = require('./path-safety.js');
 
@@ -54,6 +57,8 @@ Usage:
   omniconductor doctor [target-dir] [--json]                  Health-check an existing install (read-only)
   omniconductor audit extensions [target-dir] [options]       Audit extension/MCP trust (read-only)
   omniconductor eval coverage [--json] [--compare=<file>]     Report evidence-backed policy coverage
+  omniconductor evidence validate <report.json> [--json]      Validate evidence schema without judging completion
+  omniconductor evidence check <report.json> [--json]         Fail when any valid claim remains non-passed
   omniconductor work claim <task> [dir] --tool=<t> --session=<id> [--scope=<path>]
   omniconductor work status [dir] [--json]                    Inspect local clone/worktree claims
   omniconductor work handoff <task> [dir] --tool=<t> --session=<id> --to-tool=<t> --to-session=<id>
@@ -90,6 +95,7 @@ Examples:
   omniconductor doctor ./my-app --json
   omniconductor audit extensions ./my-app --target=all --json
   omniconductor eval coverage --json
+  omniconductor evidence check ./verification-evidence.json
 
 Run:  npx omniconductor init --target=<tool> <dir>`;
 }
@@ -128,16 +134,27 @@ function selectedTools(target) {
   return target === 'all' ? [...TOOLS] : [target];
 }
 
-function runAdapterTransform(transform, args, env) {
-  let proofFd;
+function runAdapterTransform(bash, tool, targetAbs, transform, args, env) {
+  const proof = adapterDispatch.createProof(tool, targetAbs);
   try {
-    proofFd = fs.openSync(__filename, 'r');
-    return spawnSync('bash', [transform, ...args], {
-      stdio: ['inherit', 'inherit', 'inherit', proofFd],
-      env: { ...env, CONDUCTOR_CLI_DISPATCH: '1' },
+    return spawnSync(bash, [transform, ...args], {
+      stdio: ['inherit', 'inherit', 'inherit'],
+      env: { ...env, ...proof.env },
     });
   } finally {
-    if (proofFd !== undefined) try { fs.closeSync(proofFd); } catch { /* ignore */ }
+    proof.cleanup();
+  }
+}
+
+function preflightAdapters(bash, targets, targetAbs, dir, env) {
+  for (const tool of targets) {
+    const transform = path.join(ROOT, 'adapters', tool, 'transform.sh');
+    if (!fs.existsSync(transform)) throw new Error(`the '${tool}' adapter has no transform.sh`);
+    const result = runAdapterTransform(bash, tool, targetAbs, transform, [dir, '--conductor-preflight'], env);
+    if (result.error || result.status !== 0) {
+      const detail = result.error ? result.error.message : `exit ${result.status}`;
+      throw new Error(`${tool} adapter dispatch preflight failed (${detail}). No project file was written; on Windows install Git Bash or run entirely inside a development WSL distro with Linux Node.js`);
+    }
   }
 }
 
@@ -273,6 +290,33 @@ async function main(argv) {
       return 0;
     } catch (error) {
       process.stderr.write(`omniconductor: assurance coverage failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
+  if (cmd === 'evidence') {
+    const action = args[1];
+    if (!['validate', 'check'].includes(action)) fail("evidence expects 'validate' or 'check'");
+    const rest = args.slice(2);
+    const unknown = rest.filter((arg) => arg.startsWith('-') && arg !== '--json');
+    if (unknown.length) fail(`unknown evidence option(s): ${unknown.join(', ')}`);
+    const positionals = rest.filter((arg) => !arg.startsWith('-'));
+    if (positionals.length !== 1) fail(`evidence ${action} requires exactly one report.json`);
+    try {
+      const contract = require('./evidence-contract.js');
+      const loaded = contract.loadReport(positionals[0]);
+      const problems = contract.validateReport(loaded.report);
+      if (problems.length) {
+        for (const problem of problems) process.stderr.write(`omniconductor: invalid evidence: ${problem}\n`);
+        return 2;
+      }
+      const summary = contract.summarize(loaded.report);
+      process.stdout.write(rest.includes('--json')
+        ? `${JSON.stringify({ schema_version: contract.SCHEMA_VERSION, report: loaded.absolute, summary }, null, 2)}\n`
+        : `${contract.render(summary)}\n`);
+      return action === 'check' && !summary.complete ? 1 : 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: evidence ${action} failed: ${error.message}\n`);
       return 2;
     }
   }
@@ -491,7 +535,7 @@ async function main(argv) {
   }
 
   if (cmd !== 'init') {
-    fail(`unknown command '${cmd}'. Expected 'init', 'models', 'doctor', 'audit', 'eval', 'work', 'workspace', 'skills', 'package', or 'list'.`);
+    fail(`unknown command '${cmd}'. Expected 'init', 'models', 'doctor', 'audit', 'eval', 'evidence', 'work', 'workspace', 'skills', 'package', or 'list'.`);
   }
 
   // Parse `init` args: extract --target, the positional target-dir, forward the rest.
@@ -515,6 +559,27 @@ async function main(argv) {
     pathSafety.assertSafeManagedPaths(targetAbs, targets);
   } catch (error) {
     process.stderr.write(`omniconductor: unsafe target refused before any write: ${error.message}\n`);
+    return 2;
+  }
+  const reserved = passthrough.filter((arg) => arg.startsWith('--conductor-'));
+  if (reserved.length) {
+    process.stderr.write(`omniconductor: reserved internal option refused: ${reserved.join(', ')}\n`);
+    return 2;
+  }
+  const platform = installerPlatform.installerEnvironment();
+  if (!platform.supported && platform.mode === 'wsl-linux') {
+    process.stderr.write(`omniconductor: WSL distro '${platform.distro}' is infrastructure-only. Run CONDUCTOR entirely inside a named Ubuntu/Debian WSL distro with Linux Node.js and bash.\n`);
+    return 2;
+  }
+  const bash = platform.bash;
+  if (!bash) {
+    process.stderr.write('omniconductor: Git Bash was not found. Install Git for Windows, or run CONDUCTOR entirely inside Ubuntu/Debian WSL with Linux Node.js; native PowerShell and Windows-Node-to-WSL mixing are unsupported.\n');
+    return 2;
+  }
+  try {
+    preflightAdapters(bash.command, targets, targetAbs, dir, process.env);
+  } catch (error) {
+    process.stderr.write(`omniconductor: ${error.message}\n`);
     return 2;
   }
   let routingEnv = {};
@@ -553,7 +618,7 @@ async function main(argv) {
         }
         const cmdline = ['bash', transform, dir, ...passthrough];
         process.stderr.write(`omniconductor [${tool}] → ${cmdline.slice(1).join(' ')}\n`);
-        const res = runAdapterTransform(transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
+        const res = runAdapterTransform(bash.command, tool, targetAbs, transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
         if (res.error || res.status !== 0) {
           const detail = res.error ? res.error.message : `exit ${res.status}`;
           process.stderr.write(`omniconductor: '${tool}' adapter failed (${detail}); prior adapter manifests remain intact for diagnosis/retry.\n`);
@@ -571,7 +636,7 @@ async function main(argv) {
     const cmdline = ['bash', transform, dir, ...passthrough];
     process.stderr.write(`omniconductor → ${cmdline.slice(1).join(' ')}\n`);
 
-    const res = runAdapterTransform(transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
+    const res = runAdapterTransform(bash.command, target, targetAbs, transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
     if (res.error) {
       process.stderr.write(`omniconductor: failed to run adapter: ${res.error.message}\n`);
       return 1;

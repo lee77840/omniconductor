@@ -25,6 +25,7 @@ Levels: `—` unsupported · `I` instruction-only · `E` emit-verified ·
 | `recipe:auto-mock-data` | recipe | E | E | E | E | E | E |
 | `recipe:branch-strategy` | recipe | E | E | E | E | E | E |
 | `recipe:coding-conventions` | recipe | E | E | E | E | E | E |
+| `recipe:database-change-assurance` | recipe | E | E | E | E | E | E |
 | `recipe:database-discipline` | recipe | E | E | E | E | E | E |
 | `recipe:debugging` | recipe | E | E | E | E | E | E |
 | `recipe:design-system` | recipe | E | E | E | E | E | E |
@@ -32,8 +33,11 @@ Levels: `—` unsupported · `I` instruction-only · `E` emit-verified ·
 | `recipe:i18n` | recipe | E | E | E | E | E | E |
 | `recipe:loop-engineering` | recipe | E | E | E | E | E | E |
 | `recipe:monorepo` | recipe | E | E | E | E | E | E |
+| `recipe:non-vacuous-testing` | recipe | E | E | E | E | E | E |
+| `recipe:release-provenance` | recipe | E | E | E | E | E | E |
 | `recipe:self-improvement` | recipe | E | E | E | E | E | E |
 | `recipe:tdd` | recipe | E | E | E | E | E | E |
+| `recipe:visual-baseline-integrity` | recipe | E | E | E | E | E | E |
 | `recipe:web-mobile-parity` | recipe | E | E | E | E | E | E |
 | `rule:meta-discipline` | universal-rule | E | E | E | E | E | E |
 | `rule:operations` | universal-rule | E | E | E | E | E | E |
@@ -56,11 +60,11 @@ Levels: `—` unsupported · `I` instruction-only · `E` emit-verified ·
 
 | Adapter | I | E | N | L | A | Unsupported |
 |---|---:|---:|---:|---:|---:|---:|
-| claude | 5 | 23 | 4 | 1 | 0 | 10 |
-| cursor | 6 | 24 | 3 | 0 | 0 | 10 |
-| copilot | 4 | 24 | 5 | 0 | 0 | 10 |
-| gemini | 5 | 24 | 4 | 0 | 0 | 10 |
-| codex | 1 | 23 | 8 | 1 | 0 | 10 |
-| windsurf | 7 | 24 | 2 | 0 | 0 | 10 |
+| claude | 5 | 27 | 4 | 1 | 0 | 10 |
+| cursor | 6 | 28 | 3 | 0 | 0 | 10 |
+| copilot | 4 | 28 | 5 | 0 | 0 | 10 |
+| gemini | 5 | 28 | 4 | 0 | 0 | 10 |
+| codex | 1 | 27 | 8 | 1 | 0 | 10 |
+| windsurf | 7 | 28 | 2 | 0 | 0 | 10 |
 
 Machine-readable evidence paths and reasons are in `docs/AGENT-EVAL-COVERAGE.json`.

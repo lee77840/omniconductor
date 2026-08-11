@@ -43,22 +43,31 @@ if [ "${#ORIGINAL_ARGS[@]}" -gt 0 ]; then
   done
 fi
 CONDUCTOR_CLI_CHILD="false"
-conductor_file_identity() {
-  if stat -f '%i:%z' "$1" >/dev/null 2>&1; then
-    stat -f '%i:%z' "$1"
-  elif stat -c '%i:%s' "$1" >/dev/null 2>&1; then
-    stat -c '%i:%s' "$1"
-  else
-    return 1
-  fi
-}
-if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "1" ] && [ -r /dev/fd/3 ]; then
-  if _conductor_dispatch_identity="$(conductor_file_identity /dev/fd/3)" \
-    && _conductor_cli_identity="$(conductor_file_identity "$CONDUCTOR_ROOT/bin/omniconductor.js")" \
-    && [ -n "$_conductor_dispatch_identity" ] \
-    && [ "$_conductor_dispatch_identity" = "$_conductor_cli_identity" ]; then
+CONDUCTOR_PREFLIGHT="false"
+if [ "${CONDUCTOR_CLI_DISPATCH:-0}" = "2" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Error: node is required to verify CONDUCTOR adapter dispatch." >&2
+    exit 127
+  }
+  if node "$CONDUCTOR_ROOT/bin/adapter-dispatch.js" verify claude; then
     CONDUCTOR_CLI_CHILD="true"
+  else
+    echo "Error: invalid or expired CONDUCTOR CLI adapter-dispatch proof." >&2
+    exit 2
   fi
+fi
+if [ "$CONDUCTOR_CLI_CHILD" = "true" ]; then
+  _conductor_forwarded_args=()
+  for _conductor_arg in "${ORIGINAL_ARGS[@]}"; do
+    if [ "$_conductor_arg" = "--conductor-preflight" ]; then
+      CONDUCTOR_PREFLIGHT="true"
+    else
+      _conductor_forwarded_args+=("$_conductor_arg")
+    fi
+  done
+  ORIGINAL_ARGS=("${_conductor_forwarded_args[@]}")
+  set -- "${ORIGINAL_ARGS[@]}"
+  [ "$CONDUCTOR_PREFLIGHT" != "true" ] || exit 0
 fi
 if [ "$CONDUCTOR_CLI_CHILD" != "true" ] && [ "$CONDUCTOR_DELEGATE_TO_CLI" = "true" ]; then
   command -v node >/dev/null 2>&1 || {
@@ -115,7 +124,7 @@ Options:
                         manifest are preserved.
   --force               Bypass uninstall safety checks (active worktrees, missing manifest)
 
-Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene, loop-engineering
+Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering
 EOF
       exit 0
       ;;
@@ -716,7 +725,7 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
   # 3. Select recipes
   echo ""
   echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, debugging, database-discipline, design-system, self-improvement, git-hygiene, loop-engineering"
+  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
   printf "Select recipes (comma-separated, or leave blank for none): "
   read -r _recipe_answer
   if [ -n "$_recipe_answer" ]; then

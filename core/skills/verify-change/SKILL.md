@@ -69,8 +69,9 @@ authorized, apply it and rerun the failed check plus the relevant broader gates.
 
 ## Report evidence
 
-For every claim, report `confirmed`, `failed`, or `verification-required`, followed by
-the specific evidence. Separate observed facts from inference. State:
+For human-readable reporting, use `confirmed`, `failed`, or
+`verification-required`, followed by the specific evidence. Separate observed facts
+from inference. State:
 
 - what was inspected or executed;
 - the exact result;
@@ -79,3 +80,21 @@ the specific evidence. Separate observed facts from inference. State:
 - the final working-tree and external-action status.
 
 Do not claim complete verification while a required check remains unrun or ambiguous.
+
+When a machine-readable gate or handoff is required, use CONDUCTOR evidence schema v1
+and its exact statuses:
+
+- `passed` — the named observable is proven on the recorded snapshot;
+- `failed` — evidence contradicts the claim;
+- `blocked` — a required authority, dependency, or prerequisite prevents the check;
+- `not-run` — the check was not executed and the reason is explicit;
+- `environment-limited` — the available environment cannot represent the required one;
+- `verification-required` — implementation may exist, but sufficient proof is absent.
+
+Every report binds all claims to one `git-commit`, `git-tree`, `content-digest`, or
+`external-version` snapshot. A `passed` claim requires at least one bounded evidence
+reference. Every unresolved status requires a concrete `missing` entry; never flatten
+it into success. Use `omniconductor evidence validate <report.json>` for schema-only
+validation and `omniconductor evidence check <report.json>` when the gate must fail
+unless every claim is `passed`. See `docs/VERIFICATION-EVIDENCE.md` in the CONDUCTOR
+distribution for the canonical shape.

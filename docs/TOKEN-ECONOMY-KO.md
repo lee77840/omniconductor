@@ -90,7 +90,7 @@ hook/config가 활성화됐는지를 확인한다.
 Token Economy는 실행 중 자르는 기능만이 아니라 설치 구조에서 시작한다.
 
 - **5개 universal rule**만 공통 바닥으로 유지한다.
-- **13개 recipe**는 프로젝트가 선택한 항목만 설치한다.
+- **17개 recipe**는 프로젝트가 선택한 항목만 설치한다.
 - `plan-change`, `verify-change`, `review-change` 등 **portable skill은 on demand**로
   읽는다.
 - `propose-skill`, `coordinate-work`는 관련 recipe를 설치했을 때만 활성화한다.

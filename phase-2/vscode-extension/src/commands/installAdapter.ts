@@ -51,7 +51,7 @@ export async function installAdapter(
   const launcher = await detectBash();
   if (!launcher) {
     const action = await vscode.window.showErrorMessage(
-      'Conductor needs bash. Install Git for Windows (bundles Git Bash) or enable WSL2.',
+      'Conductor needs Git Bash or a named Ubuntu/Debian WSL distro. Docker Desktop distros are not supported; check conductor.wslDistribution.',
       'Open Git for Windows download',
     );
     if (action) {

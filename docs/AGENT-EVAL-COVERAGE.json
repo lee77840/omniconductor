@@ -21,7 +21,7 @@
     "claude": {
       "unsupported": 10,
       "instruction-only": 5,
-      "emit-verified": 23,
+      "emit-verified": 27,
       "native-contract-tested": 4,
       "live-verified": 1,
       "adversarially-verified": 0
@@ -29,7 +29,7 @@
     "cursor": {
       "unsupported": 10,
       "instruction-only": 6,
-      "emit-verified": 24,
+      "emit-verified": 28,
       "native-contract-tested": 3,
       "live-verified": 0,
       "adversarially-verified": 0
@@ -37,7 +37,7 @@
     "copilot": {
       "unsupported": 10,
       "instruction-only": 4,
-      "emit-verified": 24,
+      "emit-verified": 28,
       "native-contract-tested": 5,
       "live-verified": 0,
       "adversarially-verified": 0
@@ -45,7 +45,7 @@
     "gemini": {
       "unsupported": 10,
       "instruction-only": 5,
-      "emit-verified": 24,
+      "emit-verified": 28,
       "native-contract-tested": 4,
       "live-verified": 0,
       "adversarially-verified": 0
@@ -53,7 +53,7 @@
     "codex": {
       "unsupported": 10,
       "instruction-only": 1,
-      "emit-verified": 23,
+      "emit-verified": 27,
       "native-contract-tested": 8,
       "live-verified": 1,
       "adversarially-verified": 0
@@ -61,7 +61,7 @@
     "windsurf": {
       "unsupported": 10,
       "instruction-only": 7,
-      "emit-verified": 24,
+      "emit-verified": 28,
       "native-contract-tested": 2,
       "live-verified": 0,
       "adversarially-verified": 0
@@ -1060,6 +1060,67 @@
       }
     },
     {
+      "id": "recipe:database-change-assurance",
+      "kind": "recipe",
+      "source": "core/recipes/database-change-assurance.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/database-change-assurance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/database-change-assurance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/database-change-assurance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/database-change-assurance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/database-change-assurance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/database-change-assurance.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
       "id": "recipe:database-discipline",
       "kind": "recipe",
       "source": "core/recipes/database-discipline.md",
@@ -1487,6 +1548,128 @@
       }
     },
     {
+      "id": "recipe:non-vacuous-testing",
+      "kind": "recipe",
+      "source": "core/recipes/non-vacuous-testing.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/non-vacuous-testing.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/non-vacuous-testing.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/non-vacuous-testing.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/non-vacuous-testing.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/non-vacuous-testing.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/non-vacuous-testing.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:release-provenance",
+      "kind": "recipe",
+      "source": "core/recipes/release-provenance.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/release-provenance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/release-provenance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/release-provenance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/release-provenance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/release-provenance.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/release-provenance.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
       "id": "recipe:self-improvement",
       "kind": "recipe",
       "source": "core/recipes/self-improvement.md",
@@ -1603,6 +1786,67 @@
           "evidence": [
             "adapters/windsurf/metadata.json",
             "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:visual-baseline-integrity",
+      "kind": "recipe",
+      "source": "core/recipes/visual-baseline-integrity.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/visual-baseline-integrity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/visual-baseline-integrity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/visual-baseline-integrity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/visual-baseline-integrity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/visual-baseline-integrity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/visual-baseline-integrity.md",
             "tools/test-install-modes.sh"
           ]
         }

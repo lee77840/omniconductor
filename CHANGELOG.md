@@ -3,6 +3,45 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.5.0] — 2026-08-11
+
+### Added
+
+- Add snapshot-bound verification evidence schema v1 and read-only
+  `omniconductor evidence validate/check` commands. Honest `blocked`, `not-run`,
+  `environment-limited`, and `verification-required` outcomes remain distinct from
+  PASS; vacuous passes and unsafe report files fail validation.
+- Add opt-in `database-change-assurance`, `non-vacuous-testing`,
+  `visual-baseline-integrity`, and `release-provenance` recipes across all six
+  adapters.
+- Add doctor D16 installer-platform diagnosis, an explicit VS Code
+  `conductor.wslDistribution` setting, and a `windows-latest` release regression
+  covering all six CLI/direct adapter paths and reversible lifecycle behavior.
+
+### Changed
+
+- Extend `verify-change` with the machine-readable result contract, web/mobile parity
+  with an N-surface release matrix, and i18n with generated/code-split structural
+  synchronization and locale × surface evidence.
+- Keep database-specific diagnostics, mutation tools, visual runners, and legal/domain
+  policy outside the universal contract; the new recipes record proof without
+  inventing provider-native or legal enforcement.
+
+### Fixed
+
+- Replace the Unix-only `/dev/fd/3` CLI-to-adapter recursion proof with a
+  cross-platform, one-use, content-bound dispatch proof that is consumed before any
+  of the six adapter implementations can run.
+- Preflight every selected adapter before model-routing or project files are written,
+  so a missing/incompatible Windows shell fails with an actionable diagnosis instead
+  of leaving partial configuration or recursively re-entering the CLI.
+- Resolve Git Bash explicitly for native Windows Node.js and stop treating the current
+  default WSL distribution as an interchangeable shell. WSL installs must run Linux
+  Node.js and bash together inside a named development distribution; Docker Desktop
+  utility distributions are rejected.
+- Treat a regular emitted hook as Git-Bash-usable on Windows without requiring a
+  POSIX executable mode bit that NTFS/Windows Node.js does not represent.
+
 ## [1.4.2] — 2026-08-11
 
 ### Fixed

@@ -2322,3 +2322,121 @@ cannot be enforced equally across all six tools.
 **Consequences**: Teams gain a portable cross-repository evidence boundary while each
 repository keeps independent manifests, model routing, CURRENT_WORK, specs, and review
 state. A future mutation layer requires a separate decision and verified six-tool need.
+
+## ADR-066 — Windows support binds one Node runtime to one verified Bash runtime
+
+**Status**: Accepted (2026-08-11)
+
+**Context**: The six Bash adapters delegated direct calls to the Node CLI and used a
+`/dev/fd/3` inode/size comparison to recognize the returning child. That Unix file-
+descriptor contract is not portable to Windows Node.js + Git Bash. Separately, an
+unqualified WSL fallback can select `docker-desktop`, which has neither a development
+shell contract nor the user's Linux Node.js environment. A dispatch failure could
+occur after model-routing setup and leave confusing partial state.
+
+**Decision**:
+
+1. Replace `/dev/fd/3` with an OS-temp, one-use dispatch proof bound to the current CLI
+   SHA-256, adapter, absolute target, live parent PID, random nonce, and 60-second age.
+   Consume it atomically before adapter argument parsing; forgery, mismatch, expiry,
+   or replay fails closed.
+2. Preflight every selected adapter with that same proof before model routing or any
+   project write. The internal preflight option is reserved and cannot be invoked as a
+   user bypass.
+3. Native Windows Node.js resolves Git Bash only. WSL support means Linux Node.js and
+   bash running together inside a named non-Docker development distro; do not mix
+   Windows Node.js with an arbitrary/default WSL shell.
+4. Add doctor D16 and explicit VS Code distro selection. Add a Windows release job
+   covering all six CLI installs, all six direct wrappers, dry-run immutability,
+   doctor, and reversible all-target lifecycle behavior.
+5. Preserve all existing Tier definitions, eight baseline roles, recipes, emitted
+   features, manifest ownership, and six-adapter parity.
+
+**Consequences**: A supported Windows install either reaches the same adapter contract
+as macOS/Linux or fails before changing the adopter project. The proof is a recursion
+boundary, not a user-authorization mechanism; path safety, routing validation, locks,
+manifests, and provider-native enforcement remain separate controls. Native
+PowerShell adapter scripts remain outside scope, while PowerShell/CMD may launch the
+Windows Node.js CLI when Git Bash is installed.
+
+## ADR-067 — Verification outcomes are snapshot-bound data, not a boolean claim
+
+**Status**: Accepted (2026-08-11)
+
+**Context**: `verify-change` already forbids inferring PASS from an unrun or
+environment-limited check, but no machine-readable contract preserved those distinctions
+across handoff, CI, release review, or external verification. A boolean result would
+turn honest gaps back into green-looking automation.
+
+**Decision**:
+
+1. Define evidence schema v1 with one exact snapshot and the statuses `passed`,
+   `failed`, `blocked`, `not-run`, `environment-limited`, and
+   `verification-required`.
+2. A pass requires bounded evidence and no missing requirement. Every unresolved
+   status requires a named missing condition. Unknown fields, duplicate IDs, vacuous
+   pass, unsafe linked input, and oversized reports fail validation.
+3. `omniconductor evidence validate` checks structure only; `evidence check` returns
+   non-zero until every valid claim is passed. Neither command executes evidence,
+   follows references, contacts services, or writes project state.
+4. JSON output exposes only path and aggregate counts so validation does not echo
+   commands or evidence references that may contain sensitive project metadata.
+
+**Consequences**: Projects can distinguish valid-but-incomplete evidence from malformed
+evidence and complete gates. Provider-native status vocabularies may be mapped into the
+contract, but unsupported states may not be flattened or invented.
+
+## ADR-068 — Strong assurance is opt-in and proof-method neutral
+
+**Status**: Accepted (2026-08-11)
+
+**Context**: Existing database and TDD recipes already require drift checks, post-state
+verification, RED-before-fix, and meaningful assertions. High-risk production writes
+and release-critical tests need stronger evidence, but imposing human approval,
+database-specific diagnostics, mutation frameworks, or screenshot infrastructure on
+every adopter would be disruptive and falsely universal.
+
+**Decision**:
+
+1. Add `database-change-assurance` on top of `database-discipline` for protected
+   operations. It records intent, direct authority, exact target/snapshot, expected and
+   actual impact, pre/postconditions, recovery, and connected consumers.
+2. Add `non-vacuous-testing` on top of normal testing/TDD. It accepts RED history,
+   targeted mutation, fault injection, assertion reachability, or stub-contract proof;
+   no one framework or mutation score is required.
+3. Add `visual-baseline-integrity` for pinned rendering, inventory, independent update
+   and verify phases, reviewable expected/actual/diff evidence, honest flaky semantics,
+   and required diagnostics.
+4. Emit these recipe texts equally through all six adapters. Claim only instruction
+   enforcement unless a separately verified native hook contract exists.
+
+**Consequences**: Adopters select stronger evidence where its cost and risk boundary
+fit. Existing installations, Tier definitions, roles, model routing, and baseline
+recipe behavior remain unchanged until the new recipes are selected.
+
+## ADR-069 — Multi-surface and provenance gates preserve declared differences and authority
+
+**Status**: Accepted (2026-08-11)
+
+**Context**: Web/mobile and i18n recipes express parity principles but lack a standard
+release matrix. Third-party assets, data, claims, and regulated surfaces also need
+provenance, while one universal legal recipe would conflate jurisdictions and domains
+and exceed CONDUCTOR's authority.
+
+**Decision**:
+
+1. Extend parity to an N-surface matrix of feature/state, locale/fixture, shared or
+   surface-specific invariant, evidence, snapshot, and gate status. Intentional
+   differences are explicit contract rows, not failures.
+2. Extend i18n beyond byte-identical copies to declared generated, code-split, imported,
+   or local artifacts with structural equality. Linguistic, layout, cultural, and
+   assistive-technology quality remain separately authorized evidence.
+3. Add `release-provenance` as an evidence envelope for source, asserted permission,
+   policy/jurisdiction scope, authority, version, expiry, and fallback. It never grants
+   rights or certifies legal compliance.
+4. Domain profiles stay project-owned and versioned by their applicable authority.
+   Missing or stale authority remains non-passed even when technical tests are green.
+
+**Consequences**: Cross-surface releases and policy-bound materials become auditable
+without forcing identical interfaces or converting one project's legal policy into a
+universal rule.
