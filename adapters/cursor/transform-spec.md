@@ -31,6 +31,8 @@ adapters/cursor/_native/commands/*.md                  # (optional) project comm
 Full/minimal/strict also copy the three byte-identical portable procedures from
 `core/skills/` to the documented `.agents/skills/<name>/SKILL.md` alias.
 Recipes-only and Reflector-only do not emit the baseline set.
+`self-improvement` adds `propose-skill` at the same root, including
+Reflector-only; review preserves `applied: false`.
 
 ```
 <target-dir>/

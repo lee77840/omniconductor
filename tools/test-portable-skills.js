@@ -9,6 +9,7 @@ const { spawnSync } = require('child_process');
 const {
   CONTRACTS,
   SKILL_NAMES,
+  OPT_IN_SKILL_NAMES,
   validateAgentSkillsMetadata,
   validateInstalled,
   validateSourceRoot,
@@ -82,9 +83,9 @@ function manifest(target, tool) {
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-portable-skills-'));
 
 try {
-  test('three instruction-only core sources satisfy the shared schema', () => {
+  test('three baseline and two opt-in instruction-only sources satisfy the shared schema', () => {
     assert.deepStrictEqual(validateSourceRoot(SOURCE_ROOT), []);
-    assert.deepStrictEqual(fs.readdirSync(SOURCE_ROOT).sort(), [...SKILL_NAMES].sort());
+    assert.deepStrictEqual(fs.readdirSync(SOURCE_ROOT).sort(), [...SKILL_NAMES, ...OPT_IN_SKILL_NAMES].sort());
   });
 
   test('review and verification skills preserve snapshot-scoped economy', () => {
@@ -113,6 +114,50 @@ try {
       for (const name of SKILL_NAMES) {
         assert(owned.has(`${CONTRACTS[tool].projectPath}/${name}/SKILL.md`), `${tool}:${name}`);
       }
+    }
+  });
+
+  test('self-improvement recipes-only emits propose-skill without baseline skills for every adapter', () => {
+    for (const tool of TOOLS) {
+      const target = path.join(sandbox, `proposal-${tool}`);
+      fs.mkdirSync(target, { recursive: true });
+      run([
+        process.execPath,
+        'bin/omniconductor.js',
+        'init',
+        `--target=${tool}`,
+        target,
+        '--mode=recipes-only',
+        '--recipes=self-improvement',
+        '--no-prompt',
+      ]);
+      assert(fs.existsSync(skillPath(target, tool, 'propose-skill')), tool);
+      assert(!fs.existsSync(skillPath(target, tool, 'coordinate-work')), tool);
+      assert(!fs.existsSync(skillPath(target, tool, 'plan-change')), tool);
+      const owned = manifest(target, tool).emitted_files.map((entry) => entry.path);
+      assert(owned.includes(`${CONTRACTS[tool].projectPath}/propose-skill/SKILL.md`), tool);
+    }
+  });
+
+  test('git-hygiene recipes-only emits coordinate-work without proposal authority for every adapter', () => {
+    for (const tool of TOOLS) {
+      const target = path.join(sandbox, `coordinate-${tool}`);
+      fs.mkdirSync(target, { recursive: true });
+      run([
+        process.execPath,
+        'bin/omniconductor.js',
+        'init',
+        `--target=${tool}`,
+        target,
+        '--mode=recipes-only',
+        '--recipes=git-hygiene',
+        '--no-prompt',
+      ]);
+      assert(fs.existsSync(skillPath(target, tool, 'coordinate-work')), tool);
+      assert(!fs.existsSync(skillPath(target, tool, 'propose-skill')), tool);
+      assert(!fs.existsSync(skillPath(target, tool, 'plan-change')), tool);
+      const owned = manifest(target, tool).emitted_files.map((entry) => entry.path);
+      assert(owned.includes(`${CONTRACTS[tool].projectPath}/coordinate-work/SKILL.md`), tool);
     }
   });
 

@@ -56,6 +56,8 @@ bypass.
 Full, minimal, and strict installs emit the three portable procedures at Codex's
 native repository skill path. Recipes-only and Reflector-only do not emit the
 baseline set; the opt-in Reflector retains its separate `reflect` skill.
+Selecting `self-improvement` also emits `propose-skill`; its typed inbox never
+auto-applies a live skill.
 
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.codex/hooks.json`), `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 

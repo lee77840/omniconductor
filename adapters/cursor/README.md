@@ -55,6 +55,8 @@ bypass.
 
 Full, minimal, and strict installs emit the three portable procedures at Cursor's
 documented `.agents/skills` alias. Recipes-only and Reflector-only do not.
+Selecting `self-improvement` emits the separate `propose-skill` procedure; its
+typed inbox never auto-applies a live skill.
 
 - `--legacy-cursorrules` additionally bundles everything into a flat `.cursorrules` (Cursor < 0.45).
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.cursor/hooks.json`), the `/reflect` Skill (`.cursor/skills/reflect/SKILL.md`), a reflector agent (`.cursor/agents/`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).

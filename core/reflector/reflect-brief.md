@@ -8,4 +8,10 @@ Adopt the reflector persona for this task (the reflector agent/rule installed al
    - `**[ADD]** target: feedback_lesson-<slug>.md` — lesson / why / how-to-apply / provenance.
 4. Apply NOTHING else. Do not edit rules, memory, or code. Stop after writing proposals.
 
+If a repeated procedure is a stronger fit for a reusable skill than a memory
+lesson, create a typed input and run `omniconductor skills propose . --from=<file>`.
+Do not create the live skill. The proposal needs at least two cited occurrences.
+
 After you finish, remind the user to review `docs/REFLECTION-PROPOSALS.md` and, for accepted deltas, add them as `feedback_lesson-*.md` memory entries, then optionally run `.conductor/reflect/prune-lessons.sh` on the memory dir.
+Also list `.conductor/skill-proposals/` items and remind the user that `accept`
+records a decision but never promotes a skill automatically.

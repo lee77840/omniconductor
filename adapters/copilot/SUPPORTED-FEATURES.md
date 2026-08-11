@@ -18,6 +18,9 @@ Detailed matrix of which CONDUCTOR features Copilot supports natively.
 | **Per-task model routing** | ✅ Configured native (2026) | Saved Tier model in each repository agent | Availability remains dependent on plan, client, and organization policy. |
 | **Custom slash commands** | ✅ Native (2026) | Prompt files at `.github/prompts/*.prompt.md` | Was unavailable as of late 2025; supported now (ADR-031). |
 | **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Copilot documents this alternative project path; surface and organization policy still govern availability. |
+| **Skill proposal inbox** | ✅ Opt-in | `.agents/skills/propose-skill/SKILL.md` + `.conductor/skill-proposals/` | Emitted only with `self-improvement`; typed human review is provider-independent. |
+| **Extension/MCP trust audit** | ✅ Read-only | `omniconductor audit extensions --target=copilot` | Reports project config risk while enterprise allowlists and organization policy remain authoritative. |
+| **Provider package** | ⚠️ Native partial | `plugin.json` | Skills and agents only. Repository rules, executable hooks, routing, and reversible ownership remain direct-install surfaces. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Universal | Plain markdown; Copilot Chat reads on demand | |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule in `.instructions.md` with `applyTo: 'docs/specs/**,**/*.md'` reminds when relevant files are touched | Self-policed. |

@@ -63,6 +63,8 @@ Full, minimal, and strict installs emit the three portable procedures at Devin's
 recommended `.agents/skills` path. Devin may select them automatically or by
 `@skills:<name>` and activates one skill at a time. Recipes-only and Reflector-only
 do not emit them.
+Selecting `self-improvement` emits the separate `propose-skill` procedure; its
+typed inbox never auto-applies a live skill.
 
 - `--recipes=self-improvement` additionally emits the Reflector loop: trajectory hook config (`.windsurf/hooks.json`, riding `post_cascade_response_with_transcript` — Windsurf has no session/stop event), the `/reflect` workflow (`.windsurf/workflows/reflect.md`), a reflector persona rule (`.devin/rules/reflector.md`, `trigger: manual`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 

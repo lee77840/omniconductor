@@ -51,6 +51,8 @@ bypass.
 Full, minimal, and strict installs emit the three portable procedures at Copilot's
 documented alternative `.agents/skills` project path. Recipes-only and
 Reflector-only do not.
+Selecting `self-improvement` emits the separate `propose-skill` procedure; its
+typed inbox never auto-applies a live skill.
 
 - `--per-rule` splits the 5 universal rules into per-file `.github/instructions/<rule>.instructions.md` (`applyTo: '**'`) instead of the single merged file.
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config, `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).

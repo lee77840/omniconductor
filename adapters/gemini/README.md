@@ -55,6 +55,8 @@ bypass.
 Full, minimal, and strict installs emit the three portable procedures at Gemini
 CLI's `.agents/skills` workspace alias. Native activation asks for user consent.
 Recipes-only and Reflector-only do not emit them.
+Selecting `self-improvement` emits the separate `propose-skill` procedure; its
+typed inbox never auto-applies a live skill.
 
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.gemini/settings.json`), `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 

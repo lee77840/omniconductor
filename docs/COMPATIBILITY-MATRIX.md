@@ -45,7 +45,7 @@ This matrix describes which CONDUCTOR features are supported by each target tool
 11. **Windsurf paths** — rules are now `.devin/rules/` (legacy `.windsurf/rules/`). The CONDUCTOR Windsurf adapter **emits `.devin/rules/*.md`** (preferred) plus the always-loaded `.windsurfrules` baseline — target path already updated (as of v0.6).
 12. **Auto-block enforcement (ADR-056)** — P2's three portable policies are deliberately unequal only where provider contracts differ. Claude/Copilot/Codex emit the two commit soft-confirmations plus review continuation. Cursor/Gemini emit review continuation but keep the commit checks in rule text because their verified shell pre-hook decisions do not expose a soft `ask`. Windsurf keeps all three as rule fallbacks because its post-response hook cannot continue the turn. These counts exclude the existing Codex session-state Stop guard and Gemini output-cap BeforeTool hook. Existing user hook arrays are schema-merged, never replaced wholesale; only exact registry-rendered CONDUCTOR commands are refreshed.
 13. **Tool-output cap (ADR-051/056)** — reach is honestly 3/6, not rounded up. Claude: `PostToolUse` hook returns `updatedToolOutput` (head+tail+marker); requires Claude Code ≥v2.1.121, below which it silently no-ops (`doctor` D5 warns). Codex: baked `tool_output_token_limit` in `.codex/config.toml` — its own tokenizer, not the shared hook. Gemini: `BeforeTool` rewrites `run_shell_command` only (not other tool types) to merge stdout+stderr and pipe the combined stream through a byte-capping `awk` truncator — head-only. Its registration is now schema-merged with arbitrary existing `.gemini/settings.json` keys and hook groups. Cursor/Copilot/Windsurf are ❌ N/A: none has a verified per-tool-call, store-time output-edit contract.
-14. **Portable Agent Skills (ADR-055)** — full/minimal/strict installs emit the same instruction-only `plan-change`, `verify-change`, and `review-change` sources. Claude uses its native `.claude/skills`; Cursor, Copilot, Gemini, Codex, and Windsurf/Devin share byte-identical `.agents/skills`. Native activation differs by tool and is shown in the generated table below. This is emit-verified; model-backed discovery remains subject to each runtime, policy, and consent flow.
+14. **Portable Agent Skills (ADR-055/061/064)** — full/minimal/strict installs emit the same instruction-only `plan-change`, `verify-change`, and `review-change` sources. `self-improvement` adds `propose-skill`; `git-hygiene` adds `coordinate-work`. Claude uses its native `.claude/skills`; Cursor, Copilot, Gemini, Codex, and Windsurf/Devin share byte-identical `.agents/skills`. Native activation differs by tool and is shown in the generated table below. This is emit-verified; model-backed discovery remains subject to each runtime, policy, and consent flow.
 15. **Claude sub-agent matcher boundary (ADR-059)** — current first-party hook and tool references name the sub-agent tool `Agent`, so full/strict Claude settings register `PreToolUse` with the exact `Agent` matcher. Independently, those modes emit the 2.1.121-gated output cap, so doctor D13 warns on runtimes below that complete-hook-set floor. CONDUCTOR does not claim historical `Task`-name compatibility, guess a separate rename version, or add an unverified fallback.
 
 ## Tier assignment
@@ -106,6 +106,75 @@ does not expose the required native decision or continuation contract.
 | Codex | `.codex/hooks.json` | ✅ native | ✅ native | ✅ native | [official](https://learn.chatgpt.com/docs/hooks) (2026-07-27) |
 | Windsurf | `.windsurf/hooks.json` | 📘 rule fallback | 📘 rule fallback | 📘 rule fallback | [official](https://docs.windsurf.com/windsurf/cascade/hooks) (2026-07-27) |
 <!-- /generated:hook-compiler-table -->
+
+### Extension and MCP trust audit
+
+`omniconductor audit extensions` reads only the project roots below. It does not
+follow symlinks, inspect user-home configuration, execute configured commands, or
+return credential values. A `verification-required` protocol cell is an honest
+provider-version boundary, not a claim that MCP is unavailable.
+
+<!-- generated:extension-trust-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
+| Tool | Project audit roots | Native trust controls | MCP 2026-07-28 boundary | First-party basis |
+|---|---|---|---|---|
+| Claude Code | `.mcp.json` + `.claude` | project-trust, permission-sandbox, plugin-install-consent | verification-required | [official](https://code.claude.com/docs/en/mcp) (2026-08-10) |
+| Cursor | `.cursor` | workspace-trust, sandbox-network-controls, plugin-marketplace | verification-required | [official](https://cursor.com/changelog/2-5) (2026-08-10) |
+| Copilot | `.github` + `.vscode` | enterprise-mcp-allowlist, organization-policy, review-mcp-read-only | verification-required | [official](https://github.blog/changelog/2026-08-06-mcp-allowlists-in-enterprise-managed-settings) (2026-08-10) |
+| Gemini CLI | `.gemini` + `gemini-extension.json` | trusted-folders, extension-environment-declarations, sandbox | verification-required | [official](https://geminicli.com/docs/extensions/reference/) (2026-08-10) |
+| Codex | `.codex` + `.agents/plugins` + `.mcp.json` | project-trust, plugin-hook-trust, sandbox-and-approval, secret-redaction | verified | [official](https://developers.openai.com/codex/changelog) (2026-08-10) |
+| Windsurf | `.windsurf` + `.devin` | restricted-mode, plugin-permissions, mcp-marketplace | verification-required | [official](https://docs.devin.ai/desktop/changelog) (2026-08-10) |
+<!-- /generated:extension-trust-table -->
+
+### Propose-only skill inbox
+
+The `propose-skill` procedure is emitted only with the `self-improvement` recipe.
+All tools write the same typed `.conductor/skill-proposals/` records. Native
+acceleration can help collect evidence, but `accept` never creates a live skill.
+
+<!-- generated:skill-proposals-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
+| Tool | Opt-in proposal skill | Native acceleration | Application boundary | First-party basis |
+|---|---|---|---|---|
+| Claude Code | `.claude/skills/propose-skill/SKILL.md` | manual-fallback | human-reviewed-separate-change | [official](https://code.claude.com/docs/en/skills) (2026-08-10) |
+| Cursor | `.agents/skills/propose-skill/SKILL.md` | verification-required | human-reviewed-separate-change | [official](https://cursor.com/docs/skills) (2026-08-10) |
+| Copilot | `.agents/skills/propose-skill/SKILL.md` | manual-fallback | human-reviewed-separate-change | [official](https://github.blog/changelog/2026-07-29-copilot-code-review-agent-skills-and-mcp-now-generally-available) (2026-08-10) |
+| Gemini CLI | `.agents/skills/propose-skill/SKILL.md` | documented | human-reviewed-separate-change | [official](https://github.com/google-gemini/gemini-cli/blob/main/docs/changelogs/index.md) (2026-08-10) |
+| Codex | `.agents/skills/propose-skill/SKILL.md` | documented | human-reviewed-separate-change | [official](https://learn.chatgpt.com/docs/extend/record-and-replay) (2026-08-10) |
+| Windsurf | `.agents/skills/propose-skill/SKILL.md` | documented | human-reviewed-separate-change | [official](https://docs.devin.ai/product-guides/skills) (2026-08-10) |
+<!-- /generated:skill-proposals-table -->
+
+### Optional provider packages
+
+`omniconductor package` emits provider manifests only where the public structure
+was verified. `native-partial` means exactly the components in the table are active;
+rules, executable guards, project model routing, and reversible ownership remain the
+direct installer's responsibility. `direct-fallback` deliberately emits no guessed
+provider manifest.
+
+<!-- generated:plugin-packaging-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
+| Tool | Package mode | Native manifest | Native components | Direct install still required for | First-party basis |
+|---|---|---|---|---|---|
+| Claude Code | native-partial | `.claude-plugin/plugin.json` | skills, agents | rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://code.claude.com/docs/en/plugins) (2026-08-10) |
+| Cursor | direct-fallback | — | none | skills, roles, rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://cursor.com/changelog/2-5) (2026-08-10) |
+| Copilot | native-partial | `plugin.json` | skills, agents | rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://docs.github.com/en/copilot/concepts/agents/about-plugins) (2026-08-10) |
+| Gemini CLI | native-partial | `gemini-extension.json` | context, skills, agents | guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://geminicli.com/docs/extensions/reference/) (2026-08-10) |
+| Codex | native-partial | `.codex-plugin/plugin.json` | skills | roles, rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://developers.openai.com/plugins/build/plugins) (2026-08-10) |
+| Windsurf | direct-fallback | — | none | skills, roles, rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://docs.devin.ai/desktop/changelog) (2026-08-10) |
+<!-- /generated:plugin-packaging-table -->
+
+### Cross-tool assurance and workspace coordination
+
+These commands do not depend on a provider-native runtime and therefore apply equally
+to all six adapters:
+
+| Contract | Command | Six-tool boundary |
+|---|---|---|
+| Evidence coverage | `omniconductor eval coverage` | Reports exact instruction/emission/native/live evidence; never infers one tool's native support for another. |
+| Local work ownership | `omniconductor work claim/status/handoff/release` | Shared Git-common-dir ledger plus the byte-identical `coordinate-work` skill when `git-hygiene` is selected. No cross-machine lock claim. |
+| Multi-repo view | `omniconductor workspace doctor` | Read-only repo/DAG/SHA/policy aggregation. No provider agent or adapter install is invoked. |
+
+Detailed evidence is generated in `docs/AGENT-EVAL-COVERAGE.md` and
+`docs/AGENT-EVAL-COVERAGE.json`. Operational contracts are documented in
+`docs/PARALLEL-WORK.md` and `docs/WORKSPACE-FEDERATION.md`.
 
 ## Verdict — "If you need X, use Y"
 

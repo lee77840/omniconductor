@@ -47,7 +47,15 @@ npm test
 echo "[release] static, metadata, generated-doc, and source checks"
 for required_tracked_file in \
   bin/claude-hookify.js bin/runtime-contract.js bin/portable-skills.js bin/hook-config.js \
-  core/hooks/registry.json tools/test-hook-compiler.js; do
+  bin/assurance-coverage.js bin/extension-trust.js bin/plugin-packager.js \
+  bin/skill-proposals.js bin/work-contract.js bin/workspace-contract.js \
+  core/hooks/registry.json core/skills/coordinate-work/SKILL.md \
+  core/skills/propose-skill/SKILL.md docs/AGENT-EVAL-COVERAGE.json \
+  docs/AGENT-EVAL-COVERAGE.md docs/PARALLEL-WORK.md docs/WORKSPACE-FEDERATION.md \
+  tools/generate-assurance-coverage.js tools/test-hook-compiler.js \
+  tools/test-assurance-coverage.js tools/test-extension-trust.js \
+  tools/test-plugin-packager.js tools/test-skill-proposals.js \
+  tools/test-work-contract.js tools/test-workspace-contract.js; do
   git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
     echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
     exit 1
@@ -79,7 +87,9 @@ else
   SNAPSHOT_STATUS="DEFERRED (uncommitted working tree)"
 fi
 for file in bin/{omniconductor,doctor,model-routing,path-safety,claude-hookify,runtime-contract,portable-skills,hook-config}.js \
-  tools/{test-model-routing,test-path-safety,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-release-version,check-release-version}.js; do
+  bin/{assurance-coverage,extension-trust,plugin-packager,skill-proposals,work-contract,workspace-contract}.js \
+  tools/{test-model-routing,test-path-safety,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-release-version,check-release-version}.js \
+  tools/{generate-assurance-coverage,test-assurance-coverage,test-extension-trust,test-plugin-packager,test-skill-proposals,test-work-contract,test-workspace-contract}.js; do
   node --check "$file"
 done
 

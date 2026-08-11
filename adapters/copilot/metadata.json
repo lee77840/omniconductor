@@ -58,6 +58,34 @@
       "checked": "2026-07-27"
     }
   },
+  "extension_trust": {
+    "schema_version": 1,
+    "audit_roots": [".github", ".vscode"],
+    "native_controls": ["enterprise-mcp-allowlist", "organization-policy", "review-mcp-read-only"],
+    "mcp_protocol_2026_07_28": "verification-required",
+    "sources": [
+      { "url": "https://github.blog/changelog/2026-08-06-mcp-allowlists-in-enterprise-managed-settings", "checked": "2026-08-10" },
+      { "url": "https://docs.github.com/en/copilot/concepts/agents/about-plugins", "checked": "2026-08-10" }
+    ]
+  },
+  "skill_proposals": {
+    "schema_version": 1,
+    "inbox_path": ".conductor/skill-proposals",
+    "recipe": "self-improvement",
+    "opt_in_skill_path": ".agents/skills/propose-skill/SKILL.md",
+    "application": "human-reviewed-separate-change",
+    "native_acceleration": "manual-fallback",
+    "source": { "url": "https://github.blog/changelog/2026-07-29-copilot-code-review-agent-skills-and-mcp-now-generally-available", "checked": "2026-08-10" }
+  },
+  "plugin_packaging": {
+    "schema_version": 1,
+    "mode": "native-partial",
+    "manifest_path": "plugin.json",
+    "native_components": ["skills", "agents"],
+    "inactive_reference_components": ["universal-rules", "hook-registry"],
+    "direct_install_required_for": ["rules", "guard-hooks", "reflector", "model-routing", "work-coordination", "reversible-ownership"],
+    "source": { "url": "https://docs.github.com/en/copilot/concepts/agents/about-plugins", "checked": "2026-08-10" }
+  },
   "runtime_contract": {
     "schema_version": 1,
     "product": {

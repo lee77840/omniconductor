@@ -22,6 +22,7 @@
  *   D11 model routing        — saved Tier mappings, adapter coverage, enforcement truth
  *   D12 document paths       — canonical seeds + undeclared legacy precedents
  *   D13 runtime compatibility — local CLI/version/lifecycle/auth contract (offline)
+ *   D14 parallel work state — local clone/worktree claim ledger integrity
  *
  * D5 checks effective registration, not only manifest-owned syntax. This is
  * intentional: an older branch or a preserved user config can have a valid
@@ -39,6 +40,7 @@ const modelRouting = require('./model-routing.js');
 const pathSafety = require('./path-safety.js');
 const claudeHookify = require('./claude-hookify.js');
 const runtimeContract = require('./runtime-contract.js');
+const workContract = require('./work-contract.js');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -873,6 +875,28 @@ function run(targetDir, opts) {
       : 'none declared';
     add('D13', report.severity,
       `${adapter} [${report.status}] ${report.detail}; auth=${contract.auth.status}; policy gates=${gates}; probe=${contract.probe.kind}`);
+  }
+
+  // ---- D14 local parallel-work contract ------------------------------------
+  // Claim records live below Git's common directory, not in the worktree. This
+  // check is read-only and treats a handed-off snapshot delta as a real failure.
+  const gitRoot = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: targetAbs, encoding: 'utf8', timeout: 5000,
+    env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', LC_ALL: 'C' },
+  });
+  if (gitRoot.status !== 0) {
+    add('D14', 'OK', 'parallel-work contract not applicable outside Git');
+  } else {
+    try {
+      const work = workContract.inspect(targetAbs);
+      if (work.summary.failures) {
+        add('D14', 'FAIL', `${work.summary.failures} parallel-work integrity failure(s): ${work.problems.slice(0, 3).map((item) => `${item.task}: ${item.message}`).join('; ')}`);
+      } else {
+        add('D14', 'OK', `${work.summary.active} active, ${work.summary.handed_off} handed-off, ${work.summary.released} released local work claim(s)`);
+      }
+    } catch (error) {
+      add('D14', 'FAIL', `parallel-work state is unsafe or invalid: ${error.message}`);
+    }
   }
 
   return finish();

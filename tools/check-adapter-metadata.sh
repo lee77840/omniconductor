@@ -28,6 +28,12 @@
 #   M11: agent_skills exists and passes the portable-skills schema validator
 #   M12: hook_compiler matches the central registry path and the exact native /
 #        fallback partition for the three portable guard policies
+#   M13: extension_trust validates the read-only audit roots, controls, protocol
+#        verification state, and dated first-party sources
+#   M14: skill_proposals preserves the self-improvement-only, propose-only inbox
+#        and per-adapter opt-in skill path
+#   M15: plugin_packaging validates native-partial versus direct-fallback
+#        manifests and the direct-installer ownership boundary
 #
 # Dependency: node (already required by the CLI + CI). No jq.
 
@@ -58,7 +64,7 @@ flatten_metadata() {
     const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const die = (msg) => { console.error("INCOMPLETE: " + msg); process.exit(3); };
     const runtime = require("./bin/runtime-contract.js");
-    const req = ["tool","display_name","tier","outputs","reflector_outputs","legacy_paths","capabilities","runtime_contract","agent_skills","hook_compiler","live_verification","headless_cli"];
+    const req = ["tool","display_name","tier","outputs","reflector_outputs","legacy_paths","capabilities","runtime_contract","agent_skills","hook_compiler","extension_trust","skill_proposals","plugin_packaging","live_verification","headless_cli"];
     for (const k of req) if (!(k in m)) die("missing key " + k);
     const nonEmpty = (v, name) => { if (typeof v !== "string" || !v.trim()) die(name + " must be a non-empty string"); };
     nonEmpty(m.tool, "tool"); nonEmpty(m.display_name, "display_name"); nonEmpty(m.tier, "tier");
@@ -79,6 +85,15 @@ flatten_metadata() {
     const portableSkills = require("./bin/portable-skills.js");
     const skillProblems = portableSkills.validateAgentSkillsMetadata(m);
     if (skillProblems.length) die("agent_skills: " + skillProblems.join("; "));
+    const extensionTrust = require("./bin/extension-trust.js");
+    const trustProblems = extensionTrust.validateExtensionTrustMetadata(m);
+    if (trustProblems.length) die("extension_trust: " + trustProblems.join("; "));
+    const skillProposals = require("./bin/skill-proposals.js");
+    const proposalProblems = skillProposals.validateMetadata(m);
+    if (proposalProblems.length) die("skill_proposals: " + proposalProblems.join("; "));
+    const pluginPackager = require("./bin/plugin-packager.js");
+    const packageProblems = pluginPackager.validateMetadata(m);
+    if (packageProblems.length) die("plugin_packaging: " + packageProblems.join("; "));
     const hookRegistry = require("./bin/hook-config.js").readRegistry();
     const hook = m.hook_compiler;
     if (!hook || hook.schema_version !== 1) die("hook_compiler.schema_version must be 1");
@@ -133,6 +148,9 @@ for tool in $TOOLS; do
   ok "M10" "$tool: runtime compatibility contract valid"
   ok "M11" "$tool: portable Agent Skills contract valid"
   ok "M12" "$tool: hook compiler native/fallback contract matches registry"
+  ok "M13" "$tool: extension/MCP trust audit contract valid"
+  ok "M14" "$tool: propose-only skill inbox contract valid"
+  ok "M15" "$tool: optional plugin packaging boundary valid"
 
   tier="";     display=""
   live_status=""; live_date=""; headless=""; ala_carte=""

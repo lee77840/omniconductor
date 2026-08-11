@@ -8,6 +8,9 @@ Dispatch the `reflector` role (Tier 1 — conceptual / complex) with this brief:
 - **Files to read**: `.conductor/trajectories/index.jsonl` (follow its `transcript` pointers), `git log --oneline -30` and diffs of referenced commits, `docs/CURRENT_WORK.md`.
 - **Constraints**: propose-only; cite provenance on every lesson; emit `ADD/UPDATE/STALE` deltas only; respect the weekly rule-file-edit budget; read with ranges (map-then-reduce).
 - **Output**: append proposals to `docs/REFLECTION-PROPOSALS.md` in the format from `core/roles/reflector.md`.
+- **Reusable procedure exception**: when evidence shows the same procedure at least twice, use the typed `omniconductor skills propose` inbox instead of creating a live skill.
 - **Stop condition**: proposals appended; nothing applied.
 
 After the reflector returns, remind the user: review `docs/REFLECTION-PROPOSALS.md` and, for each accepted delta, apply it as a `feedback_lesson-*.md` memory entry. Then optionally run `.conductor/reflect/prune-lessons.sh` on the memory dir to keep it bounded.
+Review skill inbox items separately with `omniconductor skills list`; an accepted
+item remains unapplied until a later reviewed implementation.

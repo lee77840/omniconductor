@@ -1,0 +1,2589 @@
+{
+  "schema_version": 1,
+  "generated_from": "repository-source",
+  "levels": [
+    "unsupported",
+    "instruction-only",
+    "emit-verified",
+    "native-contract-tested",
+    "live-verified",
+    "adversarially-verified"
+  ],
+  "adapters": [
+    "claude",
+    "cursor",
+    "copilot",
+    "gemini",
+    "codex",
+    "windsurf"
+  ],
+  "summary": {
+    "claude": {
+      "unsupported": 10,
+      "instruction-only": 5,
+      "emit-verified": 23,
+      "native-contract-tested": 4,
+      "live-verified": 1,
+      "adversarially-verified": 0
+    },
+    "cursor": {
+      "unsupported": 10,
+      "instruction-only": 6,
+      "emit-verified": 24,
+      "native-contract-tested": 3,
+      "live-verified": 0,
+      "adversarially-verified": 0
+    },
+    "copilot": {
+      "unsupported": 10,
+      "instruction-only": 4,
+      "emit-verified": 24,
+      "native-contract-tested": 5,
+      "live-verified": 0,
+      "adversarially-verified": 0
+    },
+    "gemini": {
+      "unsupported": 10,
+      "instruction-only": 5,
+      "emit-verified": 24,
+      "native-contract-tested": 4,
+      "live-verified": 0,
+      "adversarially-verified": 0
+    },
+    "codex": {
+      "unsupported": 10,
+      "instruction-only": 1,
+      "emit-verified": 23,
+      "native-contract-tested": 8,
+      "live-verified": 1,
+      "adversarially-verified": 0
+    },
+    "windsurf": {
+      "unsupported": 10,
+      "instruction-only": 7,
+      "emit-verified": 24,
+      "native-contract-tested": 2,
+      "live-verified": 0,
+      "adversarially-verified": 0
+    }
+  },
+  "records": [
+    {
+      "id": "adapter-load:claude",
+      "kind": "adapter-instruction-load",
+      "source": "adapters/claude/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "live-verified",
+          "reason": "recorded deterministic instruction-loading probe (2026-07-09)",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "tools/live-verify.sh"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "adapter-load:codex",
+      "kind": "adapter-instruction-load",
+      "source": "adapters/codex/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "live-verified",
+          "reason": "recorded deterministic instruction-loading probe (2026-07-13)",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "tools/live-verify.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "adapter-load:copilot",
+      "kind": "adapter-instruction-load",
+      "source": "adapters/copilot/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "adapter output is tested but effective instruction loading remains live-pending",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "tools/live-verify.sh"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "adapter-load:cursor",
+      "kind": "adapter-instruction-load",
+      "source": "adapters/cursor/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "adapter output is tested but effective instruction loading remains live-pending",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "tools/live-verify.sh"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "adapter-load:gemini",
+      "kind": "adapter-instruction-load",
+      "source": "adapters/gemini/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "adapter output is tested but effective instruction loading remains live-pending",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "tools/live-verify.sh"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "adapter-load:windsurf",
+      "kind": "adapter-instruction-load",
+      "source": "adapters/windsurf/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "adapter output is tested but effective instruction loading remains live-pending",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "tools/live-verify.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:commit-current-work",
+      "kind": "hook-policy",
+      "source": "core/hooks/pretool-commit-current-work-check.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/pretool-commit-current-work-check.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "cursor": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/pretool-commit-current-work-check.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "copilot": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/pretool-commit-current-work-check.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "gemini": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/pretool-commit-current-work-check.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/pretool-commit-current-work-check.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/pretool-commit-current-work-check.sh.template",
+            "core/hooks/registry.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:commit-test-coverage",
+      "kind": "hook-policy",
+      "source": "core/hooks/pretool-commit-test-coverage-check.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/pretool-commit-test-coverage-check.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "cursor": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is quality-gates-rule",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/pretool-commit-test-coverage-check.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "copilot": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/pretool-commit-test-coverage-check.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "gemini": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is quality-gates-rule",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/pretool-commit-test-coverage-check.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/pretool-commit-test-coverage-check.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is quality-gates-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/pretool-commit-test-coverage-check.sh.template",
+            "core/hooks/registry.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:git-hygiene-before-stop",
+      "kind": "hook-policy",
+      "source": "core/hooks/stop-git-hygiene-guard.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is git-hygiene-rule",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-git-hygiene-guard.sh.template"
+          ]
+        },
+        "cursor": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is git-hygiene-rule",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-git-hygiene-guard.sh.template"
+          ]
+        },
+        "copilot": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is git-hygiene-rule",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-git-hygiene-guard.sh.template"
+          ]
+        },
+        "gemini": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is git-hygiene-rule",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-git-hygiene-guard.sh.template"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-git-hygiene-guard.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is git-hygiene-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-git-hygiene-guard.sh.template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:loop-budget",
+      "kind": "hook-policy",
+      "source": "core/hooks/pretool-loop-guard.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is loop-engineering-rule",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/pretool-loop-guard.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "cursor": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is loop-engineering-rule",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/pretool-loop-guard.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "copilot": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is loop-engineering-rule",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/pretool-loop-guard.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "gemini": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is loop-engineering-rule",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/pretool-loop-guard.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/pretool-loop-guard.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is loop-engineering-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/pretool-loop-guard.sh.template",
+            "core/hooks/registry.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:output-cap",
+      "kind": "hook-policy",
+      "source": "core/hooks/output-cap.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is meta-discipline-rule",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/output-cap.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "cursor": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is meta-discipline-rule",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/output-cap.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "copilot": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is meta-discipline-rule",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/output-cap.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "gemini": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/output-cap.sh.template",
+            "core/hooks/registry.json",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "codex": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is meta-discipline-rule",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/output-cap.sh.template",
+            "core/hooks/registry.json"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is meta-discipline-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/output-cap.sh.template",
+            "core/hooks/registry.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:review-before-stop",
+      "kind": "hook-policy",
+      "source": "core/hooks/stop-r6-review-check.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-r6-review-check.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "cursor": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-r6-review-check.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "copilot": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-r6-review-check.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "gemini": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-r6-review-check.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "portable hook compiler metadata and provider-native registration are regression-tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-r6-review-check.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is quality-gates-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-r6-review-check.sh.template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:session-state-before-stop",
+      "kind": "hook-policy",
+      "source": "core/hooks/stop-session-log-check.sh.template",
+      "adapters": {
+        "claude": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-session-log-check.sh.template"
+          ]
+        },
+        "cursor": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-session-log-check.sh.template"
+          ]
+        },
+        "copilot": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-session-log-check.sh.template"
+          ]
+        },
+        "gemini": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-session-log-check.sh.template"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-session-log-check.sh.template",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is operations-rule",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/registry.json",
+            "core/hooks/stop-session-log-check.sh.template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "hook:trajectory-log",
+      "kind": "hook-policy",
+      "source": "core/reflector/trajectory-log.sh",
+      "adapters": {
+        "claude": {
+          "level": "instruction-only",
+          "reason": "no verified native registration; portable fallback is manual-reflect",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/hooks/registry.json",
+            "core/reflector/trajectory-log.sh"
+          ]
+        },
+        "cursor": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/hooks/registry.json",
+            "core/reflector/trajectory-log.sh",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "copilot": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/hooks/registry.json",
+            "core/reflector/trajectory-log.sh",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "gemini": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/hooks/registry.json",
+            "core/reflector/trajectory-log.sh",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/hooks/registry.json",
+            "core/reflector/trajectory-log.sh",
+            "tools/test-hook-compiler.js"
+          ]
+        },
+        "windsurf": {
+          "level": "native-contract-tested",
+          "reason": "feature-scoped provider-native registration is regression-tested by the shared hook suite",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/hooks/registry.json",
+            "core/reflector/trajectory-log.sh",
+            "tools/test-hook-compiler.js"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:auto-mock-data",
+      "kind": "recipe",
+      "source": "core/recipes/auto-mock-data.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/auto-mock-data.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/auto-mock-data.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/auto-mock-data.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/auto-mock-data.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/auto-mock-data.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/auto-mock-data.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:branch-strategy",
+      "kind": "recipe",
+      "source": "core/recipes/branch-strategy.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/branch-strategy.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/branch-strategy.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/branch-strategy.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/branch-strategy.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/branch-strategy.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/branch-strategy.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:coding-conventions",
+      "kind": "recipe",
+      "source": "core/recipes/coding-conventions.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/coding-conventions.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/coding-conventions.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/coding-conventions.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/coding-conventions.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/coding-conventions.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/coding-conventions.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:database-discipline",
+      "kind": "recipe",
+      "source": "core/recipes/database-discipline.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/database-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/database-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/database-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/database-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/database-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/database-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:debugging",
+      "kind": "recipe",
+      "source": "core/recipes/debugging.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/debugging.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/debugging.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/debugging.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/debugging.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/debugging.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/debugging.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:design-system",
+      "kind": "recipe",
+      "source": "core/recipes/design-system.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/design-system.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/design-system.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/design-system.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/design-system.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/design-system.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/design-system.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:git-hygiene",
+      "kind": "recipe",
+      "source": "core/recipes/git-hygiene.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/git-hygiene.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/git-hygiene.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/git-hygiene.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/git-hygiene.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/git-hygiene.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/git-hygiene.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:i18n",
+      "kind": "recipe",
+      "source": "core/recipes/i18n.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/i18n.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/i18n.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/i18n.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/i18n.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/i18n.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/i18n.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:loop-engineering",
+      "kind": "recipe",
+      "source": "core/recipes/loop-engineering.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/loop-engineering.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/loop-engineering.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/loop-engineering.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/loop-engineering.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/loop-engineering.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/loop-engineering.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:monorepo",
+      "kind": "recipe",
+      "source": "core/recipes/monorepo.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/monorepo.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/monorepo.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/monorepo.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/monorepo.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/monorepo.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/monorepo.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:self-improvement",
+      "kind": "recipe",
+      "source": "core/recipes/self-improvement.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/self-improvement.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/self-improvement.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/self-improvement.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/self-improvement.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/self-improvement.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/self-improvement.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:tdd",
+      "kind": "recipe",
+      "source": "core/recipes/tdd.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/tdd.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recipe:web-mobile-parity",
+      "kind": "recipe",
+      "source": "core/recipes/web-mobile-parity.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/recipes/web-mobile-parity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/recipes/web-mobile-parity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/recipes/web-mobile-parity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/recipes/web-mobile-parity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/recipes/web-mobile-parity.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "opt-in emission and uninstall are exercised by adapter mode tests",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/recipes/web-mobile-parity.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rule:meta-discipline",
+      "kind": "universal-rule",
+      "source": "core/universal-rules/meta-discipline.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/universal-rules/meta-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/universal-rules/meta-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/universal-rules/meta-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/universal-rules/meta-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/universal-rules/meta-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/universal-rules/meta-discipline.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rule:operations",
+      "kind": "universal-rule",
+      "source": "core/universal-rules/operations.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/universal-rules/operations.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/universal-rules/operations.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/universal-rules/operations.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/universal-rules/operations.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/universal-rules/operations.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/universal-rules/operations.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rule:quality-gates",
+      "kind": "universal-rule",
+      "source": "core/universal-rules/quality-gates.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/universal-rules/quality-gates.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/universal-rules/quality-gates.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/universal-rules/quality-gates.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/universal-rules/quality-gates.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/universal-rules/quality-gates.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/universal-rules/quality-gates.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rule:spec-as-you-go",
+      "kind": "universal-rule",
+      "source": "core/universal-rules/spec-as-you-go.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/universal-rules/spec-as-you-go.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/universal-rules/spec-as-you-go.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/universal-rules/spec-as-you-go.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/universal-rules/spec-as-you-go.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/universal-rules/spec-as-you-go.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/universal-rules/spec-as-you-go.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rule:workflow",
+      "kind": "universal-rule",
+      "source": "core/universal-rules/workflow.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/universal-rules/workflow.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/universal-rules/workflow.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/universal-rules/workflow.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/universal-rules/workflow.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/universal-rules/workflow.md",
+            "tools/test-install-modes.sh"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "emitted and lifecycle-tested in supported install modes",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/universal-rules/workflow.md",
+            "tools/test-install-modes.sh"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runtime-contract:claude",
+      "kind": "runtime-contract",
+      "source": "adapters/claude/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "native-contract-tested",
+          "reason": "offline lifecycle/version/auth contract is regression-tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "bin/runtime-contract.js",
+            "tools/test-runtime-contract.js"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/claude/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runtime-contract:codex",
+      "kind": "runtime-contract",
+      "source": "adapters/codex/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "native-contract-tested",
+          "reason": "offline lifecycle/version/auth contract is regression-tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "bin/runtime-contract.js",
+            "tools/test-runtime-contract.js"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/codex/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runtime-contract:copilot",
+      "kind": "runtime-contract",
+      "source": "adapters/copilot/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "native-contract-tested",
+          "reason": "offline lifecycle/version/auth contract is regression-tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "bin/runtime-contract.js",
+            "tools/test-runtime-contract.js"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/copilot/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runtime-contract:cursor",
+      "kind": "runtime-contract",
+      "source": "adapters/cursor/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "native-contract-tested",
+          "reason": "offline lifecycle/version/auth contract is regression-tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "bin/runtime-contract.js",
+            "tools/test-runtime-contract.js"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/cursor/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runtime-contract:gemini",
+      "kind": "runtime-contract",
+      "source": "adapters/gemini/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "native-contract-tested",
+          "reason": "offline lifecycle/version/auth contract is regression-tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "bin/runtime-contract.js",
+            "tools/test-runtime-contract.js"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/gemini/metadata.json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runtime-contract:windsurf",
+      "kind": "runtime-contract",
+      "source": "adapters/windsurf/metadata.json",
+      "adapters": {
+        "claude": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "cursor": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "copilot": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "gemini": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "codex": {
+          "level": "unsupported",
+          "reason": "artifact belongs to another adapter runtime",
+          "evidence": [
+            "adapters/windsurf/metadata.json"
+          ]
+        },
+        "windsurf": {
+          "level": "native-contract-tested",
+          "reason": "offline lifecycle/version/auth contract is regression-tested",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "bin/runtime-contract.js",
+            "tools/test-runtime-contract.js"
+          ]
+        }
+      }
+    },
+    {
+      "id": "skill:coordinate-work",
+      "kind": "portable-skill",
+      "source": "core/skills/coordinate-work/SKILL.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/skills/coordinate-work/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/skills/coordinate-work/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/skills/coordinate-work/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/skills/coordinate-work/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/skills/coordinate-work/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/skills/coordinate-work/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        }
+      }
+    },
+    {
+      "id": "skill:plan-change",
+      "kind": "portable-skill",
+      "source": "core/skills/plan-change/SKILL.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/skills/plan-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/skills/plan-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/skills/plan-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/skills/plan-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/skills/plan-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/skills/plan-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        }
+      }
+    },
+    {
+      "id": "skill:propose-skill",
+      "kind": "portable-skill",
+      "source": "core/skills/propose-skill/SKILL.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/skills/propose-skill/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/skills/propose-skill/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/skills/propose-skill/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/skills/propose-skill/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/skills/propose-skill/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/skills/propose-skill/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        }
+      }
+    },
+    {
+      "id": "skill:review-change",
+      "kind": "portable-skill",
+      "source": "core/skills/review-change/SKILL.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/skills/review-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/skills/review-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/skills/review-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/skills/review-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/skills/review-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/skills/review-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        }
+      }
+    },
+    {
+      "id": "skill:verify-change",
+      "kind": "portable-skill",
+      "source": "core/skills/verify-change/SKILL.md",
+      "adapters": {
+        "claude": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/claude/metadata.json",
+            "core/skills/verify-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "cursor": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/cursor/metadata.json",
+            "core/skills/verify-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "copilot": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/copilot/metadata.json",
+            "core/skills/verify-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "gemini": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/gemini/metadata.json",
+            "core/skills/verify-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "codex": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/codex/metadata.json",
+            "core/skills/verify-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        },
+        "windsurf": {
+          "level": "emit-verified",
+          "reason": "byte identity, manifest ownership, collision, and uninstall are tested",
+          "evidence": [
+            "adapters/windsurf/metadata.json",
+            "core/skills/verify-change/SKILL.md",
+            "tools/test-portable-skills.js"
+          ]
+        }
+      }
+    }
+  ]
+}

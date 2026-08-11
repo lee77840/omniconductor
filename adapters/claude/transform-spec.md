@@ -45,6 +45,8 @@ adapters/claude/hookify-templates/*.local.md.template # Hookify rule definitions
 Full/minimal/strict also copy the three byte-identical portable procedures from
 `core/skills/` to `.claude/skills/<name>/SKILL.md`. Recipes-only and
 Reflector-only do not emit the baseline set.
+`self-improvement` adds `propose-skill` at the same root, including
+Reflector-only; review preserves `applied: false`.
 
 Writes to `<target-dir>` at conventional paths. Managed rules, roles, hooks, and
 the synthesized baseline use manifest-backed replacement. Existing Hookify rule

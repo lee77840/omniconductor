@@ -15,6 +15,9 @@ Detailed matrix of which CONDUCTOR features Codex supports.
 | **Per-task model routing** | ✅ Configured native (2026) | Saved model + `model_reasoning_effort` | Recommended Sol/Terra/Luna; Tier 1/2/3 independently maps to high/medium/low. |
 | **Custom slash commands** | ✅ Native (2026) | Skills at `.agents/skills/*/SKILL.md` | ADR-031. |
 | **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Full/minimal/strict emit plan, verify, and review procedures; implicit selection or explicit `$skill` invocation. |
+| **Skill proposal inbox** | ✅ Opt-in | `.agents/skills/propose-skill/SKILL.md` + `.conductor/skill-proposals/` | Emitted only with `self-improvement`; Record & Replay can assist capture, but review remains typed and human-only. |
+| **Extension/MCP trust audit** | ✅ Read-only | `omniconductor audit extensions --target=codex` | Codex's MCP 2026-07-28 boundary is verified; the audit still does not execute or trust project configuration. |
+| **Provider package** | ⚠️ Native partial | `.codex-plugin/plugin.json` | Baseline skills only. Rules, role agents, hooks, Reflector, routing, and reversible ownership require direct install. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Read on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ✅ Guard + rule | Codex Stop hook | Guardrail, not a complete security boundary. |

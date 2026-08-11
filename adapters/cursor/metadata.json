@@ -57,6 +57,33 @@
       "checked": "2026-07-27"
     }
   },
+  "extension_trust": {
+    "schema_version": 1,
+    "audit_roots": [".cursor"],
+    "native_controls": ["workspace-trust", "sandbox-network-controls", "plugin-marketplace"],
+    "mcp_protocol_2026_07_28": "verification-required",
+    "sources": [
+      { "url": "https://cursor.com/changelog/2-5", "checked": "2026-08-10" }
+    ]
+  },
+  "skill_proposals": {
+    "schema_version": 1,
+    "inbox_path": ".conductor/skill-proposals",
+    "recipe": "self-improvement",
+    "opt_in_skill_path": ".agents/skills/propose-skill/SKILL.md",
+    "application": "human-reviewed-separate-change",
+    "native_acceleration": "verification-required",
+    "source": { "url": "https://cursor.com/docs/skills", "checked": "2026-08-10" }
+  },
+  "plugin_packaging": {
+    "schema_version": 1,
+    "mode": "direct-fallback",
+    "manifest_path": null,
+    "native_components": [],
+    "inactive_reference_components": ["universal-rules", "hook-registry"],
+    "direct_install_required_for": ["skills", "roles", "rules", "guard-hooks", "reflector", "model-routing", "work-coordination", "reversible-ownership"],
+    "source": { "url": "https://cursor.com/changelog/2-5", "checked": "2026-08-10" }
+  },
   "runtime_contract": {
     "schema_version": 1,
     "product": {

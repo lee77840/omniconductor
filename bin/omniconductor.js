@@ -10,6 +10,12 @@
  *   omniconductor models configure --target=<tool|all> [target-dir]
  *   omniconductor models show [target-dir]
  *   omniconductor doctor [target-dir] [--json]
+ *   omniconductor audit extensions [target-dir] [--target=<tool|all>] [--json]
+ *   omniconductor eval coverage [--json] [--compare=<report.json>]
+ *   omniconductor work claim|status|handoff|release ...
+ *   omniconductor workspace doctor [workspace-dir] [--json]
+ *   omniconductor skills propose|list|review ...
+ *   omniconductor package --target=<tool|all> <output-dir> [--force] [--strict-native]
  *   omniconductor list
  *   omniconductor --help | --version
  *
@@ -46,6 +52,17 @@ Usage:
   omniconductor models configure --target=<tool|all> [dir]   Set Tier 1/2/3 models once
   omniconductor models show [target-dir]                     Show saved model routing
   omniconductor doctor [target-dir] [--json]                  Health-check an existing install (read-only)
+  omniconductor audit extensions [target-dir] [options]       Audit extension/MCP trust (read-only)
+  omniconductor eval coverage [--json] [--compare=<file>]     Report evidence-backed policy coverage
+  omniconductor work claim <task> [dir] --tool=<t> --session=<id> [--scope=<path>]
+  omniconductor work status [dir] [--json]                    Inspect local clone/worktree claims
+  omniconductor work handoff <task> [dir] --tool=<t> --session=<id> --to-tool=<t> --to-session=<id>
+  omniconductor work release <task> [dir] --tool=<t> --session=<id>
+  omniconductor workspace doctor [dir] [--json]               Validate a multi-repo workspace (read-only)
+  omniconductor skills propose [dir] --from=<file>             Add a pending, propose-only skill item
+  omniconductor skills list [dir] [--json]                     List skill proposal inbox items
+  omniconductor skills review <id> [dir] --decision=<d>        Record accept|reject; never auto-apply
+  omniconductor package --target=<tool|all> <output-dir>        Build optional provider packages
   omniconductor list                                          List available tool adapters
   omniconductor --help | --version
 
@@ -71,6 +88,8 @@ Examples:
   omniconductor models show ./my-app
   omniconductor init --target=codex . --uninstall
   omniconductor doctor ./my-app --json
+  omniconductor audit extensions ./my-app --target=all --json
+  omniconductor eval coverage --json
 
 Run:  npx omniconductor init --target=<tool> <dir>`;
 }
@@ -204,6 +223,231 @@ async function main(argv) {
     return require('./doctor.js').run(dir, { json: jsonOut });
   }
 
+  if (cmd === 'audit') {
+    const action = args[1];
+    if (action !== 'extensions') fail("audit expects 'extensions'");
+    const parsed = parseTargetAndDir(args.slice(2), { defaultTarget: 'all' });
+    const targets = selectedTools(parsed.target);
+    const known = new Set(['--json']);
+    const unknown = parsed.passthrough.filter((a) => !known.has(a));
+    if (unknown.length) fail(`unknown audit option(s): ${unknown.join(', ')}`);
+    try {
+      const extensionTrust = require('./extension-trust.js');
+      const report = extensionTrust.audit(parsed.targetDir, targets);
+      process.stdout.write(parsed.passthrough.includes('--json')
+        ? `${JSON.stringify(report, null, 2)}\n`
+        : `${extensionTrust.render(report)}\n`);
+      return report.summary.high ? 1 : 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: extension audit failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
+  if (cmd === 'eval') {
+    if (args[1] !== 'coverage') fail("eval expects 'coverage'");
+    const rest = args.slice(2);
+    const known = rest.every((arg) => arg === '--json' || arg === '--format=json' || arg.startsWith('--compare='));
+    if (!known) fail(`unknown eval coverage option(s): ${rest.filter((arg) => arg !== '--json' && arg !== '--format=json' && !arg.startsWith('--compare=')).join(', ')}`);
+    const compareArg = rest.find((arg) => arg.startsWith('--compare='));
+    if (rest.filter((arg) => arg.startsWith('--compare=')).length > 1) fail('eval coverage accepts one --compare=<report.json>');
+    try {
+      const assurance = require('./assurance-coverage.js');
+      const report = assurance.buildReport();
+      let regressions = [];
+      if (compareArg) {
+        const comparisonPath = path.resolve(compareArg.slice('--compare='.length));
+        const stat = fs.lstatSync(comparisonPath);
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 8 * 1024 * 1024) {
+          throw new Error('comparison report must be a safe regular JSON file no larger than 8 MiB');
+        }
+        regressions = assurance.compare(report, JSON.parse(fs.readFileSync(comparisonPath, 'utf8')));
+      }
+      process.stdout.write(rest.includes('--json') || rest.includes('--format=json')
+        ? `${JSON.stringify(report, null, 2)}\n`
+        : `${assurance.render(report)}\n`);
+      if (regressions.length) {
+        for (const regression of regressions) process.stderr.write(`omniconductor: coverage regression: ${regression}\n`);
+        return 1;
+      }
+      return 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: assurance coverage failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
+  if (cmd === 'work') {
+    const workContract = require('./work-contract.js');
+    const action = args[1];
+    if (!['claim', 'status', 'handoff', 'release'].includes(action)) {
+      fail("work expects 'claim', 'status', 'handoff', or 'release'");
+    }
+    const rest = args.slice(2);
+    const value = (name) => {
+      const prefix = `--${name}=`;
+      const match = rest.find((arg) => arg.startsWith(prefix));
+      return match ? match.slice(prefix.length) : null;
+    };
+    const values = (name) => {
+      const prefix = `--${name}=`;
+      return rest.filter((arg) => arg.startsWith(prefix)).map((arg) => arg.slice(prefix.length));
+    };
+    const allowed = {
+      claim: new Set(['tool', 'session', 'scope', 'json']),
+      status: new Set(['json']),
+      handoff: new Set(['tool', 'session', 'to-tool', 'to-session', 'note', 'json']),
+      release: new Set(['tool', 'session', 'note', 'json']),
+    }[action];
+    const unknown = rest.filter((arg) => arg.startsWith('--')).filter((arg) => !allowed.has(arg.slice(2).split('=')[0]));
+    if (unknown.length) fail(`unknown work option(s): ${unknown.join(', ')}`);
+    for (const name of allowed) {
+      if (name === 'scope') continue;
+      if (values(name).length > 1) fail(`work ${action} accepts one --${name}= value`);
+    }
+    const positionals = rest.filter((arg) => !arg.startsWith('-'));
+    try {
+      let result;
+      if (action === 'status') {
+        if (positionals.length > 1) fail('work status accepts at most one directory');
+        result = workContract.inspect(positionals[0] || '.');
+        process.stdout.write(rest.includes('--json') ? `${JSON.stringify(result, null, 2)}\n` : `${workContract.render(result)}\n`);
+        return result.summary.failures ? 1 : 0;
+      }
+      const task = positionals[0];
+      if (!task) fail(`work ${action} requires a task id`);
+      if (positionals.length > 2) fail(`work ${action} accepts one optional directory`);
+      const dir = positionals[1] || '.';
+      const owner = { tool: value('tool'), session: value('session') };
+      if (!owner.tool || !owner.session) fail(`work ${action} requires --tool=<tool> and --session=<id>`);
+      if (action === 'claim') {
+        result = workContract.claim(dir, task, { ...owner, scopes: values('scope') });
+      } else if (action === 'handoff') {
+        const toTool = value('to-tool');
+        const toSession = value('to-session');
+        if (!toTool || !toSession) fail('work handoff requires --to-tool=<tool> and --to-session=<id>');
+        result = workContract.handoff(dir, task, { ...owner, toTool, toSession, note: value('note') || '' });
+      } else {
+        result = workContract.releaseClaim(dir, task, { ...owner, note: value('note') || '' });
+      }
+      process.stdout.write(rest.includes('--json')
+        ? `${JSON.stringify(result, null, 2)}\n`
+        : `${action === 'claim' ? (result.resumed ? 'Resumed' : result.created ? 'Claimed' : 'Already claimed') : action === 'handoff' ? 'Handed off' : 'Released'} ${task}: ${result.record.status} · ${result.record.owner.tool}/${result.record.owner.session}\n`);
+      return 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: work ${action} failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
+  if (cmd === 'workspace') {
+    if (args[1] !== 'doctor') fail("workspace expects 'doctor'");
+    const rest = args.slice(2);
+    const unknown = rest.filter((arg) => arg.startsWith('-') && arg !== '--json');
+    if (unknown.length) fail(`unknown workspace doctor option(s): ${unknown.join(', ')}`);
+    const positionals = rest.filter((arg) => !arg.startsWith('-'));
+    if (positionals.length > 1) fail('workspace doctor accepts at most one directory');
+    try {
+      const workspace = require('./workspace-contract.js');
+      const report = workspace.inspect(positionals[0] || '.');
+      process.stdout.write(rest.includes('--json') ? `${JSON.stringify(report, null, 2)}\n` : `${workspace.render(report)}\n`);
+      return report.summary.FAIL ? 2 : report.summary.WARN ? 1 : 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: workspace doctor failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
+  if (cmd === 'skills') {
+    const skillProposals = require('./skill-proposals.js');
+    const action = args[1];
+    const rest = args.slice(2);
+    const option = (name) => {
+      const prefix = `--${name}=`;
+      const value = rest.find((arg) => arg.startsWith(prefix));
+      return value ? value.slice(prefix.length) : null;
+    };
+    const allowedFor = {
+      propose: new Set(['from', 'dry-run', 'json']),
+      list: new Set(['json']),
+      review: new Set(['decision', 'note', 'json']),
+    };
+    if (!allowedFor[action]) fail("skills expects 'propose', 'list', or 'review'");
+    const unknown = rest.filter((arg) => arg.startsWith('--')).filter((arg) => {
+      const name = arg.slice(2).split('=')[0];
+      return !allowedFor[action].has(name);
+    });
+    if (unknown.length) fail(`unknown skills option(s): ${unknown.join(', ')}`);
+    try {
+      if (action === 'propose') {
+        const positionals = rest.filter((arg) => !arg.startsWith('-'));
+        if (positionals.length > 1) fail('skills propose accepts at most one directory');
+        const dir = positionals[0] || '.';
+        const inputFile = option('from');
+        if (!inputFile) fail('skills propose requires --from=<proposal.json>');
+        const stat = fs.lstatSync(path.resolve(inputFile));
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 256 * 1024) {
+          throw new Error('proposal input must be a regular JSON file no larger than 256 KiB');
+        }
+        const input = JSON.parse(fs.readFileSync(path.resolve(inputFile), 'utf8'));
+        const result = skillProposals.create(dir, input, { dryRun: rest.includes('--dry-run') });
+        process.stdout.write(rest.includes('--json')
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `${result.created ? 'Created' : result.dry_run ? 'Would create' : 'Already exists'} skill proposal ${result.proposal.id}: ${result.file}\n`);
+        return 0;
+      }
+      if (action === 'list') {
+        const positionals = rest.filter((arg) => !arg.startsWith('-'));
+        if (positionals.length > 1) fail('skills list accepts at most one directory');
+        const dir = positionals[0] || '.';
+        const proposals = skillProposals.list(dir);
+        process.stdout.write(rest.includes('--json')
+          ? `${JSON.stringify(proposals, null, 2)}\n`
+          : `${skillProposals.render(proposals)}\n`);
+        return 0;
+      }
+      const id = rest[0];
+      if (!id || id.startsWith('-')) fail('skills review requires a proposal id');
+      const positionals = rest.slice(1).filter((arg) => !arg.startsWith('-'));
+      if (positionals.length > 1) fail('skills review accepts at most one directory');
+      const dir = positionals[0] || '.';
+      const decision = option('decision');
+      if (!decision) fail('skills review requires --decision=accept|reject');
+      const proposal = skillProposals.review(dir, id, decision, option('note') || undefined);
+      process.stdout.write(rest.includes('--json')
+        ? `${JSON.stringify(proposal, null, 2)}\n`
+        : `Recorded ${proposal.status} for ${proposal.id}; applied=false\n`);
+      return 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: skill proposal command failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
+  if (cmd === 'package') {
+    const parsed = parseTargetAndDir(args.slice(1));
+    const targets = selectedTools(parsed.target);
+    const known = new Set(['--force', '--strict-native', '--dry-run', '--json']);
+    const unknown = parsed.passthrough.filter((arg) => !known.has(arg));
+    if (unknown.length) fail(`unknown package option(s): ${unknown.join(', ')}`);
+    if (parsed.targetDir === '.') fail('package requires an explicit output directory');
+    try {
+      const packager = require('./plugin-packager.js');
+      const result = packager.build(parsed.targetDir, targets, {
+        force: parsed.passthrough.includes('--force'),
+        strictNative: parsed.passthrough.includes('--strict-native'),
+        dryRun: parsed.passthrough.includes('--dry-run'),
+      });
+      process.stdout.write(parsed.passthrough.includes('--json')
+        ? `${JSON.stringify(result, null, 2)}\n`
+        : `${result.dry_run ? 'Would build' : 'Built'} ${result.packages.length} package(s) in ${result.output}\n${result.packages.map((item) => `  ${item.tool}: ${item.mode} → ${item.directory}`).join('\n')}\n`);
+      return 0;
+    } catch (error) {
+      process.stderr.write(`omniconductor: package build failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+
   if (cmd === 'models') {
     const action = args[1];
     if (action === 'show') {
@@ -247,7 +491,7 @@ async function main(argv) {
   }
 
   if (cmd !== 'init') {
-    fail(`unknown command '${cmd}'. Expected 'init', 'models', 'doctor', or 'list'.`);
+    fail(`unknown command '${cmd}'. Expected 'init', 'models', 'doctor', 'audit', 'eval', 'work', 'workspace', 'skills', 'package', or 'list'.`);
   }
 
   // Parse `init` args: extract --target, the positional target-dir, forward the rest.
@@ -338,7 +582,7 @@ async function main(argv) {
   }
 }
 
-main(process.argv).then((code) => process.exit(code)).catch((error) => {
+main(process.argv).then((code) => { process.exitCode = code; }).catch((error) => {
   process.stderr.write(`omniconductor: unexpected failure: ${error.stack || error.message}\n`);
-  process.exit(1);
+  process.exitCode = 1;
 });

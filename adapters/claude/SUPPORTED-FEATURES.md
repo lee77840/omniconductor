@@ -14,6 +14,9 @@ Detailed matrix of which CONDUCTOR features Claude Code supports natively.
 | **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Local version/floor inspection only; authentication stays opt-in. |
 | **Custom slash commands** | ✅ Native | `.claude/commands/*.md` | Project-level commands available in chat (`/<command>`). |
 | **Portable Agent Skills** | ✅ Emitted | `.claude/skills/*/SKILL.md` | Full/minimal/strict emit `plan-change`, `verify-change`, and `review-change`; automatic relevance matching or explicit slash invocation. |
+| **Skill proposal inbox** | ✅ Opt-in | `.claude/skills/propose-skill/SKILL.md` + `.conductor/skill-proposals/` | Emitted only with `self-improvement`; accept/reject never auto-applies. |
+| **Extension/MCP trust audit** | ✅ Read-only | `omniconductor audit extensions --target=claude` | Scans bounded project config, skips symlinks, and redacts values; MCP 2026-07-28 runtime boundary remains verification-required. |
+| **Provider package** | ⚠️ Native partial | `.claude-plugin/plugin.json` | Skills and agents only. Rules, executable hooks, Reflector, routing, and reversible ownership still require direct install. |
 | **MCP servers** | ✅ Native | `~/.claude/mcp.json` or project `.mcp.json` | CONDUCTOR doesn't ship MCP integration; projects can add their own. |
 | **Memory directory** | ✅ Native | `~/.claude/projects/<encoded>/memory/` | 4-type pattern: user / feedback / project / reference. |
 | **In-repo doc templates** | ✅ Native | Plain markdown under `docs/` | Read by orchestrator on demand. |

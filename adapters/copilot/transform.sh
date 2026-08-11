@@ -559,7 +559,7 @@ do_uninstall() {
   fi
   conductor_manifest_refresh_projection
 
-  for d in .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .github/instructions .github/hooks/conductor .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .github/instructions .github/hooks/conductor .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then

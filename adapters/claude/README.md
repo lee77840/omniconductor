@@ -79,6 +79,8 @@ bypass.
 Full, minimal, and strict installs copy the three instruction-only portable
 procedures to `.claude/skills/<name>/SKILL.md`. Recipes-only and Reflector-only
 remain narrow and do not emit them.
+Selecting `self-improvement` emits the separate `propose-skill` procedure; its
+typed inbox never auto-applies a live skill.
 
 ## Native features supported
 

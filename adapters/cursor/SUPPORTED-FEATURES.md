@@ -17,6 +17,9 @@ Detailed matrix of which CONDUCTOR features Cursor supports natively.
 | **Per-task model routing** | ✅ Configured native | Emitted agents use the saved Tier model | Cursor may still apply account, plan, Max Mode, or administrator fallback; `doctor` does not misreport that as guaranteed. |
 | **Custom agent personas** | ✅ Native (2026) | `.cursor/agents/*.md` named agents | Previously a `.cursorrules` paste-in workaround; now first-class. |
 | **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Full/minimal/strict emit three instruction-only procedures; Cursor supports automatic matching and explicit invocation. |
+| **Skill proposal inbox** | ✅ Opt-in | `.agents/skills/propose-skill/SKILL.md` + `.conductor/skill-proposals/` | Emitted only with `self-improvement`; native auto-suggestion is verification-required and the portable inbox remains authoritative. |
+| **Extension/MCP trust audit** | ✅ Read-only | `omniconductor audit extensions --target=cursor` | Scans project-local Cursor configuration without executing it or exposing values. |
+| **Provider package** | 📦 Direct fallback | no guessed manifest | Cursor documents plugin installs but not a stable public authoring manifest in the verified source; use the packaged direct preview or adapter installer. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/` (gitignored). |
 | **In-repo doc templates** | ✅ Native | Plain markdown; Cursor reads on demand | Universal across all adapters. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `.cursorrules` + `.cursor/rules/spec-as-you-go.mdc` | Self-policed. Pair with pre-commit git hook for mechanical enforcement. |

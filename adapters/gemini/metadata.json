@@ -58,6 +58,34 @@
       "checked": "2026-07-27"
     }
   },
+  "extension_trust": {
+    "schema_version": 1,
+    "audit_roots": [".gemini", "gemini-extension.json"],
+    "native_controls": ["trusted-folders", "extension-environment-declarations", "sandbox"],
+    "mcp_protocol_2026_07_28": "verification-required",
+    "sources": [
+      { "url": "https://geminicli.com/docs/extensions/reference/", "checked": "2026-08-10" },
+      { "url": "https://geminicli.com/docs/cli/trusted-folders/", "checked": "2026-08-10" }
+    ]
+  },
+  "skill_proposals": {
+    "schema_version": 1,
+    "inbox_path": ".conductor/skill-proposals",
+    "recipe": "self-improvement",
+    "opt_in_skill_path": ".agents/skills/propose-skill/SKILL.md",
+    "application": "human-reviewed-separate-change",
+    "native_acceleration": "documented",
+    "source": { "url": "https://github.com/google-gemini/gemini-cli/blob/main/docs/changelogs/index.md", "checked": "2026-08-10" }
+  },
+  "plugin_packaging": {
+    "schema_version": 1,
+    "mode": "native-partial",
+    "manifest_path": "gemini-extension.json",
+    "native_components": ["context", "skills", "agents"],
+    "inactive_reference_components": ["universal-rules", "hook-registry"],
+    "direct_install_required_for": ["guard-hooks", "reflector", "model-routing", "work-coordination", "reversible-ownership"],
+    "source": { "url": "https://geminicli.com/docs/extensions/reference/", "checked": "2026-08-10" }
+  },
   "runtime_contract": {
     "schema_version": 1,
     "product": {

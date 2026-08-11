@@ -36,6 +36,33 @@ assert.throws(
 );
 
 const root = path.resolve(__dirname, '..');
+const releaseGateSource = fs.readFileSync(path.join(root, 'tools/release-verify-local.sh'), 'utf8');
+for (const requiredGovernanceAsset of [
+  'bin/assurance-coverage.js',
+  'bin/extension-trust.js',
+  'bin/plugin-packager.js',
+  'bin/skill-proposals.js',
+  'bin/work-contract.js',
+  'bin/workspace-contract.js',
+  'core/skills/coordinate-work/SKILL.md',
+  'core/skills/propose-skill/SKILL.md',
+  'docs/AGENT-EVAL-COVERAGE.json',
+  'docs/AGENT-EVAL-COVERAGE.md',
+  'docs/PARALLEL-WORK.md',
+  'docs/WORKSPACE-FEDERATION.md',
+  'tools/generate-assurance-coverage.js',
+  'tools/test-assurance-coverage.js',
+  'tools/test-extension-trust.js',
+  'tools/test-plugin-packager.js',
+  'tools/test-skill-proposals.js',
+  'tools/test-work-contract.js',
+  'tools/test-workspace-contract.js',
+]) {
+  assert(
+    releaseGateSource.includes(requiredGovernanceAsset),
+    `release gate must require tracked governance asset: ${requiredGovernanceAsset}`,
+  );
+}
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-release-baseline-'));
 const fakeBin = path.join(fixture, 'bin');
 const npmLog = path.join(fixture, 'npm.log');
@@ -85,3 +112,4 @@ fs.rmSync(fixture, { recursive: true, force: true });
 
 console.log('PASS: release candidate must be new and greater than npm latest');
 console.log('PASS: release registry baseline uses a fresh revalidated cache per run');
+console.log('PASS: release gate tracks every governance runtime, skill, document, generator, and suite');

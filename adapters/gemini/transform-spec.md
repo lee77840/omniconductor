@@ -28,6 +28,8 @@ adapters/gemini/_native/GEMINI.md.tpl              # Header template (orchestrat
 Full/minimal/strict also copy the three byte-identical portable procedures from
 `core/skills/` to Gemini CLI's `.agents/skills/<name>/SKILL.md` workspace alias.
 Recipes-only and Reflector-only do not emit the baseline set.
+`self-improvement` adds `propose-skill` at the same root, including
+Reflector-only; review preserves `applied: false`.
 
 ```
 <target-dir>/

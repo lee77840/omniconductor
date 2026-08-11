@@ -16,6 +16,9 @@ Detailed matrix of which CONDUCTOR features Windsurf supports.
 | **Per-task model routing** | ⚠️ Advisory-session | Cascade Adaptive selector | Setup saves Adaptive and workflows display a preflight; no workflow model field or selector-state API exists. |
 | **Custom slash commands** | ✅ Native (2026) | Workflows at `.windsurf/workflows/*.md` | ADR-031. |
 | **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Devin's recommended path; automatic or `@skills:<name>` activation, with one active skill at a time. |
+| **Skill proposal inbox** | ✅ Opt-in | `.agents/skills/propose-skill/SKILL.md` + `.conductor/skill-proposals/` | Emitted only with `self-improvement`; Devin suggestions may gather evidence, but acceptance never applies a skill. |
+| **Extension/MCP trust audit** | ✅ Read-only | `omniconductor audit extensions --target=windsurf` | Scans bounded project-local Windsurf/Devin configuration while remote organization state remains provider-controlled. |
+| **Provider package** | 📦 Direct fallback | no guessed manifest | `devin plugin` remains preview/policy-sensitive in the verified source; CONDUCTOR emits no speculative native manifest. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Read on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text reminds | Self-policed. |

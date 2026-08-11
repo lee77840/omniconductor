@@ -16,6 +16,9 @@ Detailed matrix of which CONDUCTOR features Gemini CLI supports.
 | **Per-task model routing** | ✅ Configured native (2026) | Agent `model` from saved Tier mapping | Recommended semantic aliases: `pro` / `flash` / `flash-lite`. |
 | **Custom slash commands** | ✅ Native (2026) | `.gemini/commands/*.toml` | ADR-031. |
 | **Portable Agent Skills** | ✅ Emitted | `.agents/skills/*/SKILL.md` | Official workspace alias; Gemini requests user consent before activation. |
+| **Skill proposal inbox** | ✅ Opt-in | `.agents/skills/propose-skill/SKILL.md` + `.conductor/skill-proposals/` | Emitted only with `self-improvement`; native memory assistance may gather evidence but cannot apply the proposal. |
+| **Extension/MCP trust audit** | ✅ Read-only | `omniconductor audit extensions --target=gemini` | Scans project settings/extension manifests without following symlinks or exposing environment values. |
+| **Provider package** | ⚠️ Native partial | `gemini-extension.json` | Context, skills, and agents only. Executable guards, Reflector, routing, and reversible ownership remain direct-install surfaces. |
 | **Built-in memory directory** | ❌ | — | DIY at `.memory/`. |
 | **In-repo doc templates** | ✅ Universal | Plain markdown | Gemini reads on demand. |
 | **Spec-as-you-go ABSOLUTE enforcement** | ❌ rule reminder only | Rule text in `GEMINI.md` reminds user | Self-policed. |

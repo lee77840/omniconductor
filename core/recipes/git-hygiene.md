@@ -47,6 +47,12 @@ Before finishing a session: **0 orphan worktrees · 0 local-only commits (all on
 
 ## Conductor Integration
 
+- **All six adapters** — installing this recipe also emits the instruction-only
+  `coordinate-work` skill. It uses the provider-independent `omniconductor work`
+  commands to claim narrow scopes, bind handoff to an exact snapshot, and retain a
+  release tombstone in the local Git common directory. This is clone-local
+  coordination, not remote authority or a distributed lock.
+
 - **Claude / Codex** — `stop-git-hygiene-guard` fires a **non-blocking
   reminder** in the product's verified Stop-hook dialect when it detects extra
   worktrees, local-only commits, or an abnormal local-branch count. It self-gates

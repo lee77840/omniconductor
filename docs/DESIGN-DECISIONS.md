@@ -2169,3 +2169,156 @@ and an invented compatibility floor would overstate evidence.
   name `Agent`, and the historical alias was not live-verified in this release cycle.
 - *Invent a Task-to-Agent minimum version.* Rejected — available first-party changelog
   text shows both names across the transition but does not publish an exact boundary.
+
+## ADR-060 — Extension and MCP trust is a redacted, read-only project audit
+
+**Status**: Accepted (2026-08-10)
+
+**Context**: Provider plugins and MCP configurations can introduce executable commands,
+remote endpoints, secrets, network permissions, and protocol-version risk outside
+CONDUCTOR's owned manifests. D13 validates emitted runtime floors but intentionally does
+not inspect these adopter-owned trust surfaces.
+
+**Decision**:
+
+1. Add `omniconductor audit extensions` as a separate read-only command. Do not merge
+   it into D13 or imply that adopter configuration is CONDUCTOR-owned.
+2. Adapter metadata declares bounded project roots, observable native controls, dated
+   first-party sources, and whether the MCP 2026-07-28 boundary is verified.
+3. Never follow symlinks, inspect user-home state, execute configured commands, contact
+   a provider, or return credential values. Report only paths, key names, and redacted
+   risk classes. Reject a symlinked audit target and skip hard-linked configuration
+   rather than allowing a project path to alias external state.
+4. M13 and generated compatibility documentation consume the same contract.
+
+**Consequences**: Projects gain a reproducible pre-install/pre-review security signal
+without granting CONDUCTOR new execution or credential authority. Provider protocol
+uncertainty remains visible as `verification-required` rather than guessed.
+
+## ADR-061 — Reusable skill learning is typed, opt-in, and never self-applying
+
+**Status**: Accepted (2026-08-10)
+
+**Context**: The Reflector already proposes memory deltas, but repeated procedures had
+no bounded machine-readable review path. Directly generating or activating skills would
+violate ADR-030's propose-only contract and create a self-modifying execution surface.
+
+**Decision**:
+
+1. Emit `propose-skill` only with the `self-improvement` recipe. The three baseline
+   portable skills remain unchanged.
+2. Require ordered steps plus project-relative evidence totaling at least two
+   occurrences. Reject unknown/executable fields.
+3. Store content-addressed pending records under `.conductor/skill-proposals/`.
+   Accept/reject records human intent but always preserves `applied: false`.
+   Listing and review recompute that address and reject symlinked, hard-linked, or
+   content-drifted records.
+4. Promotion into a live skill is a separate reviewed change. M14 validates the same
+   inbox and per-adapter opt-in path across all six tools.
+
+**Consequences**: Native suggestion/capture features may accelerate evidence gathering,
+but no provider can bypass the universal human-decision boundary. Existing Tier
+definitions, roles, and saved routing are unchanged.
+
+## ADR-062 — Provider packages are optional, capability-scoped, and fail closed
+
+**Status**: Accepted (2026-08-10)
+
+**Context**: Plugin/extension bundles are converging across providers, but manifest
+formats and active component sets are not equivalent. Treating every provider as the
+same would either invent unsupported files or double-register project hooks and rules.
+
+**Decision**:
+
+1. Add `omniconductor package` as an explicit output operation; direct installation
+   remains the default and sole owner of full project enforcement.
+2. Emit `native-partial` only for verified Claude, Copilot, Gemini, and Codex manifest
+   structures. Emit `direct-fallback` with no guessed manifest for Cursor and Windsurf.
+3. Activate only metadata-declared components. Keep universal rules, the hook registry,
+   `propose-skill`, and `coordinate-work` inert; bundle no MCP server, remote connector,
+   secret, or executable hook.
+4. Compile adapter assets in an isolated temporary project, include SHA-256 inventory,
+   refuse overwrites by default, and make `--strict-native` fail before any write.
+5. M15 and generated documentation preserve the provider-specific boundary.
+
+**Consequences**: Teams can test native distribution without weakening six-tool honesty
+or reversible ownership. Full rules, guard hooks, Reflector, project model routing, and
+uninstall safety still require the direct adapter installer.
+
+## ADR-063 — Assurance coverage records exact evidence, not inferred confidence
+
+**Status**: Accepted (2026-08-10)
+
+**Context**: Tests, adapter metadata, the hook registry, and live-verification records
+exist, but no single report answers which exact policy has which evidence on each tool.
+Treating one general instruction-loading probe as proof for every recipe, skill, and
+hook would convert a visibility feature into a false assurance claim.
+
+**Decision**:
+
+1. Add `omniconductor eval coverage` and generated JSON/Markdown covering universal
+   rules, recipes, portable skills, hook policies, adapter instruction loading, and
+   runtime contracts across all six adapters.
+2. Use the ordered levels `unsupported`, `instruction-only`, `emit-verified`,
+   `native-contract-tested`, `live-verified`, and `adversarially-verified`.
+3. Every result cites existing regular repository files. A provider's general live
+   probe upgrades only its adapter-load record, never an individual artifact.
+4. `--compare` fails when a prior artifact/adapter disappears or moves to a lower
+   evidence level. Generated-document checks catch source/report drift.
+
+**Consequences**: Verification debt and provider asymmetry become measurable without
+changing enforcement or Tier definitions. Coverage can decrease only through a visible
+reviewed diff, and an absence of adversarial evidence remains explicit.
+
+## ADR-064 — Parallel work uses a clone-local, snapshot-bound claim ledger
+
+**Status**: Accepted (2026-08-10)
+
+**Context**: `git-hygiene` warned about concurrent work but could not tell which local
+session owned a task or scope. A worktree-local file would not be shared by sibling
+worktrees, while a distributed service would add identity, availability, networking,
+and remote-authority responsibilities outside CONDUCTOR's product boundary.
+
+**Decision**:
+
+1. Store bounded claim records below Git's common directory. Use an atomic local lock,
+   dead-process stale-lock recovery with a minimum age even when owner creation was
+   interrupted, single-link regular files, and retained release tombstones.
+2. Require stable task, tool, session, worktree, and normalized scopes. Active or
+   handed-off scope overlap and unauthorized mutation fail closed.
+3. Bind handoff to a named recipient and an exact HEAD/working-state digest. Record
+   untracked content hashes but no diff, prompt, file content, environment, or secret.
+   Any post-handoff delta invalidates resume.
+4. Add doctor D14 and emit `coordinate-work` only with `git-hygiene` on all six
+   adapters. No tool receives an invented native or distributed enforcement claim.
+
+**Consequences**: Sibling worktrees coordinate mechanically without dirtying the
+repository or transferring user authority. The ledger remains local evidence and does
+not authorize push, merge, deployment, destructive Git operations, or credentials.
+
+## ADR-065 — Multi-repo federation is a strict read-only view
+
+**Status**: Accepted (2026-08-10)
+
+**Context**: The `monorepo` recipe covers multiple packages within one Git repository,
+not a change spanning independent repositories. Turning CONDUCTOR into a repository or
+agent orchestrator would duplicate provider runtimes and create mutation semantics that
+cannot be enforced equally across all six tools.
+
+**Decision**:
+
+1. Define `.conductor/workspace.json` schema v1 with bounded repository IDs, contained
+   relative paths, dependency edges, write scopes, target branches, and optional
+   required adapters.
+2. `omniconductor workspace doctor` accepts only exact non-symlink Git roots, unique
+   canonical repositories, known fields/adapters, and an acyclic dependency graph.
+3. Report repository HEAD and dirty state, dependency order, installed adapter policy
+   versions, missing required adapters, branch/policy drift, and a deterministic
+   multi-repository change-set digest. Bind repository snapshots and the normalized
+   dependency, write-scope, target-branch, and required-adapter contract into that digest.
+4. Provide no workspace init/update, checkout, install, commit, push, provider-agent,
+   or distributed-lock operation.
+
+**Consequences**: Teams gain a portable cross-repository evidence boundary while each
+repository keeps independent manifests, model routing, CURRENT_WORK, specs, and review
+state. A future mutation layer requires a separate decision and verified six-tool need.

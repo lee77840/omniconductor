@@ -14,6 +14,9 @@
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:adapter-outputs-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:portable-skills-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:hook-compiler-table -->
+ *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:extension-trust-table -->
+ *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:skill-proposals-table -->
+ *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:plugin-packaging-table -->
  *
  * Usage:
  *   node tools/generate-adapter-docs.js           # rewrite regions in place
@@ -134,6 +137,49 @@ function renderHookCompilerTable(metas) {
   ].join('\n');
 }
 
+function renderExtensionTrustTable(metas) {
+  const rows = metas.map((m) => {
+    const trust = m.extension_trust;
+    const roots = trust.audit_roots.map((root) => `\`${root}\``).join(' + ');
+    const controls = trust.native_controls.join(', ');
+    const source = `[official](${trust.sources[0].url}) (${trust.sources[0].checked})`;
+    return `| ${m.display_name} | ${roots} | ${controls} | ${trust.mcp_protocol_2026_07_28} | ${source} |`;
+  });
+  return [
+    '| Tool | Project audit roots | Native trust controls | MCP 2026-07-28 boundary | First-party basis |',
+    '|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
+function renderSkillProposalsTable(metas) {
+  const rows = metas.map((m) => {
+    const proposal = m.skill_proposals;
+    const source = `[official](${proposal.source.url}) (${proposal.source.checked})`;
+    return `| ${m.display_name} | \`${proposal.opt_in_skill_path}\` | ${proposal.native_acceleration} | ${proposal.application} | ${source} |`;
+  });
+  return [
+    '| Tool | Opt-in proposal skill | Native acceleration | Application boundary | First-party basis |',
+    '|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
+function renderPluginPackagingTable(metas) {
+  const rows = metas.map((m) => {
+    const packaging = m.plugin_packaging;
+    const manifest = packaging.manifest_path ? `\`${packaging.manifest_path}\`` : '—';
+    const native = packaging.native_components.length ? packaging.native_components.join(', ') : 'none';
+    const source = `[official](${packaging.source.url}) (${packaging.source.checked})`;
+    return `| ${m.display_name} | ${packaging.mode} | ${manifest} | ${native} | ${packaging.direct_install_required_for.join(', ')} | ${source} |`;
+  });
+  return [
+    '| Tool | Package mode | Native manifest | Native components | Direct install still required for | First-party basis |',
+    '|---|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
 // ---- region splicing -------------------------------------------------------
 
 function spliceRegion(file, name, body, sourceOverride) {
@@ -186,11 +232,29 @@ function main() {
     renderHookCompilerTable(metas),
     skills.next,
   );
+  const trust = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'extension-trust-table',
+    renderExtensionTrustTable(metas),
+    hooks.next,
+  );
+  const proposals = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'skill-proposals-table',
+    renderSkillProposalsTable(metas),
+    trust.next,
+  );
+  const packaging = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'plugin-packaging-table',
+    renderPluginPackagingTable(metas),
+    proposals.next,
+  );
   const combinedMatrix = {
     p: outputs.p,
     src: outputs.src,
-    next: hooks.next,
-    changed: hooks.next !== outputs.src,
+    next: packaging.next,
+    changed: packaging.next !== outputs.src,
   };
   const jobs = [
     combinedLive,

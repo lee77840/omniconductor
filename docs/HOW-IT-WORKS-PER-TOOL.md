@@ -19,6 +19,11 @@ change Tier/model routing. Native discovery, consent, and explicit invocation di
 by tool; see the generated table in
 [`COMPATIBILITY-MATRIX.md`](./COMPATIBILITY-MATRIX.md).
 
+Two recipe-scoped procedures use the same per-tool path and manifest ownership:
+`self-improvement` emits propose-only `propose-skill`, while `git-hygiene` emits
+`coordinate-work` for the provider-independent local claim/handoff/release contract.
+Neither procedure grants provider or repository authority.
+
 ---
 
 ## Claude Code (T1, reference implementation)

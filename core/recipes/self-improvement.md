@@ -21,7 +21,7 @@ Observe → Reflect → Propose → (human GO) → Apply
 - **Observe** — each adapter's verified lifecycle hook logs a trajectory pointer;
   git history and `docs/CURRENT_WORK.md` are always-available fallbacks.
 - **Reflect** — the `reflector` role reads the period's trajectories (success AND failure) and distils atomic lessons.
-- **Propose** — the reflector appends `ADD/UPDATE/STALE` deltas to `docs/REFLECTION-PROPOSALS.md`. This is the ONLY output. Nothing is written to memory or rules.
+- **Propose** — lesson deltas still go to `docs/REFLECTION-PROPOSALS.md`. A repeated reusable procedure may instead be submitted through the typed `.conductor/skill-proposals/` inbox with `omniconductor skills propose`. Both paths are proposal-only; nothing is written to live memory, rules, or skills.
 - **Apply** — a human reviews the proposals like a diff and accepts/edits/rejects. On acceptance, the lesson becomes a `feedback_lesson-*.md` memory entry (see `core/memory-pattern/README.md`).
 
 ## Safety contract (read first)
@@ -29,6 +29,7 @@ Observe → Reflect → Propose → (human GO) → Apply
 - **Propose-only.** The reflector must never edit rules, memory, or code. Applying is a human decision.
 - **Grounded-or-dropped.** Every proposed lesson cites a trajectory; un-cited lessons are discarded.
 - **Delta, never rewrite.** Lessons are atomic items merged/pruned by a deterministic script, never by rewriting a whole file. This prevents "context collapse" (accumulated detail eroded by repeated full rewrites).
+- **Skill proposals are typed and repeated.** A skill candidate needs at least two cited occurrences, ordered procedure steps, and a human `accept` or `reject` decision. Acceptance records intent only; promotion into a live skill is a separate reviewed change.
 
 ## Cadence
 
@@ -46,6 +47,10 @@ Run weekly (batch), or on demand via `/reflect`. To automate the weekly run, reg
   entry point, reflector agent/workflow, deterministic pruning utility, runner,
   brief, and scheduling guide. Event names differ by product and Windsurf lacks a
   session/Stop event, so its response hook is not represented as identical.
+- **Proposal skill**: all six adapters emit `propose-skill` only with this recipe.
+  Claude uses `.claude/skills`; the other adapters share `.agents/skills`. Native
+  capture/suggestion features may help collect evidence, but the CONDUCTOR inbox
+  and human decision contract is identical.
 - **Scheduling**: register `run-weekly.sh` with OS cron/launchd, or a verified native
   local scheduler where available, per `SCHEDULING.md`. Manual `/reflect` is the
   universal floor.

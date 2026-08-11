@@ -17,9 +17,9 @@ If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
 
 Every issue, discussion, and success story helps shape future releases.
 
-> **Status (v1.3.3 — 2026-08-09)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs now also emit three instruction-only portable Agent Skills (`plan-change`, `verify-change`, `review-change`) at each tool's documented project path; the procedures do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and the generated product/version/auth/policy runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks only local runtime visibility and applicable version floors; authenticated probes remain explicit. Windsurf model routing is explicitly advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.4.0 — 2026-08-10)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors and D14 checks local work claims; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.3.3**: the private Claude bootstrap now fails the release gate when its version, recipe count, or ADR ceiling drifts, and Claude's current `Agent` matcher support boundary is source-bound and regression-tested without inventing historical compatibility. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.4.0**: redacted extension/MCP trust audit, deterministic six-adapter assurance coverage, typed propose-only skill inbox, clone-local parallel-work claims, read-only multi-repo workspace federation, and verified optional provider packages. Native manifests are emitted only for verified Claude/Copilot/Gemini/Codex structures; Cursor and Windsurf fail closed to direct-install packages. Tier definitions, eight baseline roles, and saved model routing remain unchanged. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -52,7 +52,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 핵심 아이디어:
 
-- **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 온디맨드 스킬 3개, 문서 템플릿, 4-type 메모리 패턴
+- **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 온디맨드 baseline 스킬 3개와 `self-improvement` 전용 proposal 스킬 1개, 문서 템플릿, 4-type 메모리 패턴
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules`)
 - **Layer 3 — Tool-native (정직한 한계)**: full/strict 설치는 Claude·Cursor·Copilot·Gemini·Codex의 8개 네이티브 역할 파일을 생성하고, Windsurf에는 확인된 커스텀 에이전트 파일 계약 대신 8개 역할 워크플로를 설치한다. Claude는 전체 가드 훅, Codex는 검증된 `PreToolUse`/`Stop` 부분집합, 나머지는 검증된 Reflector 훅만 생성한다. 지원되지 않는 계약은 가짜로 폴리필하지 않는다 (ADR-004 / ADR-045/049).
 
@@ -97,7 +97,7 @@ bash ~/conductor/adapters/claude/transform.sh . \
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions` · `eval coverage` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
 - **Path B — 로컬 bash 래퍼**: OMNICONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: Git Bash 또는 WSL2 — [Cross-platform](#cross-platform-mac-and-windows) 참조.
@@ -121,6 +121,27 @@ bash ~/conductor/adapters/claude/transform.sh . \
 | `self-improvement` | 세션 회고 Reflector (propose-only, 사람이 승인) |
 | `git-hygiene` | git 프로젝트 (특히 멀티세션/공유 repo) — worktree·push·브랜치 위생 |
 | `loop-engineering` | 에이전트 루프 (fix→verify 반복) — 종료조건·예산·**외부검증** |
+
+### 신규 안전·제안·패키지 명령
+
+```bash
+# 프로젝트의 provider extension/MCP 설정을 값 노출 없이 읽기 전용 감사
+npx omniconductor audit extensions . --target=all
+
+# 반복 근거가 있는 skill 후보를 proposal inbox에만 기록
+npx omniconductor skills propose . --from=proposal.json
+npx omniconductor skills list .
+npx omniconductor skills review <id> . --decision=accept
+
+# 명시한 출력 디렉터리에 선택형 provider package 생성
+npx omniconductor package --target=all ./dist/conductor-packages
+```
+
+`accept`는 실제 skill을 만들지 않습니다. 패키지의 `native-partial`은
+`PACKAGE-CONTRACT.json`에 열거된 구성요소만 네이티브라는 뜻이며, 전체 rules,
+guard hooks, model routing, work coordination, Reflector와 reversible uninstall은
+기존 direct installer가 계속 소유합니다. `propose-skill`과 `coordinate-work`는
+패키지 안에서도 비활성 optional source이며 해당 recipe 없이는 활성화되지 않습니다.
 
 ### 업데이트 / 제거
 
@@ -207,7 +228,28 @@ The columns below show **OMNICONDUCTOR emission today**:
 
 Full per-feature matrix + first-party footnotes: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` performs the one-time model setup, then dispatches to the adapter scripts. `models configure/show`, `list`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing.
+### Assurance and multi-session commands
+
+```bash
+# Evidence level for every rule, recipe, skill, hook, and adapter runtime
+npx omniconductor eval coverage
+npx omniconductor eval coverage --json --compare=previous-coverage.json
+
+# Same-clone/worktree ownership and exact-snapshot handoff
+npx omniconductor work claim task-auth . --tool=codex --session=local-1 --scope=src/auth
+npx omniconductor work status .
+
+# Read-only multi-repository policy and SHA aggregation
+npx omniconductor workspace doctor /path/to/workspace --json
+```
+
+Coverage is an evidence inventory, not a model-generated score. Work claims are local
+coordination records and grant no push/merge/deploy authority. Workspace doctor has no
+install, update, checkout, or agent-execution path. See
+[`docs/PARALLEL-WORK.md`](./docs/PARALLEL-WORK.md) and
+[`docs/WORKSPACE-FEDERATION.md`](./docs/WORKSPACE-FEDERATION.md).
+
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` performs the one-time model setup, then dispatches to the adapter scripts. `models configure/show`, `list`, `audit extensions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing and checks local work claims in D14.
 
 > **What you keep going Claude → other tools**: rule text, docs, workflow phases, the eight-role topology including Tier 3 utility, and the opt-in Reflector loop. Mechanical guard coverage is intentionally not claimed as identical: each adapter emits only contracts verified for that product.
 
@@ -333,7 +375,7 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 | `database-discipline` | Relational store + migrations + dev/prod split | Migration-first schema changes, access-control on new tables, dev/prod parity |
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
 | `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads recent session trajectories + git and **proposes** lessons-learned to `docs/REFLECTION-PROPOSALS.md` (propose-only; you apply). Emits a session-end trajectory hook, a `/reflect` command, a reflector agent, a deterministic prune, and a weekly runner + scheduling guide — on all six tools. See ADR-030/032/033. |
-| `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7): no unrequested worktrees, push-don't-hoard, merge=delete-branch, backup≠applied (verify by real code), no reckless force/rebase on shared repos, bundle PRs for CI, session-end hygiene check. Claude and Codex add verified non-blocking Stop reminders; other adapters install the checklist. See ADR-037/045. |
+| `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7) plus the six-tool `coordinate-work` skill for clone-local scope claims and snapshot-bound handoff. Claude and Codex add verified non-blocking Stop reminders; other adapters install the checklist. See ADR-037/045/064. |
 | `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Claude and Codex add verified `PreToolUse` reminders in their own hook dialects; other adapters install the rule text. See ADR-038/045. |
 
 #### Decision tree

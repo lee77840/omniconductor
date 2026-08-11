@@ -38,9 +38,22 @@ Every adapter MUST honor:
 - Write tool-native files at the conventional path for that tool, into a target directory passed as an argument.
 - Conventional paths per tool are documented in `docs/HOW-IT-WORKS-PER-TOOL.md`.
 - `docs/` templates from `core/docs-templates/` install at `<target>/docs/` for every adapter (universal across tools).
-- Full/minimal/strict installs compile the three `core/skills/*/SKILL.md`
-  procedures to `.claude/skills` for Claude and shared `.agents/skills` for the
-  other five adapters. Recipes-only and Reflector-only do not emit them.
+- Full/minimal/strict installs compile the three baseline `plan-change`,
+  `verify-change`, and `review-change` procedures from `core/skills/` to
+  `.claude/skills` for Claude and shared `.agents/skills` for the other five
+  adapters. Recipes-only and Reflector-only do not emit those baseline skills.
+- The `self-improvement` recipe additionally emits `propose-skill` at the same
+  provider path. It writes only typed `.conductor/skill-proposals/` inbox items;
+  accept/reject never promotes a live skill.
+- The `git-hygiene` recipe additionally emits `coordinate-work` at the same provider
+  path. All six tools use the same local claim/handoff/release contract; provider
+  lifecycle hooks do not receive invented distributed-lock semantics.
+- `omniconductor audit extensions` reads metadata-declared project roots without
+  executing configuration or revealing credentials. `omniconductor package` emits
+  only metadata-verified native components and uses an explicit direct fallback when
+  a public provider manifest is not verified.
+- `omniconductor eval coverage` and `workspace doctor` are provider-independent,
+  read-only reports. `doctor` D14 inspects Git-common-dir work claims.
 
 ### 3. Idempotency
 

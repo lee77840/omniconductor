@@ -8,7 +8,7 @@ Anything in this directory MUST work for every supported tool. No tool-specific 
 |---|---|
 | `workflow/` | The Plan → Architecture → Tasks → Implementation → Review → Spec phase definitions. Tool-agnostic phase boundaries. |
 | `universal-rules/` | The 5 universal rule bundles (workflow, spec-as-you-go, quality-gates, operations, meta-discipline). Each is plain markdown. |
-| `skills/` | Three instruction-only, on-demand procedures: plan a change, verify a change, and review a change. |
+| `skills/` | Three baseline instruction-only procedures plus opt-in `propose-skill` and `coordinate-work` procedures. |
 | `docs-templates/` | The doc skeletons every project gets (five top-level state/index files plus canonical `specs/`, `plans/`, `architecture/`, and `research/` precedents). |
 | `memory-pattern/` | Documentation of the 4-type memory pattern (user / feedback / project / reference). NOT actual memory data. |
 
@@ -52,7 +52,8 @@ If a rule has to reference a capability-specific mechanism, label the exact veri
 
 ## Status
 
-The universal rules, eight base roles, three portable skills, workflow, recipes,
+The universal rules, eight base roles, three baseline portable skills plus two
+recipe-scoped skills (`self-improvement` proposal and `git-hygiene` coordination), workflow, recipes,
 memory pattern, and hook templates are production assets consumed by all six adapters.
 
 ## Adapter contract (referenced, not implemented here)

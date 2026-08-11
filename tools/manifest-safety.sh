@@ -413,19 +413,30 @@ conductor_manifest_identical_shared_owner() {
 # Portable skills are instruction-only, canonical core assets. Claude uses its
 # native project root; the other five adapters intentionally share .agents/skills.
 CONDUCTOR_PORTABLE_SKILLS="plan-change verify-change review-change"
+CONDUCTOR_SELF_IMPROVEMENT_SKILLS="propose-skill"
+CONDUCTOR_GIT_HYGIENE_SKILLS="coordinate-work"
+
+conductor_selected_portable_skills() {
+  local selected=""
+  case "${MODE:-}" in full|minimal|strict) selected="$CONDUCTOR_PORTABLE_SKILLS" ;; esac
+  case ",${RECIPES:-}," in *,self-improvement,*) selected="$selected $CONDUCTOR_SELF_IMPROVEMENT_SKILLS" ;; esac
+  case ",${RECIPES:-}," in *,git-hygiene,*) selected="$selected $CONDUCTOR_GIT_HYGIENE_SKILLS" ;; esac
+  printf '%s\n' "$selected" | /usr/bin/awk '{$1=$1; print}'
+}
 
 # Strict mode may share an identical skill, but must reject every conflicting
 # pre-existing entry before manifest staging or adapter output begins.
 conductor_assert_portable_skill_collisions() {
-  local adapter="$1" skill_root="$2" skill src dest skill_dir extra
-  case "${MODE:-}" in full|minimal|strict) ;; *) return 0 ;; esac
+  local adapter="$1" skill_root="$2" skill src dest skill_dir extra skills
+  skills="$(conductor_selected_portable_skills)"
+  [ -n "$skills" ] || return 0
 
   if [ -e "$TARGET_ABS/$skill_root" ] && [ ! -d "$TARGET_ABS/$skill_root" ]; then
     echo "Error: portable skill root is not a directory: $TARGET_ABS/$skill_root" >&2
     return 1
   fi
 
-  for skill in $CONDUCTOR_PORTABLE_SKILLS; do
+  for skill in $skills; do
     src="$CORE_ROOT/skills/$skill/SKILL.md"
     skill_dir="$TARGET_ABS/$skill_root/$skill"
     dest="$skill_dir/SKILL.md"
@@ -456,11 +467,12 @@ conductor_assert_portable_skill_collisions() {
 }
 
 conductor_install_portable_skills() {
-  local adapter="$1" skill_root="$2" skill src dest rel
-  case "${MODE:-}" in full|minimal|strict) ;; *) return 0 ;; esac
+  local adapter="$1" skill_root="$2" skill src dest rel skills
+  skills="$(conductor_selected_portable_skills)"
+  [ -n "$skills" ] || return 0
 
-  log "  portable skills → $skill_root/ (plan-change, verify-change, review-change)"
-  for skill in $CONDUCTOR_PORTABLE_SKILLS; do
+  log "  portable skills → $skill_root/ ($skills)"
+  for skill in $skills; do
     src="$CORE_ROOT/skills/$skill/SKILL.md"
     dest="$TARGET_ABS/$skill_root/$skill/SKILL.md"
     rel="$skill_root/$skill/SKILL.md"

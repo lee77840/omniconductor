@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SKILL_NAMES = ['plan-change', 'verify-change', 'review-change'];
+const OPT_IN_SKILL_NAMES = ['propose-skill', 'coordinate-work'];
 const CONTRACTS = {
   claude: {
     projectPath: '.claude/skills',
@@ -85,7 +86,7 @@ function validateSkillText(text, expectedName) {
 
 function validateSourceRoot(sourceRoot) {
   const problems = [];
-  const allowed = new Set(SKILL_NAMES);
+  const allowed = new Set([...SKILL_NAMES, ...OPT_IN_SKILL_NAMES]);
   if (!fs.existsSync(sourceRoot) || !fs.statSync(sourceRoot).isDirectory()) {
     return [`source root missing: ${sourceRoot}`];
   }
@@ -94,7 +95,7 @@ function validateSourceRoot(sourceRoot) {
       problems.push(`unexpected source entry: ${entry.name}`);
     }
   }
-  for (const name of SKILL_NAMES) {
+  for (const name of [...SKILL_NAMES, ...OPT_IN_SKILL_NAMES]) {
     const dir = path.join(sourceRoot, name);
     const file = path.join(dir, 'SKILL.md');
     if (!fs.existsSync(file)) {
@@ -214,6 +215,7 @@ if (require.main === module) {
 module.exports = {
   CONTRACTS,
   SKILL_NAMES,
+  OPT_IN_SKILL_NAMES,
   validateAgentSkillsMetadata,
   validateInstalled,
   validateSkillText,

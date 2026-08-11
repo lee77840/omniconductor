@@ -3,6 +3,54 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.4.0] — 2026-08-10
+
+### Added
+
+- **Capability assurance coverage (ADR-063)** — `omniconductor eval coverage`
+  inventories universal rules, recipes, portable skills, hook policies, instruction
+  loading, and runtime contracts across all six adapters. Deterministic JSON/Markdown
+  cites exact evidence paths; `--compare` fails on disappeared or downgraded coverage
+  without falsely promoting general live probes to artifact-specific verification.
+- **Local parallel-work contract (ADR-064)** — `work claim/status/handoff/release`
+  uses a Git-common-dir ledger shared by local worktrees. Scope overlap and unauthorized
+  mutations fail closed, handoff resumes only on an exact named-recipient snapshot,
+  release retains an audit tombstone, and doctor D14 diagnoses unsafe state. The
+  `git-hygiene` recipe emits `coordinate-work` on all six adapters.
+- **Read-only multi-repo workspace doctor (ADR-065)** — strict
+  `.conductor/workspace.json` validation, dependency DAG ordering, exact repo SHA and
+  dirty-state collection, required-adapter checks, policy-version drift, and a
+  deterministic change-set digest without repository or manifest mutation.
+
+- **Extension/MCP trust audit (ADR-060)** — `omniconductor audit extensions`
+  scans bounded project configuration without following symlinks, executing commands,
+  contacting providers, reading user-home state, or returning credential values.
+  Metadata M13 and generated docs expose each provider's native controls and verified
+  MCP protocol boundary.
+- **Typed skill proposal inbox (ADR-061)** — the `self-improvement` recipe emits an
+  opt-in `propose-skill` procedure across all six adapters. Proposals require repeated
+  cited evidence, are content-addressed, and remain `applied: false` even after a human
+  accept/reject decision. Metadata M14 locks the universal boundary.
+- **Optional provider packages (ADR-062)** — `omniconductor package` produces verified
+  native-partial packages for Claude, Copilot, Gemini, and Codex, and explicit
+  direct-fallback packages for Cursor and Windsurf. Packages contain no MCP server,
+  connector, secret, or executable hook and include a SHA-256 inventory. M15 prevents
+  guessed manifests or ownership drift.
+
+### Security
+
+- Literal credential-like fields, plaintext remote URLs, shell command strings,
+  unpinned executors/plugin sources, legacy SSE, wildcard network scopes, invalid JSON,
+  oversized config, and symlinked config receive redacted audit findings. Symlinked
+  audit roots and hard-linked configuration are not read.
+- Proposal records now fail closed on symlink, hardlink, or content-address drift;
+  fresh ownerless work locks cannot be reclaimed during their creation window.
+- Workspace change-set identities bind manifest policy as well as Git snapshots, and
+  package output refuses a directly symlinked nearest output ancestor.
+- The local release gate requires every new governance runtime, opt-in skill, shipped
+  document, generator, and regression suite to be Git-tracked and syntax-checks all
+  new JavaScript entry points before packaging.
+
 ## [1.3.3] — 2026-08-09
 
 ### Fixed

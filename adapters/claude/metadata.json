@@ -58,6 +58,34 @@
       "checked": "2026-08-09"
     }
   },
+  "extension_trust": {
+    "schema_version": 1,
+    "audit_roots": [".mcp.json", ".claude"],
+    "native_controls": ["project-trust", "permission-sandbox", "plugin-install-consent"],
+    "mcp_protocol_2026_07_28": "verification-required",
+    "sources": [
+      { "url": "https://code.claude.com/docs/en/mcp", "checked": "2026-08-10" },
+      { "url": "https://code.claude.com/docs/en/plugins", "checked": "2026-08-10" }
+    ]
+  },
+  "skill_proposals": {
+    "schema_version": 1,
+    "inbox_path": ".conductor/skill-proposals",
+    "recipe": "self-improvement",
+    "opt_in_skill_path": ".claude/skills/propose-skill/SKILL.md",
+    "application": "human-reviewed-separate-change",
+    "native_acceleration": "manual-fallback",
+    "source": { "url": "https://code.claude.com/docs/en/skills", "checked": "2026-08-10" }
+  },
+  "plugin_packaging": {
+    "schema_version": 1,
+    "mode": "native-partial",
+    "manifest_path": ".claude-plugin/plugin.json",
+    "native_components": ["skills", "agents"],
+    "inactive_reference_components": ["universal-rules", "hook-registry"],
+    "direct_install_required_for": ["rules", "guard-hooks", "reflector", "model-routing", "work-coordination", "reversible-ownership"],
+    "source": { "url": "https://code.claude.com/docs/en/plugins", "checked": "2026-08-10" }
+  },
   "runtime_contract": {
     "schema_version": 1,
     "product": {

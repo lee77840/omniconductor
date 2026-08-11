@@ -59,6 +59,34 @@
       "checked": "2026-07-27"
     }
   },
+  "extension_trust": {
+    "schema_version": 1,
+    "audit_roots": [".codex", ".agents/plugins", ".mcp.json"],
+    "native_controls": ["project-trust", "plugin-hook-trust", "sandbox-and-approval", "secret-redaction"],
+    "mcp_protocol_2026_07_28": "verified",
+    "sources": [
+      { "url": "https://developers.openai.com/codex/changelog", "checked": "2026-08-10" },
+      { "url": "https://developers.openai.com/plugins/build/plugins", "checked": "2026-08-10" }
+    ]
+  },
+  "skill_proposals": {
+    "schema_version": 1,
+    "inbox_path": ".conductor/skill-proposals",
+    "recipe": "self-improvement",
+    "opt_in_skill_path": ".agents/skills/propose-skill/SKILL.md",
+    "application": "human-reviewed-separate-change",
+    "native_acceleration": "documented",
+    "source": { "url": "https://learn.chatgpt.com/docs/extend/record-and-replay", "checked": "2026-08-10" }
+  },
+  "plugin_packaging": {
+    "schema_version": 1,
+    "mode": "native-partial",
+    "manifest_path": ".codex-plugin/plugin.json",
+    "native_components": ["skills"],
+    "inactive_reference_components": ["universal-rules", "role-agents", "hook-registry"],
+    "direct_install_required_for": ["roles", "rules", "guard-hooks", "reflector", "model-routing", "work-coordination", "reversible-ownership"],
+    "source": { "url": "https://developers.openai.com/plugins/build/plugins", "checked": "2026-08-10" }
+  },
   "runtime_contract": {
     "schema_version": 1,
     "product": {
