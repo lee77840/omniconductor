@@ -111,7 +111,8 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `tools/measure-tokens.sh` | **P1 ✅ Implemented.** Claude session JSONL token measurement. Zero telemetry. |
 | `tools/check-framework-purity.sh` | Reverse-validation: bans reference-adopter-specific tokens in the framework body (ADR-026). CI job `purity`. |
 | `tools/validate-adapter-output.sh` | Per-tool structural validator for adapter output (frontmatter / sections / placeholders). CI job `adapters`. |
-| `tools/check-stale-tokens.sh` + `tools/stale-tokens.txt` | **v0.7.0 (ADR-039).** Known-false-claim + version-stamp guard over living docs. CI job `stale-tokens`. |
+| `tools/check-stale-tokens.sh` + `tools/stale-tokens.txt` | **ADR-039/070.** Known-false-claim + version-stamp guard over living docs; delegates source-derived recipe count/catalog checks. CI job `stale-tokens`. |
+| `tools/check-recipe-docs.js` + `tools/test-recipe-docs.js` | Derives the recipe inventory from `core/recipes/*.md` and rejects stale public totals, missing catalog entries, or invented recipe names. |
 | `tools/check-adapter-metadata.sh` | **v0.7.0 (ADR-040).** Asserts `adapters/*/metadata.json` agrees with transform.sh / validator / matrix / live-verification doc. CI job `adapter-metadata`. |
 | `tools/test-doc-path-policy.sh` | Six-adapter canonical-document emission plus doctor legacy/override regression suite (ADR-052). |
 | `bin/evidence-contract.js` + `tools/test-evidence-contract.js` | Read-only schema validation and completeness gate for snapshot-bound verification evidence. |
@@ -125,7 +126,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-069. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-070. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |

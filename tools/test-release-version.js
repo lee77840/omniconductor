@@ -66,6 +66,8 @@ for (const requiredGovernanceAsset of [
   'tools/test-work-contract.js',
   'tools/test-workspace-contract.js',
   'tools/test-windows-installer.js',
+  'tools/check-recipe-docs.js',
+  'tools/test-recipe-docs.js',
 ]) {
   assert(
     releaseGateSource.includes(requiredGovernanceAsset),

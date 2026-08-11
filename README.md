@@ -6,6 +6,17 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
+## Community & Feedback
+
+If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
+
+- ⭐ Star the repository if you find it useful.
+- 🐛 [Report bugs or unexpected behavior](https://github.com/lee77840/omniconductor/issues).
+- 💡 [Suggest new features or improvements](https://github.com/lee77840/omniconductor/discussions).
+- 💬 [Share how you're using OMNICONDUCTOR](https://github.com/lee77840/omniconductor/discussions) in your projects.
+
+Every issue, discussion, and success story helps shape future releases.
+
 ## Why OMNICONDUCTOR stands out
 
 **6 adapters · 8 baseline roles · 5 universal rules · 17 opt-in recipes · 5 portable skills · 15 metadata gates**
@@ -34,20 +45,9 @@ npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-de
 The promise is not identical mechanics everywhere. It is **one portable discipline,
 compiled to the strongest verified native behavior each tool actually supports**.
 
-## ⭐ Community & Feedback
-
-If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
-
-- ⭐ Star the repository if you find it useful.
-- 🐛 [Report bugs or unexpected behavior](https://github.com/lee77840/omniconductor/issues).
-- 💡 [Suggest new features or improvements](https://github.com/lee77840/omniconductor/discussions).
-- 💬 [Share how you're using OMNICONDUCTOR](https://github.com/lee77840/omniconductor/discussions) in your projects.
-
-Every issue, discussion, and success story helps shape future releases.
-
-> **Status (v1.5.0 — 2026-08-11)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.5.1 — 2026-08-11)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.5.0**: snapshot-bound evidence preserves blocked/not-run/environment-limited results; four new opt-in recipes strengthen DB changes, non-vacuous tests, visual baselines, and release provenance. The release also includes the tested native Windows Node.js + Git Bash six-adapter contract and doctor D16. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.5.1**: README and comparison references now expose the complete 17-recipe catalog, and a source-derived gate rejects stale counts, missing recipes, or invented recipe names across current public documentation. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -57,6 +57,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 ## Table of contents
 
+- [⭐ Community & Feedback](#community--feedback)
 - [Why OMNICONDUCTOR stands out](#why-omniconductor-stands-out)
 - [한국어 / Korean](#한국어)
 - [토큰 이코노미 / Token Economy](#토큰-이코노미--token-economy)
@@ -495,9 +496,13 @@ Web + mobile?             YES → web-mobile-parity
 3-branch git?             YES → branch-strategy
 DB schema churn?          YES → auto-mock-data
 Test framework + TDD?     YES → tdd
+Need proof tests detect the defect? YES → non-vacuous-testing
 Want root-cause debugging? YES → debugging
 Relational DB + migrations? YES → database-discipline
+High-risk DB change?      YES → database-change-assurance
 Design-token system?      YES → design-system
+Screenshot baseline gate? YES → visual-baseline-integrity
+Third-party/policy-bound release? YES → release-provenance
 Want weekly session self-review? YES → self-improvement
 Use git (esp. shared/multi-session)? YES → git-hygiene
 Agent loops / iterative fix-verify?  YES → loop-engineering
@@ -513,6 +518,9 @@ Agent loops / iterative fix-verify?  YES → loop-engineering
 | Multi-locale SaaS | `i18n, coding-conventions` |
 | Monorepo SaaS | `monorepo, coding-conventions` |
 | Full-stack (monorepo + multi-locale + web/mobile) | `monorepo, i18n, web-mobile-parity, coding-conventions` |
+| Release-grade test evidence | `tdd, non-vacuous-testing`; add `visual-baseline-integrity` for screenshot gates |
+| High-risk database release | `database-discipline, database-change-assurance` |
+| Third-party or policy-bound release | `release-provenance` plus the adopter-owned domain policy |
 
 ---
 
@@ -525,7 +533,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | Option | Description |
 |---|---|
 | `<target-project>` | Project directory to install into (required). `.` for current dir. |
-| `--recipes=A,B,C` | Comma-separated recipes from the 13 in `core/recipes/`. |
+| `--recipes=A,B,C` | Comma-separated recipes from the 17 in `core/recipes/`. |
 | `--mode=<m>` | Install preset (v1.0, ADR-044): `full` (default) · `minimal` (rule text + docs only — no agents/hooks/Reflector runtime) · `strict` (abort with exit 3 instead of touching an existing baseline) · `recipes-only` (à la carte: ONLY selected recipes; Gemini appends a hash-tracked block, while Codex appends compact pointers to full `.codex/conductor/recipes/` references; uninstall is lossless) · `reflector-only` (the self-improvement loop standalone — least-conflicting when coexisting with Spec Kit / BMAD, which the installer detects and suggests, never auto-switches). |
 | `--dry-run` | Preview only — no files written. |
 | `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if cache hit < 95%. |
@@ -536,7 +544,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | `--force` | Bypass uninstall safety gates (active rebase/merge, missing manifest). |
 | `-h` `--help` | Print usage. |
 
-**Recipe names** (13): `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`, `git-hygiene`, `loop-engineering`.
+**Recipe names** (17): `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `non-vacuous-testing`, `debugging`, `database-discipline`, `database-change-assurance`, `design-system`, `visual-baseline-integrity`, `release-provenance`, `self-improvement`, `git-hygiene`, `loop-engineering`.
 
 #### File overwrite behavior
 
@@ -675,7 +683,7 @@ diff CLAUDE.md.conductor-backup-* CLAUDE.md
 
 #### "recipe not found" warning
 
-Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `debugging`, `database-discipline`, `design-system`, `self-improvement`, `git-hygiene`, `loop-engineering`.
+Check recipe name spelling. Available: `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `non-vacuous-testing`, `debugging`, `database-discipline`, `database-change-assurance`, `design-system`, `visual-baseline-integrity`, `release-provenance`, `self-improvement`, `git-hygiene`, `loop-engineering`.
 
 #### "Tool doesn't recognize the new rules"
 
@@ -775,7 +783,7 @@ A: Open VSX. Cursor is a VSCode fork but cannot pull from Microsoft's marketplac
 
 **Q: My project uses Go / Python / Rust, not TypeScript.**
 
-A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles and the other 12 recipes are stack-agnostic.
+A: Skip `coding-conventions` (TypeScript-specific). The 5 universal rule bundles and the other 16 recipes are stack-agnostic.
 
 **Q: Windows native PowerShell?**
 

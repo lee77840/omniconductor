@@ -3,6 +3,20 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.5.1] — 2026-08-11
+
+### Fixed
+
+- Synchronize the README options, complete recipe-name reference, troubleshooting
+  list, FAQ, decision tree, recommended combinations, and comparison copy with the
+  17 recipes shipped in v1.5.0.
+- Move Community & Feedback directly below the opening product statement so stars,
+  issue reports, feature suggestions, and adopter stories remain visible before the
+  long feature/reference sections.
+- Derive current recipe-count claims and three public recipe catalogs from
+  `core/recipes/*.md`, rejecting stale totals, omitted recipes, and invented names in
+  the normal regression, stale-document, and release gates.
+
 ## [1.5.0] — 2026-08-11
 
 ### Added

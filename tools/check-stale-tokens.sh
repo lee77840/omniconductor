@@ -176,6 +176,15 @@ else
   echo "OK  [C2] publication policy is version-neutral"
 fi
 
+# Recipe totals and public catalogs are derived from the actual source files. This
+# closes the class of drift where a new opt-in recipe reaches the main table but old
+# counts or incomplete copy-paste lists survive in reference/troubleshooting text.
+if node tools/check-recipe-docs.js; then
+  :
+else
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   echo "OK — no stale claims on living surfaces; version stamps consistent (v${PKG_VERSION})."
   exit 0

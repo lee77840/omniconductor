@@ -54,11 +54,11 @@ for required_tracked_file in \
   core/skills/propose-skill/SKILL.md docs/AGENT-EVAL-COVERAGE.json \
   docs/AGENT-EVAL-COVERAGE.md docs/PARALLEL-WORK.md docs/WORKSPACE-FEDERATION.md \
   docs/TOKEN-ECONOMY-KO.md docs/VERIFICATION-EVIDENCE.md \
-  tools/generate-assurance-coverage.js tools/test-hook-compiler.js \
+  tools/check-recipe-docs.js tools/generate-assurance-coverage.js tools/test-hook-compiler.js \
   tools/test-assurance-coverage.js tools/test-evidence-contract.js tools/test-assurance-recipes.sh tools/test-extension-trust.js \
   tools/test-plugin-packager.js tools/test-skill-proposals.js \
   tools/test-installer-platform.js tools/test-windows-installer.js \
-  tools/test-work-contract.js tools/test-workspace-contract.js; do
+  tools/test-recipe-docs.js tools/test-work-contract.js tools/test-workspace-contract.js; do
   git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
     echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
     exit 1
@@ -91,7 +91,7 @@ else
 fi
 for file in bin/{omniconductor,doctor,model-routing,path-safety,adapter-dispatch,installer-platform,claude-hookify,runtime-contract,portable-skills,hook-config}.js \
   bin/{assurance-coverage,evidence-contract,extension-trust,plugin-packager,skill-proposals,work-contract,workspace-contract}.js \
-  tools/{test-model-routing,test-path-safety,test-installer-platform,test-windows-installer,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-release-version,check-release-version}.js \
+  tools/{test-model-routing,test-path-safety,test-installer-platform,test-windows-installer,test-hookify-posttool,test-runtime-contract,test-portable-skills,test-hook-compiler,test-recipe-docs,test-release-version,check-release-version,check-recipe-docs}.js \
   tools/{generate-assurance-coverage,test-assurance-coverage,test-evidence-contract,test-extension-trust,test-plugin-packager,test-skill-proposals,test-work-contract,test-workspace-contract}.js; do
   node --check "$file"
 done

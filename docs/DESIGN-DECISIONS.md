@@ -2440,3 +2440,30 @@ and exceed CONDUCTOR's authority.
 **Consequences**: Cross-surface releases and policy-bound materials become auditable
 without forcing identical interfaces or converting one project's legal policy into a
 universal rule.
+
+## ADR-070 — Public recipe catalogs are derived release contracts
+
+**Status**: Accepted (2026-08-11)
+
+**Context**: v1.5.0 correctly exposed the four new assurance recipes in the main
+README catalog, Korean guide, and document index, but three lower README references
+and one comparison sentence retained the former 13-recipe total. The stale-token gate
+derived the private bootstrap count but did not verify public copy-pasted catalogs,
+so a partially updated release could pass every existing document check.
+
+**Decision**:
+
+1. Treat `core/recipes/*.md` (excluding its README) as the recipe inventory source.
+2. Scan current public documentation for total-count language and compare every such
+   claim with the derived inventory; the TypeScript FAQ's "other recipes" count is
+   derived as total minus `coding-conventions`.
+3. Require exact set equality for the README's main catalog, option-reference list,
+   troubleshooting list, and the `core/recipes/README.md` catalog. Missing and invented
+   names both fail.
+4. Run focused positive and adversarial regressions in `npm test`, invoke the checker
+   from the existing stale-document gate, and require both checker and test to be
+   tracked and syntax-checked by the release gate.
+
+**Consequences**: Adding or removing a recipe now forces all current public catalog
+surfaces to move together. Frozen changelog, ADR, plan, audit, and launch-history
+documents remain historical evidence and are not rewritten as current truth.
