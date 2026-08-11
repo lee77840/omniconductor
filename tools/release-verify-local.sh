@@ -52,6 +52,7 @@ for required_tracked_file in \
   core/hooks/registry.json core/skills/coordinate-work/SKILL.md \
   core/skills/propose-skill/SKILL.md docs/AGENT-EVAL-COVERAGE.json \
   docs/AGENT-EVAL-COVERAGE.md docs/PARALLEL-WORK.md docs/WORKSPACE-FEDERATION.md \
+  docs/TOKEN-ECONOMY-KO.md \
   tools/generate-assurance-coverage.js tools/test-hook-compiler.js \
   tools/test-assurance-coverage.js tools/test-extension-trust.js \
   tools/test-plugin-packager.js tools/test-skill-proposals.js \

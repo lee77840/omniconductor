@@ -3,6 +3,28 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.4.1] — 2026-08-10
+
+### Documentation
+
+- Reworked the README around outcome-first key features and search-friendly product
+  language for AI agent governance, cross-tool hooks and skills, MCP security, model
+  routing, token economy, parallel work, multi-repo coordination, and reversible
+  installation.
+- Added a Korean Token Economy guide that separates native enforcement, structural
+  savings, portable rules, local measurement, and provider-specific guidance across
+  all six adapters.
+- Corrected the prompt-caching guide to use the current 95% steady-state SLA and an
+  explicit cache-read cost calculation instead of the retired 60% target.
+
+### Changed
+
+- Expanded npm package keywords and the package description so key capabilities are
+  discoverable without overstating unsupported native parity.
+- Added the shipped guide to the fail-closed release tracking list and its regression
+  assertion, preventing a future commit from publishing a README link without the
+  referenced npm asset.
+
 ## [1.4.0] — 2026-08-10
 
 ### Added

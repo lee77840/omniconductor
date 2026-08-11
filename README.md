@@ -6,6 +6,33 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
+## Why OMNICONDUCTOR stands out
+
+**6 adapters · 8 baseline roles · 5 universal rules · 13 opt-in recipes · 5 portable skills · 15 metadata gates**
+
+OMNICONDUCTOR brings **AI agent governance**, **multi-agent orchestration**,
+cross-tool **hooks**, portable **Agent Skills**, **MCP security auditing**, saved
+**model routing**, **token economy**, subagent coordination, agent memory patterns,
+parallel-work coordination, multi-repo workspace checks, and spec-driven review gates
+into one reversible installer.
+
+| Key feature | What makes it different |
+|---|---|
+| **Define once, deploy to six coding agents** | One universal policy layer compiles into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, and Windsurf project formats. You do not maintain six drifting rule sets. |
+| **Native-first enforcement without fake parity** | Each adapter emits the strongest contract verified for that product—native hooks where they exist, explicit rule fallback where they do not. The generated compatibility matrix says exactly which is which. |
+| **Token economy as a system, not a prompt tip** | Large-read prevention, an 8,000-token tool-result cap where store-time control exists, lazy/scoped instructions, bounded dispatches, prompt-cache discipline, context editing guidance, and local before/after measurement work together. [한국어 상세 설명](./docs/TOKEN-ECONOMY-KO.md). |
+| **Evidence instead of “it should work”** | `eval coverage`, runtime contracts, doctor checks, M1–M15 metadata gates, generated docs, adversarial regressions, and opt-in live probes separate emitted, contract-tested, and live-verified claims. |
+| **Safe and reversible adoption** | Dry-run, strict conflict mode, SHA-256 ownership manifests, byte-preserving backup/restore, user-edit preservation, extension/MCP trust audit, and lossless uninstall make installation auditable. |
+| **Built for parallel agent work** | Clone-local scope claims, exact-snapshot handoff, immutable release tombstones, multi-repo workspace diagnosis, and saved Tier routing reduce collisions without pretending to grant push or merge authority. |
+
+```bash
+# Preview one adapter without changing the project
+npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-defaults
+```
+
+The promise is not identical mechanics everywhere. It is **one portable discipline,
+compiled to the strongest verified native behavior each tool actually supports**.
+
 ## ⭐ Community & Feedback
 
 If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
@@ -17,9 +44,9 @@ If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
 
 Every issue, discussion, and success story helps shape future releases.
 
-> **Status (v1.4.0 — 2026-08-10)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors and D14 checks local work claims; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.4.1 — 2026-08-10)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors and D14 checks local work claims; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
 >
-> **New in 1.4.0**: redacted extension/MCP trust audit, deterministic six-adapter assurance coverage, typed propose-only skill inbox, clone-local parallel-work claims, read-only multi-repo workspace federation, and verified optional provider packages. Native manifests are emitted only for verified Claude/Copilot/Gemini/Codex structures; Cursor and Windsurf fail closed to direct-install packages. Tier definitions, eight baseline roles, and saved model routing remain unchanged. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.4.1**: outcome-first key-feature positioning, 37 searchable npm capability keywords, and a shipped Korean Token Economy guide that separates native enforcement, portable rules, local evidence, and provider guidance. Runtime behavior, Tier definitions, eight baseline roles, and saved model routing remain unchanged. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -29,7 +56,9 @@ Every issue, discussion, and success story helps shape future releases.
 
 ## Table of contents
 
+- [Why OMNICONDUCTOR stands out](#why-omniconductor-stands-out)
 - [한국어 / Korean](#한국어)
+- [토큰 이코노미 / Token Economy](#토큰-이코노미--token-economy)
 - [English](#english)
 - [Tool coverage matrix](#tool-coverage-matrix)
 - [Install paths (3 options)](#install-paths)
@@ -56,12 +85,31 @@ Every issue, discussion, and success story helps shape future releases.
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules`)
 - **Layer 3 — Tool-native (정직한 한계)**: full/strict 설치는 Claude·Cursor·Copilot·Gemini·Codex의 8개 네이티브 역할 파일을 생성하고, Windsurf에는 확인된 커스텀 에이전트 파일 계약 대신 8개 역할 워크플로를 설치한다. Claude는 전체 가드 훅, Codex는 검증된 `PreToolUse`/`Stop` 부분집합, 나머지는 검증된 Reflector 훅만 생성한다. 지원되지 않는 계약은 가짜로 폴리필하지 않는다 (ADR-004 / ADR-045/049).
 
+### 왜 OMNICONDUCTOR인가
+
+- **도구를 바꿔도 규율은 유지됩니다.** 프로젝트의 Plan·Spec·Review·Token
+  Economy·Tier 정책을 한 번 정의하고 여섯 adapter가 각 도구의 프로젝트 형식으로
+  변환합니다.
+- **지원되지 않는 기능을 지원된다고 포장하지 않습니다.** 네이티브 훅, 설정 기반
+  강제, 규칙 fallback을 구분하고 `eval coverage`와 compatibility matrix에서 근거를
+  노출합니다.
+- **설치보다 제거가 더 안전해야 한다는 원칙을 지킵니다.** manifest가 CONDUCTOR
+  소유 파일과 SHA-256을 기록하고, 사용자가 수정한 파일은 제거하지 않으며, 기존
+  파일은 byte-for-byte 복원을 검증합니다.
+- **에이전트가 많아질수록 필요한 운영 계약을 포함합니다.** 역할·모델 라우팅뿐
+  아니라 동시 작업 scope claim, exact-snapshot handoff, workspace drift 진단까지
+  같은 CLI에서 제공합니다.
+- **주장을 테스트 가능한 증거로 바꿉니다.** 여섯 adapter install mode, runtime
+  compatibility, hook contract, package boundary, generated docs와 adversarial case를
+  전체 회귀 체인에 연결합니다.
+
 ### 강제하는 워크플로
 
 1. **Plan → Architecture → Tasks → Implementation → Review → Spec** (skip 금지)
 2. **Spec-as-you-go + 정본 경로** — 코드 변경 시 `docs/specs/*.md` 동시 업데이트. 계획은 `docs/plans/`, 아키텍처는 `docs/architecture/`, 조사는 `docs/research/`; 기존 플러그인 폴더는 `docs/INDEX.md`에 명시한 경우에만 이 기본값을 대체합니다.
 3. **2-stage 코드 리뷰** — pre-commit + pre-merge
-4. **Token economy** — large-file Read 금지 / Grep first / range read
+4. **Token economy** — 불필요한 Read 예방, 도구 결과 상한, 온디맨드 규칙/스킬,
+   캐시·context 관리, Tier별 비용 제어, 로컬 측정을 하나의 절약 계층으로 운용
 5. **Difficulty routing** — 기존 Tier 1/2/3 난이도를 고정하고, 최초 설치에서 승인한 도구별 모델과 reasoning effort로 변환
 
 최초 `npx omniconductor init`은 설치된 도구들의 추천 Tier 매핑을 한 번에
@@ -71,6 +119,37 @@ Every issue, discussion, and success story helps shape future releases.
 판정은 바뀌지 않고, 사용할 수 없어진 정확한 ID는 자동 하향하지 않고
 재설정을 요구합니다. 세부 정책은
 [`docs/MODEL-ROUTING.md`](docs/MODEL-ROUTING.md)를 참고하세요.
+
+### 토큰 이코노미 / Token Economy
+
+OMNICONDUCTOR의 토큰 절약은 “짧게 답하라”는 한 줄 프롬프트가 아닙니다.
+컨텍스트가 커지는 경로를 앞단부터 차단하고, 실제 세션에서 효과를 다시 측정하는
+여섯 단계 구조입니다.
+
+| 단계 | 실제 기능 | 강제 수준 |
+|---|---|---|
+| **1. 불필요한 입력 예방** | Grep 우선, 200줄 초과 range read 원칙, Claude의 500줄 이상 무범위 Read 차단 | 전 도구 규칙 + Claude 네이티브 훅 |
+| **2. 도구 결과 상한** | 기본 8,000-token store-time cap | Claude·Codex 네이티브, Gemini shell-only, 나머지 명시적 N/A |
+| **3. 상시 컨텍스트 최소화** | 5개 universal rule, opt-in recipe, on-demand skill, adapter별 path scoping | 설치 구조로 적용, 도구별 lazy-load 차이 공개 |
+| **4. 캐시 친화적 순서** | 안정된 rules/project prefix와 자주 바뀌는 history/tool-result 분리 | Claude/Anthropic 가이드; SDK 자동 설정 아님 |
+| **5. 컨텍스트 수명 관리** | stale tool result를 먼저 제거하고 사용자 지시는 마지막까지 보존 | Claude context editing 가이드 + 전 도구 공통 규칙 |
+| **6. 측정과 회귀 진단** | cache reuse, tool calls, output tokens, cap marker, 역할 dispatch를 로컬 JSONL/CSV로 비교 | zero-telemetry 로컬 도구 |
+
+```bash
+# 설치 상태: 실제 output-cap/hook/config가 활성화됐는지 확인
+npx omniconductor doctor .
+
+# Claude Code 최신 세션 전후 측정
+bash tools/measure-tokens.sh --latest
+
+# 여러 Claude JSONL 세션의 cap/cache/dispatch 감사
+node tools/audit-token-economy.js --sessions="<session-directory>"
+```
+
+도구별 정확한 강제 범위, 설정값, 측정 해석, 오해하기 쉬운 한계는
+**[Token Economy 한국어 가이드](./docs/TOKEN-ECONOMY-KO.md)**에서 한 번에 확인할 수
+있습니다. 핵심 원칙은 “사용자 지시를 줄이는 것”이 아니라 **낭비되는 tool output과
+항상 로드되는 저신호 컨텍스트를 먼저 줄이는 것**입니다.
 
 ### 빠른 시작 — 5분
 
@@ -177,7 +256,9 @@ Three layers:
 1. **Plan → Architecture → Tasks → Implementation → Review → Spec** (no skipping)
 2. **Spec-as-you-go + canonical paths**: code changes update matching `docs/specs/*.md`; implementation plans, architecture, and research use their seeded `docs/` directories unless `docs/INDEX.md` explicitly overrides the artifact class.
 3. **Two-stage code review**: pre-commit + pre-merge PR
-4. **Token economy**: no large-file reads, Grep first, range reads
+4. **Token economy**: prevent wasteful reads, cap stored tool results where verified,
+   lazy-load scoped instructions and skills, preserve cache/context discipline, bound
+   routing and dispatches, and measure the result locally
 5. **Difficulty routing**: preserve Tier 1/2/3, then compile the one-time saved per-tool model mapping and reasoning effort
 
 The first `npx omniconductor init` shows all selected adapters and asks once whether
@@ -485,6 +566,10 @@ bash ~/conductor/tools/measure-tokens.sh --latest
 ```
 
 Compare against the `.conductor/baseline-YYYYMMDD.csv` from `--measure-baseline` at install time. KPI target: cache hit rate ≥ 95% (ADR-014 SLA).
+
+For the full mechanism-by-mechanism explanation—including which controls are native,
+rule-only, or provider guidance—see the
+**[Korean Token Economy guide](./docs/TOKEN-ECONOMY-KO.md)**.
 
 ### Uninstall (revert install)
 

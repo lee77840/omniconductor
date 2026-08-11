@@ -117,7 +117,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-055. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-065. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |
@@ -127,6 +127,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/CONDUCTOR-V0.2-DESIGN.md` | P0.5 comprehensive design (1579 lines, 12 Open Questions). |
 | `docs/PROMPT-CACHING-GUIDE.md` | **P1 ✅** Anthropic prompt caching structure + measurement. |
 | `docs/CONTEXT-EDITING-GUIDE.md` | Instruction-fidelity-first context reduction — lossless `clear_tool_uses` before lossy `/compact` (Claude-only, ADR-035). |
+| `docs/TOKEN-ECONOMY-KO.md` | Korean single-entry guide to read prevention, tool-output caps, scoped context, caching, context editing, Tier routing, and local measurement. |
 | `docs/KPI.md` | **P1.5 ✅** Baseline metrics (cache hit 100%, output tokens/turn, etc.). |
 | `docs/MANUAL-INSTALL.md` | Path C — no-Node fallback manual `cp` / `cat` install; public `transform.sh` wrappers require Node and enter the guided CLI. |
 | `docs/PUBLISH-GUIDE.md` | VSCode Marketplace + Open VSX publish steps (Phase 2 / v0.3+, ADR-025). |

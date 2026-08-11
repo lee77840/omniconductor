@@ -4,7 +4,11 @@
 
 ## Why prompt caching matters
 
-Anthropic's prompt caching reduces input cost by ~90% and latency by ~85% for prefixes that repeat across turns. Cache write is 1.25× input cost (5-min cache) or 2× (1-hr cache). Cache read is 0.1× input cost. Break-even after 2-3 reads.
+Anthropic's prompt caching reduces input cost by ~90% and latency by ~85% for
+prefixes that repeat across turns. Cache write is 1.25× input cost (5-min cache) or
+2× (1-hr cache). Cache read is 0.1× input cost. Break-even after 2-3 reads. See
+the current [Anthropic pricing documentation](https://docs.anthropic.com/en/docs/about-claude/pricing)
+before using these multipliers for a billing forecast.
 
 For a typical CONDUCTOR-driven session:
 - 5 universal rule bundles (~6K tokens combined).
@@ -12,7 +16,10 @@ For a typical CONDUCTOR-driven session:
 - Selected recipes (~1-3K tokens).
 - Project memory index (~1K tokens).
 
-Total cacheable prefix: ~10-12K tokens. Without caching, 10-12K input tokens are billed every turn. With a 60% hit rate, the effective cost drops to ~1-1.5K tokens per turn.
+Total cacheable prefix: ~10-12K tokens. Without caching, 10-12K input tokens are
+billed every turn. At the current 95% steady-state reuse SLA, the repeated prefix has
+an input-cost equivalent of roughly 1.45-1.74K tokens per turn (5% ordinary input +
+95% cache reads at 0.1x), excluding the one-time cache write.
 
 ## Recommended prefix order
 
@@ -90,7 +97,7 @@ Cache-read tokens            : 9847
 Cache hit rate               : 67.3%
 ```
 
-Target: ≥ 60% on a steady-state dev session. If the rate is lower:
+Target: ≥ 95% on a steady-state dev session (ADR-014 SLA). If the rate is lower:
 
 - Verify the cache marker is at the right boundary.
 - Verify prefix order is stable (no per-turn re-ordering of CONDUCTOR rules).
@@ -122,6 +129,10 @@ separately and run `omniconductor doctor <project>` on the active branch.
 | Memory index regenerated each turn | Re-generate only when memory dir changes |
 | Model switch (Opus ↔ Sonnet ↔ Haiku) | Each model has its own cache; switching invalidates |
 
-## Non-Claude tools
+## Provider boundary
 
-Prompt caching is an Anthropic-specific feature. Other adapters (Cursor / Copilot / Gemini / Codex / Windsurf) cannot benefit from this guide. The `docs/COMPATIBILITY-MATRIX.md` records this honestly.
+This guide configures Anthropic API prompt caching; the OMNICONDUCTOR installer does
+not configure cache controls for Cursor, Copilot, Gemini, Codex, or Windsurf. A tool
+may independently provide or internally manage caching, but that is not treated as a
+verified portable OMNICONDUCTOR contract. The `docs/COMPATIBILITY-MATRIX.md` records
+the supported boundary.

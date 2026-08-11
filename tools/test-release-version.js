@@ -49,6 +49,7 @@ for (const requiredGovernanceAsset of [
   'docs/AGENT-EVAL-COVERAGE.json',
   'docs/AGENT-EVAL-COVERAGE.md',
   'docs/PARALLEL-WORK.md',
+  'docs/TOKEN-ECONOMY-KO.md',
   'docs/WORKSPACE-FEDERATION.md',
   'tools/generate-assurance-coverage.js',
   'tools/test-assurance-coverage.js',
