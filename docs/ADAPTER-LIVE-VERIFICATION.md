@@ -20,6 +20,7 @@ Status legend: ✅ = automated (CI/validator) · 🧪 = needs a live session (th
 | Gemini CLI | ✅ | 🧪 not yet run |
 | Codex | ✅ | ✅ **live-verified 2026-07-13** — codex-cli 0.144.0 native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand |
 | Windsurf | ✅ | 🧪 not yet run |
+| OpenCode | ✅ | ✅ **live-verified 2026-08-13** — 1.4.3 headless explicit-model probe listed 5/5 rules + read-CURRENT_WORK-first |
 <!-- /generated:live-verification-table -->
 
 > This table is generated from `adapters/<tool>/metadata.json` (`live_verification`) —
@@ -47,6 +48,7 @@ surfaced in diagnostics. Since a provider CLI is external code, its internal
 | Gemini CLI | Gemini CLI · source-conflict | source-conflict | native-hooks ≥ 0.26.0 | headless-model; auth=yes, network=yes |
 | Codex | Codex · active | documented | no documented numeric floor | local-renderer; auth=no, network=no |
 | Windsurf | Devin Desktop (adapter: Windsurf) · renamed | verification-required | no documented numeric floor | headless-model; auth=yes, network=yes |
+| OpenCode | OpenCode · active | policy-controlled | no documented numeric floor | headless-model; auth=yes, network=yes |
 <!-- /generated:runtime-contract-table -->
 
 Statuses are deliberately observational:
@@ -85,6 +87,18 @@ bash <conductor>/adapters/<tool>/transform.sh . --no-prompt --recipes=coding-con
 # (or: node <conductor>/bin/omniconductor.js init --target=<tool> . --no-prompt --recipes=coding-conventions)
 ```
 
+OpenCode uses the configured primary model by default. If a global plugin points at a
+retired or unavailable model, select an actually listed model explicitly without
+changing project routing:
+
+```bash
+CONDUCTOR_OPENCODE_LIVE_MODEL=provider/model \
+  bash tools/live-verify.sh --tool=opencode --check-only
+```
+
+The probe treats OpenCode's known model-not-found diagnostic as failure even on
+versions that return exit zero for that error.
+
 ### Probe prompt (same for every tool)
 > "What workflow and rules are you operating under in this project? List the universal rules you can see, and tell me the first thing you must do before writing code."
 
@@ -101,6 +115,7 @@ equivalent). A generic answer that ignores the installed file = FAIL (tool didn'
 | Claude Code | `CLAUDE.md` + `.claude/rules/*.md` + agents/hooks | Rules panel + a Stop-hook fires on a stale-docs commit |
 | Cursor | `.cursor/rules/*.mdc` | Settings → Rules tab shows the 5 rules |
 | Copilot | `.github/copilot-instructions.md` (or `.github/instructions/*`) | Per-IDE — see `docs/IDE-SMOKE-TESTING.md` |
+| OpenCode stable v1 | `opencode.json` `instructions` → `.opencode/rules/*.md` | `opencode debug config` proves discovery; `opencode run` must cite rules + CURRENT_WORK for live verification |
 
 ### Recording results
 Record each tool's outcome in `docs/COMPATIBILITY-MATRIX.md` (a "Live-verified" column):

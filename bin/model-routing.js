@@ -7,8 +7,8 @@ const { spawnSync } = require('child_process');
 const pathSafety = require('./path-safety.js');
 
 const SCHEMA_VERSION = 1;
-const CONFIG_REL = path.join('.conductor', 'model-routing.json');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const CONFIG_REL = '.conductor/model-routing.json';
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const TIER_LABELS = {
   1: 'conceptual / complex',
   2: 'routine',
@@ -21,6 +21,7 @@ const RECOMMENDED = {
   gemini: { 1: 'pro', 2: 'flash', 3: 'flash-lite' },
   codex: { 1: 'gpt-5.6-sol', 2: 'gpt-5.6-terra', 3: 'gpt-5.6-luna' },
   windsurf: { 1: 'adaptive', 2: 'adaptive', 3: 'adaptive' },
+  opencode: { 1: 'openai/gpt-5.6-sol', 2: 'openai/gpt-5.6-terra', 3: 'openai/gpt-5.6-luna' },
 };
 const ENFORCEMENT = {
   claude: 'native-agent-model',
@@ -29,10 +30,11 @@ const ENFORCEMENT = {
   gemini: 'native-agent-model',
   codex: 'native-agent-model-and-reasoning-effort',
   windsurf: 'advisory-session',
+  opencode: 'native-agent-model-with-provider-policy-risk',
 };
-const LOCK_REL = path.join('.conductor', 'model-routing.lock');
+const LOCK_REL = '.conductor/model-routing.lock';
 const LOCK_STALE_MS = 30_000;
-const TRANSACTION_REL = path.join('.conductor', 'model-routing-transaction.json');
+const TRANSACTION_REL = '.conductor/model-routing-transaction.json';
 const ROLE_DIRS = {
   claude: ['.claude/agents', '.md'],
   cursor: ['.cursor/agents', '.md'],
@@ -40,6 +42,7 @@ const ROLE_DIRS = {
   gemini: ['.gemini/agents', '.md'],
   codex: ['.codex/agents', '.toml'],
   windsurf: ['.windsurf/workflows', '.md'],
+  opencode: ['.opencode/agents', '.md'],
 };
 
 function configPath(targetAbs) {
@@ -65,9 +68,12 @@ function validateModel(tool, value) {
   }
   const basic = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
   const cursor = /^[A-Za-z0-9][A-Za-z0-9._:/-]*(?:\[[A-Za-z0-9._:=,-]+\])?$/;
-  if (!(tool === 'cursor' ? cursor : basic).test(value)) {
+  const opencode = /^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._:-]*$/;
+  if (!(tool === 'cursor' ? cursor : tool === 'opencode' ? opencode : basic).test(value)) {
     return tool === 'cursor'
       ? 'contains unsupported characters (Cursor allows an optional [key=value] parameter block)'
+      : tool === 'opencode'
+        ? 'must use OpenCode provider/model syntax'
       : 'contains unsupported model-ID characters';
   }
   return null;
@@ -430,7 +436,7 @@ function compileRole(tool, contents, model, tier, rel) {
 function transactionPathAllowed(rel) {
   if (rel === CONFIG_REL) return true;
   if (rel === '.devin/rules/reflector.md') return true;
-  if (/^\.conductor\/manifests\/(claude|cursor|copilot|gemini|codex|windsurf)\.json$/.test(rel)) return true;
+  if (/^\.conductor\/manifests\/(claude|cursor|copilot|gemini|codex|windsurf|opencode)\.json$/.test(rel)) return true;
   return Object.entries(ROLE_DIRS).some(([tool, spec]) => {
     const prefix = `${spec[0]}/`;
     return rel.startsWith(prefix) && rel.endsWith(spec[1]) && /^[A-Za-z0-9-]+$/.test(rel.slice(prefix.length, -spec[1].length));
@@ -562,7 +568,7 @@ function applyConfigurationTransaction(targetAbs, rolePlans, next) {
 }
 
 function recommendationLines(targets) {
-  const display = { claude: 'Claude Code', cursor: 'Cursor', copilot: 'GitHub Copilot', gemini: 'Gemini CLI', codex: 'Codex', windsurf: 'Windsurf' };
+  const display = { claude: 'Claude Code', cursor: 'Cursor', copilot: 'GitHub Copilot', gemini: 'Gemini CLI', codex: 'Codex', windsurf: 'Windsurf', opencode: 'OpenCode' };
   return targets.map((tool) => {
     const r = RECOMMENDED[tool];
     const suffix = tool === 'windsurf' ? ' (session advisory)' : '';

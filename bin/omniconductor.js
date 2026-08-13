@@ -37,7 +37,7 @@ const modelRouting = require('./model-routing.js');
 const pathSafety = require('./path-safety.js');
 
 const ROOT = path.resolve(__dirname, '..');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 
 function readVersion() {
   try {
@@ -616,8 +616,10 @@ async function main(argv) {
           process.stderr.write(`omniconductor: the '${tool}' adapter has no transform.sh\n`);
           return 1;
         }
-        const cmdline = ['bash', transform, dir, ...passthrough];
-        process.stderr.write(`omniconductor [${tool}] → ${cmdline.slice(1).join(' ')}\n`);
+        // The literal 'bash' here was only ever sliced off before printing, but it
+        // read as the interpreter this command uses. It is not: execution goes
+        // through the resolved Git Bash on Windows.
+        process.stderr.write(`omniconductor [${tool}] → ${[transform, dir, ...passthrough].join(' ')}\n`);
         const res = runAdapterTransform(bash.command, tool, targetAbs, transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
         if (res.error || res.status !== 0) {
           const detail = res.error ? res.error.message : `exit ${res.status}`;
@@ -633,8 +635,7 @@ async function main(argv) {
       fail(`the '${target}' adapter has no transform.sh yet (manual install — see docs/MANUAL-INSTALL.md).`);
     }
 
-    const cmdline = ['bash', transform, dir, ...passthrough];
-    process.stderr.write(`omniconductor → ${cmdline.slice(1).join(' ')}\n`);
+    process.stderr.write(`omniconductor → ${[transform, dir, ...passthrough].join(' ')}\n`);
 
     const res = runAdapterTransform(bash.command, target, targetAbs, transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
     if (res.error) {

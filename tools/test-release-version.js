@@ -6,6 +6,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+// Windows maps a bare `bash` to the WSL relay, which spawns and then exits
+// non-zero when no distribution provides /bin/bash. Resolve the same shell the
+// installer uses so this suite is runnable on Windows, not only POSIX.
+const BASH = (require('../bin/installer-platform.js').resolveBash() || { command: 'bash' }).command;
 const { assertPublishable, compareStable } = require('./check-release-version');
 
 const packageVersion = require('../package.json').version;
@@ -47,6 +51,13 @@ for (const requiredGovernanceAsset of [
   'bin/work-contract.js',
   'bin/workspace-contract.js',
   'bin/installer-platform.js',
+  'bin/opencode-config.js',
+  'adapters/opencode/transform.sh',
+  'adapters/opencode/metadata.json',
+  'adapters/opencode/conductor-guards.js',
+  'adapters/opencode/README.md',
+  'adapters/opencode/SUPPORTED-FEATURES.md',
+  'adapters/opencode/transform-spec.md',
   'core/skills/coordinate-work/SKILL.md',
   'core/skills/propose-skill/SKILL.md',
   'docs/AGENT-EVAL-COVERAGE.json',
@@ -61,6 +72,10 @@ for (const requiredGovernanceAsset of [
   'tools/test-assurance-recipes.sh',
   'tools/test-extension-trust.js',
   'tools/test-installer-platform.js',
+  'tools/run-bash.js',
+  'tools/test-install-modes-all.js',
+  'tools/test-hook-python-runtime.js',
+  'tools/test-opencode-adapter.js',
   'tools/test-plugin-packager.js',
   'tools/test-skill-proposals.js',
   'tools/test-work-contract.js',
@@ -91,7 +106,7 @@ fi
 fs.chmodSync(path.join(fakeBin, 'npm'), 0o755);
 
 for (let run = 0; run < 2; run += 1) {
-  const result = spawnSync('bash', ['tools/release-verify-local.sh'], {
+  const result = spawnSync(BASH, ['tools/release-verify-local.sh'], {
     cwd: root,
     encoding: 'utf8',
     env: {

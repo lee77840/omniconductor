@@ -7,6 +7,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+// Windows maps a bare `bash` to the WSL relay, which spawns and then exits
+// non-zero when no distribution provides /bin/bash. Resolve the same shell the
+// installer uses so this suite is runnable on Windows, not only POSIX.
+const BASH = (require('../bin/installer-platform.js').resolveBash() || { command: 'bash' }).command;
 const routing = require('../bin/model-routing.js');
 const adapterDispatch = require('../bin/adapter-dispatch.js');
 
@@ -32,7 +36,7 @@ function files(dir) {
   function walk(current) {
     for (const item of fs.readdirSync(current, { withFileTypes: true })) {
       const abs = path.join(current, item.name);
-      if (item.isDirectory()) walk(abs); else out.push(path.relative(dir, abs));
+      if (item.isDirectory()) walk(abs); else out.push(path.relative(dir, abs).replace(/\\/g, '/'));
     }
   }
   walk(dir);
@@ -45,7 +49,7 @@ function files(dir) {
     assert.strictEqual(source.includes(0), false);
   });
 
-  await check('one confirmation accepts all six recommended mappings', async () => {
+  await check('one confirmation accepts all seven recommended mappings', async () => {
     const answers = [''];
     const output = { value: '', write(chunk) { this.value += chunk; } };
     const choices = await routing.collectChoices(routing.TOOLS, async () => answers.shift(), output);
@@ -71,11 +75,11 @@ function files(dir) {
     assert.match(result.stderr, /model setup required/);
   });
 
-  await check('all six direct adapter entry points fail closed through the CLI setup gate', () => {
+  await check('all seven direct adapter entry points fail closed through the CLI setup gate', () => {
     for (const tool of routing.TOOLS) {
       const dir = temp(`direct-${tool}`);
       const transform = path.join(ROOT, 'adapters', tool, 'transform.sh');
-      const result = spawnSync('bash', [transform, dir, '--no-prompt'], {
+      const result = spawnSync(BASH, [transform, dir, '--no-prompt'], {
         cwd: ROOT, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '' },
       });
       assert.strictEqual(result.status, 2, `${tool}: ${result.stderr}`);
@@ -87,7 +91,7 @@ function files(dir) {
   await check('one-use CLI-dispatch proof rejects forgery and replay without bypassing setup', () => {
     const dir = temp('forged-dispatch-env');
     const transform = path.join(ROOT, 'adapters', 'gemini', 'transform.sh');
-    let result = spawnSync('bash', [transform, dir, '--no-prompt'], {
+    let result = spawnSync(BASH, [transform, dir, '--no-prompt'], {
       cwd: ROOT, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '2' },
     });
     assert.strictEqual(result.status, 2, result.stderr);
@@ -97,7 +101,7 @@ function files(dir) {
     const proofDir = temp('one-use-dispatch-proof');
     const proof = adapterDispatch.createProof('gemini', proofDir);
     try {
-      result = spawnSync('bash', [transform, proofDir, '--no-prompt'], {
+      result = spawnSync(BASH, [transform, proofDir, '--no-prompt'], {
         cwd: ROOT,
         encoding: 'utf8',
         env: { ...process.env, ...proof.env },
@@ -106,7 +110,7 @@ function files(dir) {
       assert.match(result.stderr, /model-routing\.json is missing|valid Gemini Tier routing is required/);
       assert.deepStrictEqual(files(proofDir), []);
 
-      result = spawnSync('bash', [transform, proofDir, '--no-prompt'], {
+      result = spawnSync(BASH, [transform, proofDir, '--no-prompt'], {
         cwd: ROOT,
         encoding: 'utf8',
         env: { ...process.env, ...proof.env },
@@ -154,13 +158,13 @@ function files(dir) {
     for (const tool of routing.TOOLS) {
       const dir = temp(`direct-usage-${tool}`);
       const transform = path.join(ROOT, 'adapters', tool, 'transform.sh');
-      let result = spawnSync('bash', [transform], {
+      let result = spawnSync(BASH, [transform], {
         cwd: dir, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '' },
       });
       assert.strictEqual(result.status, 1, `${tool}: ${result.stderr}`);
       assert.match(result.stderr, /target-project path is required/, tool);
       assert.deepStrictEqual(files(dir), [], tool);
-      result = spawnSync('bash', [transform, '--help'], {
+      result = spawnSync(BASH, [transform, '--help'], {
         cwd: dir, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '' },
       });
       assert.strictEqual(result.status, 0, `${tool}: ${result.stderr}`);
@@ -174,7 +178,7 @@ function files(dir) {
     const dir = path.join(parent, 'project with spaces');
     fs.mkdirSync(dir);
     const transform = path.join(ROOT, 'adapters', 'claude', 'transform.sh');
-    const result = spawnSync('bash', [transform, dir, '--no-prompt', '--accept-model-defaults', '--recipes=tdd'], {
+    const result = spawnSync(BASH, [transform, dir, '--no-prompt', '--accept-model-defaults', '--recipes=tdd'], {
       cwd: ROOT, encoding: 'utf8', env: { ...process.env, CONDUCTOR_CLI_DISPATCH: '' },
     });
     assert.strictEqual(result.status, 0, result.stderr);
@@ -183,7 +187,7 @@ function files(dir) {
     assert.ok(fs.existsSync(path.join(dir, '.conductor', 'manifests', 'claude.json')));
   });
 
-  await check('explicit default acceptance saves once and compiled roles match all six mappings', () => {
+  await check('explicit default acceptance saves once and compiled roles match all seven mappings', () => {
     const dir = temp('defaults');
     const result = run(['init', '--target=all', dir, '--no-prompt', '--accept-model-defaults']);
     assert.strictEqual(result.status, 0, result.stderr);
@@ -203,6 +207,8 @@ function files(dir) {
     assert.match(fs.readFileSync(path.join(dir, '.codex/agents/helper.toml'), 'utf8'), /^model = "gpt-5\.6-terra"$/m);
     assert.match(fs.readFileSync(path.join(dir, '.codex/agents/helper.toml'), 'utf8'), /^model_reasoning_effort = "medium"$/m);
     assert.match(fs.readFileSync(path.join(dir, '.codex/agents/utility.toml'), 'utf8'), /^model = "gpt-5\.6-luna"$/m);
+    assert.match(fs.readFileSync(path.join(dir, '.opencode/agents/planner.md'), 'utf8'), /^model: openai\/gpt-5\.6-sol$/m);
+    assert.match(fs.readFileSync(path.join(dir, '.opencode/agents/utility.md'), 'utf8'), /^model: openai\/gpt-5\.6-luna$/m);
     assert.match(fs.readFileSync(path.join(dir, '.codex/agents/utility.toml'), 'utf8'), /^model_reasoning_effort = "low"$/m);
     assert.match(fs.readFileSync(path.join(dir, '.windsurf/workflows/planner.md'), 'utf8'), /select \*\*Adaptive\*\*/);
   });
@@ -370,6 +376,10 @@ function files(dir) {
   });
 
   await check('init holds the routing lock through adapter writes while reconfiguration waits', async () => {
+    // POSIX-only: this drives a PATH-shimmed bash stub with a #!/bin/bash
+    // shebang, which Windows cannot execute. The sibling preflight test
+    // above already carries the same guard.
+    if (process.platform === 'win32') return;
     const dir = temp('init-configure-race');
     let result = run(['models', 'configure', '--target=gemini', dir, '--no-prompt', '--accept-model-defaults']);
     assert.strictEqual(result.status, 0, result.stderr);
@@ -424,7 +434,7 @@ function files(dir) {
   await check('adapter-specific validation rejects injection and unsupported Windsurf pins before writes', async () => {
     for (const [tool, value] of [
       ['claude', 'bad/model'], ['codex', '$(touch-x)'], ['gemini', 'bad value'],
-      ['copilot', 'bad\nmodel'], ['cursor', '../../bad'], ['windsurf', 'gpt-5.6-sol'],
+      ['copilot', 'bad\nmodel'], ['cursor', '../../bad'], ['windsurf', 'gpt-5.6-sol'], ['opencode', 'missing-provider'],
     ]) {
       const dir = temp(`invalid-${tool}`);
       const choices = { [tool]: { 1: value, 2: routing.RECOMMENDED[tool][2], 3: routing.RECOMMENDED[tool][3] } };
@@ -481,6 +491,10 @@ function files(dir) {
   });
 
   await check('Cursor catalog validation accepts a supported base model with a native parameter block', async () => {
+    // POSIX-only: the catalog probe needs an executable named `agent` on
+    // PATH, and this stub is a #!/bin/sh script with no PATHEXT extension,
+    // so Windows cannot run it and the catalog degrades to syntax-only.
+    if (process.platform === 'win32') return;
     const bin = temp('cursor-catalog-bin');
     const target = temp('cursor-catalog-target');
     const agent = path.join(bin, 'agent');
@@ -503,7 +517,7 @@ function files(dir) {
     assert.strictEqual(config.adapters.cursor.tiers['1'].resolved, 'claude-opus-4-8[effort=high,context=300k]');
     let result = run(['init', '--target=cursor', target, '--no-prompt']);
     assert.strictEqual(result.status, 0, result.stderr);
-    result = spawnSync('bash', [path.join(ROOT, 'tools/validate-adapter-output.sh'), target, 'cursor'], { cwd: ROOT, encoding: 'utf8' });
+    result = spawnSync(BASH, [path.join(ROOT, 'tools/validate-adapter-output.sh'), target, 'cursor'], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
   });
 

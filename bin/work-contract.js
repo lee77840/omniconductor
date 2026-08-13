@@ -12,7 +12,7 @@ const RECORD_LIMIT = 128 * 1024;
 const DIFF_LIMIT = 16 * 1024 * 1024;
 const FILE_HASH_LIMIT = 64 * 1024 * 1024;
 const LOCK_STALE_MS = 30_000;
-const TOOLS = new Set(['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'human']);
+const TOOLS = new Set(['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode', 'human']);
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,79}$/;
 const SESSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$/;
 

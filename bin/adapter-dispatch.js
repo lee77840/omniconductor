@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'omniconductor.js');
 const PREFIX = 'omniconductor-dispatch-';
 const MAX_AGE_MS = 60_000;
-const TOOLS = new Set(['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf']);
+const TOOLS = new Set(['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode']);
 
 function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');

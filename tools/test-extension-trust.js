@@ -18,7 +18,7 @@ function test(name, fn) {
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-extension-trust-'));
 try {
-  test('all six metadata contracts validate', () => {
+  test('all seven metadata contracts validate', () => {
     for (const tool of trust.TOOLS) {
       const metadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'adapters', tool, 'metadata.json'), 'utf8'));
       assert.deepStrictEqual(trust.validateExtensionTrustMetadata(metadata), []);

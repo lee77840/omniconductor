@@ -18,30 +18,30 @@ function test(name, fn) {
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-plugin-packager-'));
 try {
-  test('all six package metadata contracts validate', () => {
+  test('all seven package metadata contracts validate', () => {
     for (const tool of packager.TOOLS) {
       const metadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'adapters', tool, 'metadata.json'), 'utf8'));
       assert.deepStrictEqual(packager.validateMetadata(metadata), [], tool);
     }
   });
 
-  test('dry-run returns six plans without writing', () => {
+  test('dry-run returns seven plans without writing', () => {
     const output = path.join(sandbox, 'dry-run');
     const result = packager.build(output, packager.TOOLS, { dryRun: true });
-    assert.strictEqual(result.packages.length, 6);
+    assert.strictEqual(result.packages.length, 7);
     assert(!fs.existsSync(output));
   });
 
   test('strict-native fails closed before output for fallback adapters', () => {
     const output = path.join(sandbox, 'strict');
-    assert.throws(() => packager.build(output, packager.TOOLS, { strictNative: true }), /cursor, windsurf/);
+    assert.throws(() => packager.build(output, packager.TOOLS, { strictNative: true }), /cursor, windsurf, opencode/);
     assert(!fs.existsSync(output));
   });
 
   test('all packages preserve native/fallback boundaries and integrity inventory', () => {
     const output = path.join(sandbox, 'packages');
     const result = packager.build(output, packager.TOOLS);
-    assert.strictEqual(result.packages.length, 6);
+    assert.strictEqual(result.packages.length, 7);
     const manifests = {
       claude: '.claude-plugin/plugin.json',
       copilot: 'plugin.json',

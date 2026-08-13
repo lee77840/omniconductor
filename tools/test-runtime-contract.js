@@ -7,6 +7,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+// Windows maps a bare `bash` to the WSL relay, which spawns and then exits
+// non-zero when no distribution provides /bin/bash. Resolve the same shell the
+// installer uses so this suite is runnable on Windows, not only POSIX.
+const BASH = (require('../bin/installer-platform.js').resolveBash() || { command: 'bash' }).command;
 
 const ROOT = path.resolve(__dirname, '..');
 const runtime = require(path.join(ROOT, 'bin', 'runtime-contract.js'));
@@ -67,8 +71,8 @@ function treeDigest(root) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const abs = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(abs);
-      else if (entry.isFile()) files.push(path.relative(root, abs));
-      else if (entry.isSymbolicLink()) files.push(`${path.relative(root, abs)}->${fs.readlinkSync(abs)}`);
+      else if (entry.isFile()) files.push(path.relative(root, abs).replace(/\\/g, '/'));
+      else if (entry.isSymbolicLink()) files.push(`${path.relative(root, abs).replace(/\\/g, '/')}->${fs.readlinkSync(abs)}`);
     }
   };
   walk(root);
@@ -81,7 +85,7 @@ function treeDigest(root) {
   return hash.digest('hex');
 }
 
-check('all six metadata runtime contracts validate', () => {
+check('all seven metadata runtime contracts validate', () => {
   for (const tool of runtime.TOOLS) {
     assert.deepStrictEqual(runtime.validateRuntimeContract(runtime.loadMetadata(tool)), [], tool);
   }
@@ -251,7 +255,7 @@ check('runtime-only live verification mode is read-only', () => {
   const before = sha256(meta);
   const runtimeBin = fs.mkdtempSync(path.join(base, 'runtime-only-bin-'));
   fs.symlinkSync(process.execPath, path.join(runtimeBin, 'node'));
-  const result = spawnSync('bash', ['tools/live-verify.sh', '--runtime-only', '--tool=copilot'], {
+  const result = spawnSync(BASH, ['tools/live-verify.sh', '--runtime-only', '--tool=copilot'], {
     cwd: ROOT,
     encoding: 'utf8',
     env: { ...process.env, PATH: `${runtimeBin}:/usr/bin:/bin` },

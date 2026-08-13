@@ -15,8 +15,8 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const REGISTRY_PATH = path.join(ROOT, 'core', 'hooks', 'registry.json');
-const ADAPTERS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
-const SHAPES = new Set(['flat', 'nested']);
+const ADAPTERS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
+const SHAPES = new Set(['flat', 'nested', 'plugin']);
 const FEATURES = new Set(['baseline', 'self-improvement', 'output-cap', 'loop-engineering', 'git-hygiene']);
 
 function isObject(value) {
@@ -55,7 +55,7 @@ function validateRegistry(registry) {
     if (!isObject(config)) continue;
     at(typeof config.config_path === 'string' && config.config_path.length > 0,
       `adapters.${adapter}.config_path must be non-empty`);
-    at(SHAPES.has(config.shape), `adapters.${adapter}.shape must be flat|nested`);
+    at(SHAPES.has(config.shape), `adapters.${adapter}.shape must be flat|nested|plugin`);
     at(config.root_defaults === undefined || isObject(config.root_defaults),
       `adapters.${adapter}.root_defaults must be an object`);
   }
@@ -92,13 +92,13 @@ function validateRegistry(registry) {
       at(typeof target.event === 'string' && target.event.length > 0,
         `${prefix}.targets.${adapter}.event must be non-empty`);
       const shape = registry.adapters[adapter] && registry.adapters[adapter].shape;
-      if (shape === 'flat') {
+      if (shape === 'flat' || shape === 'plugin') {
         at(isObject(target.handler), `${prefix}.targets.${adapter}.handler must be an object`);
         if (isObject(target.handler)) {
           at(commandValues(target.handler).length > 0,
             `${prefix}.targets.${adapter}.handler must declare an executable command`);
         }
-        at(target.group === undefined, `${prefix}.targets.${adapter} cannot use group for flat shape`);
+        at(target.group === undefined, `${prefix}.targets.${adapter} cannot use group for ${shape} shape`);
       } else if (shape === 'nested') {
         at(isObject(target.group) && Array.isArray(target.group.hooks),
           `${prefix}.targets.${adapter}.group.hooks must be an array`);
@@ -226,6 +226,9 @@ function composeConfig(registry, adapter, input, featureNames, configPath = '<co
   }
 
   const adapterConfig = registry.adapters[adapter];
+  if (adapterConfig.shape === 'plugin') {
+    throw new Error(`${adapter} uses a source-verified native plugin, not JSON hook composition`);
+  }
   const settings = deepClone(input);
   validateEventArrays(settings, adapterConfig, configPath);
   for (const [key, value] of Object.entries(adapterConfig.root_defaults || {})) {

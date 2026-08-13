@@ -6,6 +6,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+// Windows maps a bare `bash` to the WSL relay, which spawns and then exits
+// non-zero when no distribution provides /bin/bash. Resolve the same shell the
+// installer uses so this suite is runnable on Windows, not only POSIX.
+const BASH = (require('../bin/installer-platform.js').resolveBash() || { command: 'bash' }).command;
 const {
   ADAPTERS,
   composeConfig,
@@ -84,7 +88,7 @@ function adapterInstallArgs(adapter, target, uninstall = false) {
 
 const registry = readRegistry();
 
-test('registry validates all six first-class adapters', () => {
+test('registry validates all seven first-class adapters', () => {
   assert.deepStrictEqual(Object.keys(registry.adapters).sort(), [...ADAPTERS].sort());
   assert(registry.registrations.some((item) => item.id === 'commit-current-work'));
   assert(registry.registrations.some((item) => item.id === 'commit-test-coverage'));
@@ -140,11 +144,11 @@ for (const adapter of ['cursor', 'copilot', 'gemini', 'codex', 'windsurf']) {
     const original = `${JSON.stringify(configFixture(adapter), null, adapter === 'cursor' ? 4 : 2)}\n`;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, original);
-    const install = run('bash', adapterInstallArgs(adapter, target));
+    const install = run(BASH, adapterInstallArgs(adapter, target));
     assert.strictEqual(install.status, 0, install.stderr || install.stdout);
     const merged = JSON.parse(fs.readFileSync(file, 'utf8'));
     assert.deepStrictEqual(merged.customSetting, { keep: true });
-    const uninstall = run('bash', adapterInstallArgs(adapter, target, true));
+    const uninstall = run(BASH, adapterInstallArgs(adapter, target, true));
     assert.strictEqual(uninstall.status, 0, uninstall.stderr || uninstall.stdout);
     assert.strictEqual(fs.readFileSync(file, 'utf8'), original);
   });
@@ -156,7 +160,7 @@ for (const adapter of ['cursor', 'copilot', 'gemini', 'codex', 'windsurf']) {
     const original = '{"custom":"keep","hooks":[]}\n';
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, original);
-    const install = run('bash', adapterInstallArgs(adapter, target));
+    const install = run(BASH, adapterInstallArgs(adapter, target));
     assert.strictEqual(install.status, 1, install.stderr || install.stdout);
     assert.strictEqual(fs.readFileSync(file, 'utf8'), original);
     const files = [];
@@ -164,7 +168,7 @@ for (const adapter of ['cursor', 'copilot', 'gemini', 'codex', 'windsurf']) {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const absolute = path.join(dir, entry.name);
         if (entry.isDirectory()) visit(absolute);
-        else files.push(path.relative(target, absolute));
+        else files.push(path.relative(target, absolute).replace(/\\/g, '/'));
       }
     };
     visit(target);
@@ -213,14 +217,14 @@ test('native hook-directory user handlers survive install, reinstall, and uninst
     fs.writeFileSync(configFile, original);
 
     for (let pass = 0; pass < 2; pass += 1) {
-      const install = run('bash', adapterInstallArgs(adapter, target));
+      const install = run(BASH, adapterInstallArgs(adapter, target));
       assert.strictEqual(install.status, 0, `${adapter} pass ${pass + 1}: ${install.stderr || install.stdout}`);
       const merged = JSON.parse(fs.readFileSync(configFile, 'utf8'));
       assert(containsExactString(merged, fixture.command), `${adapter} removed the user hook registration`);
       assert(fs.existsSync(scriptFile), `${adapter} removed the user hook script`);
     }
 
-    const uninstall = run('bash', adapterInstallArgs(adapter, target, true));
+    const uninstall = run(BASH, adapterInstallArgs(adapter, target, true));
     assert.strictEqual(uninstall.status, 0, uninstall.stderr || uninstall.stdout);
     assert.strictEqual(fs.readFileSync(configFile, 'utf8'), original, adapter);
     assert(fs.existsSync(scriptFile), `${adapter} removed the user hook script on uninstall`);
@@ -236,10 +240,10 @@ test('fresh uninstall removes native guard directories without touching saved ro
   for (const [adapter, hookDir] of Object.entries(hookDirs)) {
     const target = path.join(TMP, `fresh-uninstall-${adapter}`);
     fs.mkdirSync(target, { recursive: true });
-    const install = run('bash', adapterInstallArgs(adapter, target));
+    const install = run(BASH, adapterInstallArgs(adapter, target));
     assert.strictEqual(install.status, 0, install.stderr || install.stdout);
     assert(fs.existsSync(path.join(target, hookDir)), adapter);
-    const uninstall = run('bash', adapterInstallArgs(adapter, target, true));
+    const uninstall = run(BASH, adapterInstallArgs(adapter, target, true));
     assert.strictEqual(uninstall.status, 0, uninstall.stderr || uninstall.stdout);
     assert(!fs.existsSync(path.join(target, hookDir)), adapter);
     assert(fs.existsSync(path.join(target, '.conductor/model-routing.json')), adapter);
@@ -255,7 +259,7 @@ test('Copilot camelCase PreToolUse payload emits a native ask decision', () => {
   for (const name of ['one.ts', 'two.ts', 'three.ts']) fs.writeFileSync(path.join(repo, name), 'export {};\n');
   assert.strictEqual(run('git', ['add', '.'], { cwd: repo }).status, 0);
   const payload = JSON.stringify({ toolName: 'bash', toolArgs: { command: 'git commit -m fixture' } });
-  const result = run('bash', [path.join(ROOT, 'core/hooks/pretool-commit-current-work-check.sh.template')], {
+  const result = run(BASH, [path.join(ROOT, 'core/hooks/pretool-commit-current-work-check.sh.template')], {
     cwd: repo,
     env: { CONDUCTOR_HOOK_DIALECT: 'copilot' },
     input: payload,
@@ -273,7 +277,7 @@ test('Codex PreToolUse payload emits additionalContext without blocking', () => 
   fs.writeFileSync(path.join(repo, 'feature-service.ts'), 'export {};\n');
   assert.strictEqual(run('git', ['add', '.'], { cwd: repo }).status, 0);
   const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit -m fixture' } });
-  const result = run('bash', [path.join(ROOT, 'core/hooks/pretool-commit-test-coverage-check.sh.template')], {
+  const result = run(BASH, [path.join(ROOT, 'core/hooks/pretool-commit-test-coverage-check.sh.template')], {
     cwd: repo,
     env: { CONDUCTOR_HOOK_DIALECT: 'codex' },
     input: payload,
@@ -291,7 +295,7 @@ test('review-stop guard fails open on every runtime retry signal', () => {
     const payload = dialect === 'cursor'
       ? JSON.stringify({ loop_count: 1, status: 'completed' })
       : JSON.stringify({ stopHookActive: true });
-    const result = run('bash', [script], {
+    const result = run(BASH, [script], {
       env: { CONDUCTOR_HOOK_DIALECT: dialect },
       input: payload,
     });
@@ -330,7 +334,7 @@ printf '%s\\n' '[{"url":"https://example.invalid/pr/987654321","number":98765432
   };
   for (const [dialect, [key, value]] of Object.entries(expected)) {
     try { fs.unlinkSync(flag); } catch { /* previous dialect */ }
-    const result = run('bash', [script], {
+    const result = run(BASH, [script], {
       cwd: fixture,
       env: {
         CONDUCTOR_HOOK_DIALECT: dialect,

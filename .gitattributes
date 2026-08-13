@@ -1,0 +1,33 @@
+# CONDUCTOR line-ending policy.
+#
+# Windows checkouts default to core.autocrlf=true, which rewrites every tracked
+# text file to CRLF. That is not cosmetic here:
+#
+#   - The six adapters are POSIX shell scripts run through Git Bash, and hook
+#     templates are emitted into adopter projects as executable .sh files.
+#   - Role compilation rewrites managed files with line-anchored patterns such
+#     as /^model:\s*\S+\s*$/m. Against CRLF the trailing \s* consumes the \r
+#     while the replacement does not restore it, so one line silently loses its
+#     carriage return, the file gains mixed endings, and its checksum no longer
+#     matches what the transaction recorded.
+#
+# Normalizing to LF in the working tree on every platform removes that class at
+# the source rather than teaching each rewrite to preserve whichever ending it
+# happens to find.
+
+* text=auto eol=lf
+
+# Explicit for the surfaces that must stay byte-identical across platforms:
+# adapters, emitted hook templates, and every shipped instruction/config file.
+*.sh        text eol=lf
+*.template  text eol=lf
+*.js        text eol=lf
+*.ts        text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.txt       text eol=lf
+*.csv       text eol=lf
+.gitignore  text eol=lf
+
+*.png binary

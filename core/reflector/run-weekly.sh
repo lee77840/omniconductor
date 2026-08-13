@@ -10,7 +10,7 @@
 # a cloud scheduler runs on a fresh clone and cannot see un-committed .conductor/.
 #
 # Env:
-#   CONDUCTOR_REFLECT_CLI   force a CLI (claude|codex|gemini|cursor-agent|copilot|devin)
+#   CONDUCTOR_REFLECT_CLI   force a CLI (claude|codex|gemini|cursor-agent|copilot|devin|opencode)
 #   CONDUCTOR_REFLECT_DRYRUN=1  print the chosen CLI + exit (do not run)
 set -u
 
@@ -25,7 +25,7 @@ CLI="${CONDUCTOR_REFLECT_CLI:-}"
 if [ -n "$CLI" ]; then
   command -v "$CLI" >/dev/null 2>&1 || { echo "conductor-reflect: CONDUCTOR_REFLECT_CLI='$CLI' is not on PATH" >&2; exit 0; }
 else
-  for c in claude codex gemini cursor-agent copilot devin; do
+  for c in claude codex gemini cursor-agent copilot devin opencode; do
     if command -v "$c" >/dev/null 2>&1; then CLI="$c"; break; fi
   done
 fi
@@ -50,5 +50,6 @@ case "$CLI" in
   cursor-agent) exec cursor-agent -p --force "$PROMPT" ;;
   copilot)      exec copilot -p "$PROMPT" --allow-tool=write --no-ask-user ;;
   devin)        exec devin -p "$PROMPT" ;;
+  opencode)     exec opencode run "$PROMPT" ;;
   *)            echo "conductor-reflect: unknown CLI '$CLI'" >&2; exit 0 ;;
 esac

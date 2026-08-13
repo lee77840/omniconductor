@@ -305,6 +305,26 @@ docs/                                       # (same as above)
 
 ---
 
+## OpenCode stable v1 (T2)
+
+```text
+opencode.json
+.opencode/rules/*.md
+.opencode/agents/*.md
+.opencode/plugins/conductor-guards.js
+.opencode/skills/*/SKILL.md
+.opencode/commands/reflect.md              # self-improvement only
+```
+
+The adapter uses `opencode.json` `instructions` rather than root `AGENTS.md`, so it
+does not collide with Codex ownership. Regular JSON is semantically merged; JSONC is
+refused before writes. Eight native subagents use current `permission` frontmatter and
+saved `provider/model` values. The v1 plugin enforces two commit preconditions;
+review-before-stop and automatic Reflector capture remain explicit fallbacks. OpenCode
+v2 beta is a separate breaking contract and is not supported.
+
+---
+
 ## Multi-tool coexistence
 
 All adapters use non-overlapping paths:
@@ -315,7 +335,9 @@ All adapters use non-overlapping paths:
 - Gemini → `GEMINI.md` + `.gemini/`
 - Codex → `.codex/`
 - Windsurf → `.windsurf/` + `.windsurfrules`
+- OpenCode → `.opencode/` + `opencode.json` (never owns root `AGENTS.md`)
 
-You can install ALL six into the same project. They will not collide. The `docs/` directory is shared (same templates, same intent).
+You can install all seven into the same project. They do not share an adapter-owned
+path. The `docs/` directory is intentionally shared (same templates, same intent).
 
 This is intentional: a contributor using Cursor, a maintainer using Claude Code, and a CI bot using Copilot can all read the SAME spec docs and follow the SAME workflow, each within their preferred tool.

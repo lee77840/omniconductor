@@ -66,6 +66,7 @@ the exact project-relative lock path and safe next action.
 | Cursor | `gpt-5.6-sol` | `gpt-5.6-terra` | `gpt-5.6-luna` | Native agent model; provider fallback remains possible |
 | GitHub Copilot | `gpt-5.6-sol` | `gpt-5.6-terra` | `gpt-5.6-luna` | Native agent model; account/policy remains authoritative |
 | Windsurf | `adaptive` | `adaptive` | `adaptive` | Advisory session requirement only |
+| OpenCode stable v1 | `openai/gpt-5.6-sol` | `openai/gpt-5.6-terra` | `openai/gpt-5.6-luna` | Native agent `provider/model`; provider policy authoritative |
 
 Recommendations are defaults, not a requirement to use three different model
 families. A project may save the same exact model for multiple tiers—for example,
@@ -81,6 +82,10 @@ local provider/account catalog when a safe supported CLI catalog is available.
 Copilot availability can vary by plan, client, and
 organization policy, so a syntactically valid saved choice is not represented as
 account-verified when no catalog is exposed. `doctor` reports this distinction.
+
+OpenCode validates the `provider/model` shape and emits it into native agent
+frontmatter. `opencode debug agent <name>` proves local resolution; authenticated
+provider availability remains OpenCode policy and is not inferred from syntax.
 
 Windsurf workflows have no model field and expose no project API for reading the
 current Cascade selector. CONDUCTOR therefore writes an explicit “select
@@ -123,7 +128,7 @@ pauses and asks the user to run `omniconductor models configure`.
 
 Hooks and instruction files cannot portably capture a structured answer, write
 all role files, and hot-reload the role registry in the same original prompt on
-all six tools. When a tool does not document hot reload, the main thread may
+all seven tools. When a tool does not document hot reload, the main thread may
 continue the original task, but newly generated role routing starts after the
 documented reload or next session.
 
@@ -167,3 +172,5 @@ documented reload or next session.
   [CLI parameters](https://docs.cursor.com/en/cli/reference/parameters)
 - [Windsurf workflows](https://docs.windsurf.com/windsurf/cascade/workflows) and
   [Cascade](https://docs.windsurf.com/windsurf/cascade/cascade)
+- [OpenCode agents](https://opencode.ai/docs/agents/) and
+  [models](https://opencode.ai/docs/models/)

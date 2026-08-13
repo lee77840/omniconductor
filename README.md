@@ -2,7 +2,7 @@
 
 **One workflow framework, every coding agent.**
 
-Write your project's rules, workflow, and discipline ONCE. Install into any AI coding tool you use — Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf — and get the same Plan → Architecture → Tasks → Implementation → Review → Spec discipline everywhere.
+Write your project's rules, workflow, and discipline ONCE. Install into any AI coding tool you use — Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf, or OpenCode — and get the same Plan → Architecture → Tasks → Implementation → Review → Spec discipline everywhere.
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
@@ -19,7 +19,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 ## Why OMNICONDUCTOR stands out
 
-**6 adapters · 8 baseline roles · 5 universal rules · 17 opt-in recipes · 5 portable skills · 15 metadata gates**
+**7 adapters · 8 baseline roles · 5 universal rules · 17 opt-in recipes · 5 portable skills · 15 metadata gates**
 
 OMNICONDUCTOR brings **AI agent governance**, **multi-agent orchestration**,
 cross-tool **hooks**, portable **Agent Skills**, **MCP security auditing**, saved
@@ -29,7 +29,7 @@ into one reversible installer.
 
 | Key feature | What makes it different |
 |---|---|
-| **Define once, deploy to six coding agents** | One universal policy layer compiles into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, and Windsurf project formats. You do not maintain six drifting rule sets. |
+| **Define once, deploy to seven coding agents** | One universal policy layer compiles into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf, and OpenCode project formats. You do not maintain seven drifting rule sets. |
 | **Native-first enforcement without fake parity** | Each adapter emits the strongest contract verified for that product—native hooks where they exist, explicit rule fallback where they do not. The generated compatibility matrix says exactly which is which. |
 | **Token economy as a system, not a prompt tip** | Large-read prevention, an 8,000-token tool-result cap where store-time control exists, lazy/scoped instructions, bounded dispatches, prompt-cache discipline, context editing guidance, and local before/after measurement work together. [한국어 상세 설명](./docs/TOKEN-ECONOMY-KO.md). |
 | **Evidence instead of “it should work”** | `eval coverage`, runtime contracts, doctor checks, M1–M15 metadata gates, generated docs, adversarial regressions, and opt-in live probes separate emitted, contract-tested, and live-verified claims. |
@@ -45,9 +45,9 @@ npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-de
 The promise is not identical mechanics everywhere. It is **one portable discipline,
 compiled to the strongest verified native behavior each tool actually supports**.
 
-> **Status (v1.5.1 — 2026-08-11)**: All 6 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, and **Windsurf / Devin Desktop**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add the separate `propose-skill` and `coordinate-work` procedures. These do not change roles, Tier definitions, or saved routing. Output is emit-verified on all six; **Claude Code + Codex are additionally live-verified** by the automated headless probe (`tools/live-verify.sh`), while current per-tool status and generated runtime contracts remain in [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md). Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform; authenticated probes remain explicit. Windsurf model routing is advisory-session because its workflow schema cannot pin the Cascade selector. Manual install ([`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)) remains a fallback.
+> **Status (v1.6.0 — 2026-08-13)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code + Codex are additionally live-verified** by the automated headless probe, while OpenCode's local runtime discovery is verified separately and its authenticated rule probe remains explicit. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
 >
-> **New in 1.5.1**: README and comparison references now expose the complete 17-recipe catalog, and a source-derived gate rejects stale counts, missing recipes, or invented recipe names across current public documentation. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
+> **New in 1.6.0**: `--target=opencode` uses native v1 instructions, subagents, permissions, skills, commands, and a JavaScript commit-guard plugin without taking ownership of Codex's root `AGENTS.md`. Existing `opencode.json` is merged; JSONC is refused before writes; v2 beta and unverified review-stop/trajectory behavior are not overclaimed. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
 > **Publication boundary**: development is maintained in a private source repository; users receive a deliberately filtered public mirror and npm package. The private source repository must never be made public. See [`docs/PUBLICATION-POLICY.md`](./docs/PUBLICATION-POLICY.md).
 >
@@ -79,18 +79,18 @@ compiled to the strongest verified native behavior each tool actually supports**
 
 ### 무엇
 
-`OMNICONDUCTOR` 는 6개의 AI 코딩 도구 (Claude Code / Cursor / GitHub Copilot / Gemini CLI / Codex / Windsurf) 모두에서 동일한 워크플로 + 룰 + 문서 템플릿을 강제하는 프레임워크입니다.
+`OMNICONDUCTOR` 는 7개의 AI 코딩 도구 (Claude Code / Cursor / GitHub Copilot / Gemini CLI / Codex / Windsurf / OpenCode stable v1) 모두에서 동일한 워크플로 + 룰 + 문서 템플릿을 배포하는 프레임워크입니다.
 
 핵심 아이디어:
 
 - **Layer 1 (`core/`) — Universal**: 도구 독립적인 워크플로 정의, 룰 텍스트, 온디맨드 baseline 스킬 3개와 `self-improvement` 전용 proposal 스킬 1개, 문서 템플릿, 4-type 메모리 패턴
-- **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/rules/*.mdc` / `.github/instructions/*.instructions.md` / `GEMINI.md` / `AGENTS.md` / `.windsurfrules`)
-- **Layer 3 — Tool-native (정직한 한계)**: full/strict 설치는 Claude·Cursor·Copilot·Gemini·Codex의 8개 네이티브 역할 파일을 생성하고, Windsurf에는 확인된 커스텀 에이전트 파일 계약 대신 8개 역할 워크플로를 설치한다. Claude는 전체 가드 훅, Codex는 검증된 `PreToolUse`/`Stop` 부분집합, 나머지는 검증된 Reflector 훅만 생성한다. 지원되지 않는 계약은 가짜로 폴리필하지 않는다 (ADR-004 / ADR-045/049).
+- **Layer 2 (`adapters/<tool>/`) — Adapter**: `core/` 의 universal 자료를 각 도구의 네이티브 포맷으로 변환 (`.claude/` / `.cursor/` / `.github/` / `.gemini/` / `.codex/` / `.windsurf`·`.devin/` / `.opencode/`)
+- **Layer 3 — Tool-native (정직한 한계)**: full/strict 설치는 일곱 도구 모두에 8개 역할을 가장 강한 검증 포맷으로 생성한다. 훅은 각 도구의 확인된 decision/continuation 계약까지만 사용한다. OpenCode는 커밋 가드가 네이티브이고 review-stop은 규칙 fallback이며, v2 beta는 지원으로 포장하지 않는다 (ADR-004 / ADR-045/049/072).
 
 ### 왜 OMNICONDUCTOR인가
 
 - **도구를 바꿔도 규율은 유지됩니다.** 프로젝트의 Plan·Spec·Review·Token
-  Economy·Tier 정책을 한 번 정의하고 여섯 adapter가 각 도구의 프로젝트 형식으로
+  Economy·Tier 정책을 한 번 정의하고 일곱 adapter가 각 도구의 프로젝트 형식으로
   변환합니다.
 - **지원되지 않는 기능을 지원된다고 포장하지 않습니다.** 네이티브 훅, 설정 기반
   강제, 규칙 fallback을 구분하고 `eval coverage`와 compatibility matrix에서 근거를
@@ -101,7 +101,7 @@ compiled to the strongest verified native behavior each tool actually supports**
 - **에이전트가 많아질수록 필요한 운영 계약을 포함합니다.** 역할·모델 라우팅뿐
   아니라 동시 작업 scope claim, exact-snapshot handoff, workspace drift 진단까지
   같은 CLI에서 제공합니다.
-- **주장을 테스트 가능한 증거로 바꿉니다.** 여섯 adapter install mode, runtime
+- **주장을 테스트 가능한 증거로 바꿉니다.** 일곱 adapter install mode, runtime
   compatibility, hook contract, package boundary, generated docs와 adversarial case를
   전체 회귀 체인에 연결합니다.
 - **검증 불가를 PASS로 포장하지 않습니다.** `evidence validate/check`는 통과·실패뿐
@@ -179,6 +179,25 @@ bash ~/conductor/adapters/claude/transform.sh . \
 # 5. Claude Code 재시작 → /agents 로 8개 기본 역할 확인
 ```
 
+OpenCode에서는 CONDUCTOR 소스 폴더로 이동할 필요가 없습니다. 적용할 프로젝트
+워크스페이스에서 OpenCode를 열고 아래처럼 요청하면 됩니다.
+
+> npm의 최신 `omniconductor`를 사용해 이 프로젝트에 OpenCode stable v1 어댑터를
+> dry-run으로 검토한 뒤 설치하고, `doctor`와 OpenCode config/agent/skill 발견 상태를
+> 검증해줘. 기존 `opencode.json`과 사용자 파일은 보존하고, JSONC가 있으면 중단해줘.
+
+직접 실행할 명령은 다음과 같습니다.
+
+```bash
+cd /path/to/your-project
+npx omniconductor@latest init --target=opencode .
+npx omniconductor@latest doctor .
+opencode debug config
+```
+
+`C:\c\conductor` 같은 경로는 저장소를 직접 복제해 개발할 때의 예시일 뿐,
+npm 사용자에게 필요한 고정 경로가 아닙니다.
+
 ### 설치 방법 (3가지)
 
 - **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions` · `eval coverage` · `evidence validate/check` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
@@ -250,13 +269,13 @@ guard hooks, model routing, work coordination, Reflector와 reversible uninstall
 
 ### What
 
-OMNICONDUCTOR enforces the same workflow, rules, and documentation discipline across **six AI coding tools**: Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf.
+OMNICONDUCTOR enforces the same workflow, rules, and documentation discipline across **seven AI coding tools**: Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf, and OpenCode stable v1.
 
 Three layers:
 
 - **Layer 1 (`core/`) — Universal**: tool-agnostic workflow definitions, rule text, three on-demand skills, doc templates, and the 4-type memory pattern.
 - **Layer 2 (`adapters/<tool>/`) — Adapter**: per-tool transform script that reads `core/` and writes tool-native files.
-- **Layer 3 — Tool-native (honest limits)**: full/strict installs emit eight native role files for Claude, Cursor, Copilot, Gemini, and Codex. Windsurf receives eight native role workflows because no project-local custom-agent profile contract has been verified. Within the three-policy portable guard set, the hook compiler emits all three guards for Claude, Copilot, and Codex, review continuation for Cursor/Gemini, and explicit rule fallbacks where a verified native decision is absent. Full Codex also retains its existing session-state Stop guard; full Gemini also retains its output-cap BeforeTool hook (ADR-004 / ADR-045/049/051/056).
+- **Layer 3 — Tool-native (honest limits)**: full/strict installs emit eight role entries in each tool's strongest verified native form. Within the three-policy portable guard set, OpenCode v1 receives the two verified commit guards and keeps review-before-stop as rule fallback. Existing adapters retain their prior contracts; OpenCode v2 beta is excluded (ADR-004 / ADR-045/049/051/056/072).
 
 ### Why this exists
 
@@ -307,7 +326,7 @@ Other tools: see [Install paths](#install-paths). Windows: see [Cross-platform](
 Separate two things (per [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md), re-verified against first-party sources 2026-07-04, ADR-031):
 
 - **Tool capability** — capability varies by product and version; the matrix records only verified native surfaces.
-- **OMNICONDUCTOR emission** — every full/strict adapter emits a role entry in the strongest verified native form. Within P2's three portable policies, hook coverage is compiled per verified contract: three guards on Claude/Copilot/Codex, review continuation on Cursor/Gemini, and rule fallback on Windsurf. This is not the total hook count: full Codex also emits its session-state Stop guard, and full Gemini also emits output-cap.
+- **OMNICONDUCTOR emission** — every full/strict adapter emits a role entry in the strongest verified native form. Hook coverage is compiled per verified contract: OpenCode v1 adds two native commit guards and uses rule fallback for review-before-stop. Existing six-tool enforcement is unchanged.
 
 The columns below show **OMNICONDUCTOR emission today**:
 
@@ -319,6 +338,7 @@ The columns below show **OMNICONDUCTOR emission today**:
 | **Gemini CLI** | ✅ Full (`GEMINI.md`) | ✅ output-cap + review-stop + optional Reflector | ✅ 8 `.gemini/agents` profiles | Saved `pro` / `flash` / `flash-lite` recommendation | `bash adapters/gemini/transform.sh <target>` |
 | **Codex (OpenAI)** | ✅ Bounded `AGENTS.md` kernel + complete `.codex/conductor/` references | ✅ verified commit/session/review guards | ✅ 8 `.codex/agents` profiles | Saved Sol / Terra / Luna + Tier effort | `bash adapters/codex/transform.sh <target>` |
 | **Windsurf** | ✅ Full (`.windsurfrules` + `.devin/rules/*`) | Rule fallback + optional Reflector response hook | ✅ 8 invocable role workflows | Adaptive advisory-session | `bash adapters/windsurf/transform.sh <target>` |
+| **OpenCode stable v1** | ✅ `opencode.json` instructions + `.opencode/rules/*` | ✅ two commit guards; review-stop rule fallback | ✅ 8 `.opencode/agents` profiles | Saved `provider/model`; provider policy disclosed | `bash adapters/opencode/transform.sh <target>` |
 
 Full per-feature matrix + first-party footnotes: [`docs/COMPATIBILITY-MATRIX.md`](./docs/COMPATIBILITY-MATRIX.md).
 
@@ -358,11 +378,11 @@ There are three install paths. **`npx omniconductor` (Path A) is the easiest —
 No clone required. Published to npm as [`omniconductor`](https://www.npmjs.com/package/omniconductor):
 
 ```bash
-# Install OMNICONDUCTOR's workflow into your project — for any of the 6 tools:
-npx omniconductor init --target=claude ~/your-project --recipes=coding-conventions,tdd
-# targets: claude | cursor | copilot | gemini | codex | windsurf
+# Install OMNICONDUCTOR's workflow into your project — for any of the 7 tools:
+npx omniconductor@latest init --target=opencode . --recipes=coding-conventions,tdd
+# targets: claude | cursor | copilot | gemini | codex | windsurf | opencode
 
-npx omniconductor list                                # list the 6 adapters
+npx omniconductor list                                # list the 7 adapters
 npx omniconductor models show .                       # inspect saved Tier mappings
 npx omniconductor models configure --target=all .     # change mappings
 npx omniconductor init --target=claude . --dry-run --no-prompt   # preview, writes nothing
@@ -425,7 +445,7 @@ non-standard location.
 
 ### Path C — Manual file copy (no script, fully manual)
 
-All 6 tools have a working adapter (Path A/B), so this path is a fallback — for adopters in constrained environments (no bash / no Node) or those who want to see every file before it lands. Step-by-step `cp` / `cat` commands per tool, with frontmatter conversion cheat sheet, are in:
+All 7 tools have a working adapter (Path A/B), so this path is a fallback — for adopters in constrained environments (no bash / no Node) or those who want to see every file before it lands. Step-by-step commands and native path guidance are in:
 
 → **[`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md)**
 
@@ -439,7 +459,7 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 |---|---|---|---|
 | **macOS** (zsh, bash) | ✅ Reference platform | zsh / bash | Native bash 3.2 works; bash 5.x via Homebrew also supported. |
 | **Linux** (Ubuntu, Debian, Fedora, Arch) | ✅ Supported | bash | Supported by the local validation suite and manual-only GitHub release workflows. |
-| **Windows Node.js + Git Bash** | ✅ Release-tested | PowerShell/CMD/Git Bash launcher → Git Bash adapter | All six CLI and direct-wrapper paths are exercised on `windows-latest`. |
+| **Windows Node.js + Git Bash** | ✅ Supported; OpenCode device rerun pending | PowerShell/CMD/Git Bash launcher → Git Bash adapter | The original six CLI/direct paths and CRLF hook payload were verified on a Windows adopter machine. v1.6 enumerates OpenCode in the local/Windows harness; its exact Windows device run remains separate evidence. |
 | **WSL2 Ubuntu/Debian + Linux Node.js** | ✅ Supported | bash inside the named distro | Run the complete command inside WSL; do not mix Windows Node.js with WSL bash. |
 | **Windows Node.js → default WSL** | ❌ Unsupported | mixed runtime | The default may be `docker-desktop`; CONDUCTOR never auto-falls back to it. |
 | **Docker Desktop WSL distros** | ❌ Unsupported | infrastructure-only | `docker-desktop` and `docker-desktop-data` are not development environments. |
@@ -454,11 +474,32 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
   git config --global core.autocrlf input
   ```
 
-- **`python3` requirement**: macOS 12+ ships Python 3 by default; Linux distros generally have it; Windows / Git Bash needs explicit install (`pacman -S python` in MSYS2, or use the Windows Python installer). Used by `tools/measure-tokens.sh` only — not required for the install itself.
+- **Python 3 hook runtime**: installation itself needs Node.js + Git Bash. JSON-dependent guards and token measurement additionally need Python 3. Hooks accept `CONDUCTOR_PYTHON_BIN`, `python3`, or Windows' common `python` command. If none works, each affected hook emits an explicit fail-open diagnostic and doctor D5 reports degraded enforcement. On Windows install Python from [python.org](https://www.python.org/downloads/windows/) or `winget install Python.Python.3.13`, then rerun doctor.
 - **Path quoting**: spaces in target paths work, but always quote: `bash adapters/claude/transform.sh "/c/Users/My Name/Projects/app"`.
 - **Before-write preflight**: `init` validates the selected adapter dispatch path
   before creating `.conductor/model-routing.json` or any managed project file. If the
   preflight fails, fix Git Bash/WSL selection and retry; do not force-copy partial output.
+
+### Windows source-tree verification
+
+Run from PowerShell. Do not infer success from an empty `Select-String` result; preserve
+and check the actual npm exit code:
+
+```powershell
+npm test *> C:\temp\full.log 2>&1
+$testExit = $LASTEXITCODE
+Get-Content C:\temp\full.log | Select-String "FAIL|AssertionError|npm error" -Context 0,8
+"npm_exit=$testExit"
+if ($testExit -ne 0) { exit $testExit }
+```
+
+Before any line-ending re-checkout, require `(git status --porcelain).Count -eq 0`;
+never run a hard reset over uncommitted work.
+
+GitHub validation is manual-only and scope-selective. Use `static`, `adapters`, or
+`windows` when one remote surface is genuinely needed; reserve `full` for release
+candidates that cannot be closed by the local release gate. Superseded runs for the
+same ref and scope are cancelled automatically.
 
 ---
 
@@ -482,8 +523,8 @@ All 6 tools have a working adapter (Path A/B), so this path is a fallback — fo
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
 | `visual-baseline-integrity` | Screenshot/rendered-output comparison is a gate | Pinned render contract, reviewable expected/actual/diff, separate update/verify, honest flaky status |
 | `release-provenance` | Release includes third-party, regulated, or policy-bound material | Source/license/authority inventory and expiry-aware evidence; never claims legal certification |
-| `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads recent session trajectories + git and **proposes** lessons-learned to `docs/REFLECTION-PROPOSALS.md` (propose-only; you apply). Emits a session-end trajectory hook, a `/reflect` command, a reflector agent, a deterministic prune, and a weekly runner + scheduling guide — on all six tools. See ADR-030/032/033. |
-| `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7) plus the six-tool `coordinate-work` skill for clone-local scope claims and snapshot-bound handoff. Claude and Codex add verified non-blocking Stop reminders; other adapters install the checklist. See ADR-037/045/064. |
+| `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads available trajectories + git and **proposes** lessons to `docs/REFLECTION-PROPOSALS.md` (propose-only). All seven emit the review procedure; automatic trajectory capture remains tool-specific and OpenCode is manual. See ADR-030/032/033/072. |
+| `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7) plus the seven-tool `coordinate-work` skill for clone-local scope claims and snapshot-bound handoff. Native reminders remain capability-specific. See ADR-037/045/064/072. |
 | `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Claude and Codex add verified `PreToolUse` reminders in their own hook dialects; other adapters install the rule text. See ADR-038/045. |
 
 #### Decision tree
@@ -540,7 +581,7 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | `--no-prompt` | Skip interactive prompts. Reuses an existing saved model map; a first role-emitting install must also pass `--accept-model-defaults` or provide a reviewed config. |
 | `--accept-model-defaults` | Explicitly accept the recommended Tier mappings during an unconfigured non-interactive install. Required with `--no-prompt` when role-emitting output has no saved model routing yet. |
 | `--check-anti-patterns` | Print `core/anti-patterns/README.md` inline and pause 5 seconds. |
-| `--uninstall` (alias `--rollback`) | Manifest-based revert on all six adapters (see [Update](#update--maintenance--uninstall)). |
+| `--uninstall` (alias `--rollback`) | Manifest-based revert on all seven adapters (see [Update](#update--maintenance--uninstall)). |
 | `--force` | Bypass uninstall safety gates (active rebase/merge, missing manifest). |
 | `-h` `--help` | Print usage. |
 
@@ -573,7 +614,7 @@ Then re-run `transform.sh` on each target — installs are idempotent. An unchan
 ### Maintainer release verification
 
 Routine validation is local; GitHub Actions do not run on pushes or pull requests.
-The integrated command tests the exact npm tarball as both a fresh six-tool install
+The integrated command tests the exact npm tarball as both a fresh seven-tool install
 and an in-place upgrade from the published previous release, then performs an npm
 publish dry run. It never pushes, dispatches CI, or publishes:
 
@@ -607,7 +648,7 @@ rule-only, or provider guidance—see the
 
 ### Uninstall (revert install)
 
-All six adapters ship `--uninstall` with adapter-scoped manifest ownership
+All seven adapters ship `--uninstall` with adapter-scoped manifest ownership
 (ADR-020/047). Use the adapter that owns the surface you want to remove, or
 `omniconductor init --target=all . --uninstall` for the aggregate teardown.
 
@@ -803,9 +844,9 @@ A: See `docs/COMPARISON.md` for the conflict-resolution decision tree (3 pattern
 
 A: Re-running `transform.sh` is safe. An unchanged emitted file keeps its first pre-OMNICONDUCTOR backup; an edited emitted file is snapshotted before replacement. `--uninstall` preserves any file whose emitted SHA-256 no longer matches, rather than deleting it. `docs/CURRENT_WORK.md` and other doc templates are NEVER overwritten if they already exist.
 
-**Q: Use OMNICONDUCTOR before all 6 adapters ship?**
+**Q: Which coding agents have a first-class adapter?**
 
-A: Yes — all 6 adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) now ship a `transform.sh`. Install any of them with `bash adapters/<tool>/transform.sh <target>` or `node bin/omniconductor.js init --target=<tool> <target>`; both require Node.js and run the same one-time model-routing transaction. `docs/MANUAL-INSTALL.md` (copy-paste commands) remains the no-Node fallback.
+A: Seven adapters ship today: Claude, Cursor, Copilot, Gemini, Codex, Windsurf/Devin, and OpenCode stable v1. Install any with `npx omniconductor@latest init --target=<tool> <target>`. OpenCode v2 beta is a separate breaking contract and is not currently supported.
 
 **Q: Telemetry?**
 

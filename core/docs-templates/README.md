@@ -22,7 +22,7 @@ Tool-agnostic markdown templates that every CONDUCTOR-installed project gets at 
 - They reference no tool-specific syntax.
 - The same workflow phase definitions reference them regardless of tool.
 - The `Read first every session` instruction in adapter outputs always points to `docs/CURRENT_WORK.md`.
-- The same canonical artifact map and precedence rule reaches all six adapters.
+- The same canonical artifact map and precedence rule reaches all seven adapters.
 
 ## Why they aren't transformed by adapters
 
@@ -33,7 +33,7 @@ The adapter's job is just to COPY them into the target project's `docs/` directo
 ## Status
 
 All template files are production starter documents copied idempotently by the
-six adapters.
+seven adapters.
 
 ## Authoring guidance
 

@@ -6,10 +6,10 @@ This document is the fallback for when you want to understand exactly what the a
 
 For each tool there are two paths:
 
-- **Guided installer (recommended, Node.js required)** — `npx omniconductor init --target=<tool> <dir>` or the cloned-repository wrapper `bash transform.sh <target>`. Both enter the same CLI transaction and perform the same one-time project-saved Tier-model setup. Available for **all six tools** (Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf).
+- **Guided installer (recommended, Node.js required)** — `npx omniconductor init --target=<tool> <dir>` or the cloned-repository wrapper `bash transform.sh <target>`. Both enter the same CLI transaction and perform the same one-time project-saved Tier-model setup. Available for **all seven tools** (Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf, OpenCode stable v1).
 - **Manual file copy (fallback)** — explicit `cp` / `cat` commands and frontmatter cheat sheet.
 
-> **Read first**: [`README.md`](../README.md) Quick Start. The six-tool
+> **Read first**: [`README.md`](../README.md) Quick Start. The seven-tool
 > `omniconductor` CLI performs the guided one-time model setup; manual install is
 > the fallback for constrained environments.
 
@@ -23,6 +23,7 @@ For each tool there are two paths:
 - "Windows / Git Bash" = [Git for Windows](https://git-scm.com/download/win) Bash terminal. POSIX-compatible.
 - "Windows / WSL2" = a named Ubuntu/Debian development distro with Linux Node.js and bash. Never use `docker-desktop` as the default shell.
 - "Windows / PowerShell" = supported only as an `npx` launcher when Git Bash is installed; the adapter itself is not a PowerShell implementation.
+- JSON-dependent guards additionally need Python 3 at hook execution time. They accept `CONDUCTOR_PYTHON_BIN`, `python3`, or Windows `python`; doctor D5 reports a missing runtime instead of treating it as enforced.
 
 > **GNU vs BSD `sed` warning**: macOS ships BSD `sed` which requires `-i ''` for inline edits, while GNU `sed` (Linux / Git Bash / WSL2) uses `-i` with no argument. Manual-install commands below avoid `sed -i` for portability — they use `cat > new-file` + `mv` instead.
 
@@ -38,8 +39,9 @@ For each tool there are two paths:
 | Gemini CLI | ✅ | `npx omniconductor init --target=gemini <target>` |
 | Codex (OpenAI) | ✅ | `npx omniconductor init --target=codex <target>` |
 | Windsurf | ✅ | `npx omniconductor init --target=windsurf <target>` |
+| OpenCode stable v1 | ✅ | `npx omniconductor init --target=opencode <target>` |
 
-> All six adapters ship `transform.sh`; each public wrapper now requires Node.js and delegates to the same guided CLI before adapter emission. Prefer either guided command — both handle model setup, backups, the install manifest, and `--uninstall`. Use the manual sections below only for constrained or no-Node environments.
+> All seven adapters ship `transform.sh`; each public wrapper now requires Node.js and delegates to the same guided CLI before adapter emission. Prefer either guided command — both handle model setup, backups, the install manifest, and `--uninstall`. Use the manual sections below only for constrained or no-Node environments.
 
 ---
 
@@ -57,12 +59,12 @@ tier: T1
 
 Each tool consumes a different syntax. When you copy a rule file into a tool-native location by hand, rewrite the frontmatter using the table below.
 
-| Conductor field | Claude Code | Cursor (`.mdc`) | Copilot (`.instructions.md`) | Gemini / Codex / Windsurf |
-|---|---|---|---|---|
-| `applies_to: ["a", "b"]` | `paths: ["a", "b"]` | `globs: a, b` (CSV) | `applyTo: 'a, b'` (CSV string) | (drop — single bundled file) |
-| `always_loaded: true` | drop `paths:` (auto-loads) | `alwaysApply: true` | `applyTo: '**'` | (drop — file always loads) |
-| `always_loaded: false` | `paths: [...]` required | `alwaysApply: false` + `globs:` | `applyTo: '<csv>'` | not representable |
-| `tier: T1/T2/T3` | (informational) | (informational) | (informational) | (informational) |
+| Conductor field | Claude Code | Cursor (`.mdc`) | Copilot (`.instructions.md`) | Gemini / Codex / Windsurf | OpenCode v1 |
+|---|---|---|---|---|---|
+| `applies_to: ["a", "b"]` | `paths: ["a", "b"]` | `globs: a, b` (CSV) | `applyTo: 'a, b'` (CSV string) | (drop — single bundled file) | Strip frontmatter; list path/glob in `opencode.json` `instructions` |
+| `always_loaded: true` | drop `paths:` (auto-loads) | `alwaysApply: true` | `applyTo: '**'` | (drop — file always loads) | Include in `instructions` |
+| `always_loaded: false` | `paths: [...]` required | `alwaysApply: false` + `globs:` | `applyTo: '<csv>'` | not representable | Use a narrower instruction glob |
+| `tier: T1/T2/T3` | (informational) | (informational) | (informational) | (informational) | (informational) |
 
 > Conductor's universal rules (`meta-discipline`, `operations`, `quality-gates`, `spec-as-you-go`, `workflow`) are all `always_loaded: true` — make sure the tool-specific equivalent is set. Skipping this is the most common manual-install mistake.
 
@@ -83,6 +85,9 @@ skill_root=.claude/skills
 
 # Cursor, Copilot, Gemini CLI, Codex, or Windsurf/Devin:
 # skill_root=.agents/skills
+
+# OpenCode stable v1:
+# skill_root=.opencode/skills
 
 for skill in plan-change verify-change review-change; do
   mkdir -p "$skill_root/$skill"
@@ -431,6 +436,38 @@ rm -rf .codeium/instructions
 
 ---
 
+## Tool 6 — OpenCode stable v1 (fallback manual install)
+
+Prefer the guided installer because it safely merges `opencode.json`, emits native
+permissions and guards, and records reversible ownership. For a rule-only manual copy:
+
+```bash
+cd <target>
+mkdir -p .opencode/rules
+for f in ~/conductor/core/universal-rules/*.md; do
+  [ "$(basename "$f")" = "README.md" ] && continue
+  awk 'BEGIN{body=0} /^---$/{n++; if(n==2){body=1; next}} body' "$f" \
+    > ".opencode/rules/$(basename "$f")"
+done
+```
+
+Then merge this entry into the existing regular `opencode.json` object without
+removing unrelated keys:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [".opencode/rules/*.md"]
+}
+```
+
+Do not hand-edit `opencode.jsonc` with a JSON-only tool and do not create both project
+config files. This fallback installs rule text only; it does not install roles, skills,
+the commit-guard plugin, backups, model routing, or manifest-based uninstall. Verify
+discovery with `opencode debug config` and remove only the files you manually added.
+
+---
+
 ## Common pitfalls & FAQ
 
 ### "I copied the files but the rules don't load"
@@ -461,6 +498,16 @@ Bash. Supported choices:
 Do not mix Windows Node.js with an arbitrary default WSL shell, and never use
 `docker-desktop` / `docker-desktop-data` as a development distro. A native PowerShell
 adapter implementation remains future work under ADR-023.
+
+For full hook enforcement, verify Python from the same Git Bash runtime:
+
+```bash
+python3 -c 'import json,sys; assert sys.version_info[0] == 3' 2>/dev/null || python -c 'import json,sys; assert sys.version_info[0] == 3'
+```
+
+If neither succeeds, installation can still complete, but JSON-dependent guards are
+degraded and emit an explicit fail-open diagnostic. Install Python 3 or set
+`CONDUCTOR_PYTHON_BIN` to a working executable, then rerun `omniconductor doctor`.
 
 ### "Encoding issues on Windows (CRLF vs LF)?"
 

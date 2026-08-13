@@ -1134,7 +1134,7 @@ echo "  Recipe references installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
 echo " Native runtime:"
 if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
-  echo "  - Roles: 8 native Codex subagents in .codex/agents/."
+  echo "  - Roles: $(find "$CORE_ROOT/roles" -maxdepth 1 -name '*.md' ! -name 'README.md' ! -name 'reflector.md' 2>/dev/null | wc -l | tr -d ' ') native Codex subagents in .codex/agents/."
   echo "  - Hooks: supported PreToolUse/Stop guards in .codex/hooks.json."
   echo "  - Trust: run /hooks in Codex after install or hook changes."
 else

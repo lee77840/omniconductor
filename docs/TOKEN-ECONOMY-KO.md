@@ -53,7 +53,7 @@ Claude full/strict 설치는 `pretool-large-file-read-guard.sh`를 등록한다.
 - 드문 예외는 `CONDUCTOR_ALLOW_LARGE_READ=1`로 명시적으로 우회
 
 200줄은 전 도구 공통 운영 기준이고, 500줄은 Claude hook의 기본 차단 기준이다.
-다른 다섯 도구는 현재 같은 규칙을 받지만 동일한 native Read 차단을 주장하지
+다른 여섯 도구는 현재 같은 규칙을 받지만 동일한 native Read 차단을 주장하지
 않는다.
 
 ## 2. Tool-output store-time cap
@@ -72,6 +72,7 @@ Claude full/strict 설치는 `pretool-large-file-read-guard.sh`를 등록한다.
 | **Cursor** | 없음 | 검증된 store-time output rewrite surface가 없어 N/A. |
 | **GitHub Copilot** | 없음 | lifecycle hook은 있지만 결과 저장 전 교체 계약이 없어 N/A. |
 | **Windsurf** | 없음 | 검증된 hook이 전체 response 이후에 실행되어 개별 tool result를 미리 줄일 수 없음. |
+| **OpenCode stable v1** | 없음 | v1 plugin은 tool 호출 전 차단은 가능하지만 저장될 tool result를 교체하는 검증 계약은 없음. |
 
 Claude/Gemini hook은 `CONDUCTOR_OUTPUT_CAP_TOKENS`로 기본값을 조정할 수 있고
 `CONDUCTOR_SKIP_OUTPUT_CAP=1`로 비활성화할 수 있다. Codex는 generated config의
@@ -100,6 +101,8 @@ Token Economy는 실행 중 자르는 기능만이 아니라 설치 구조에서
   분리한다.
 - Cursor의 `.mdc` glob, Copilot의 `applyTo:`처럼 검증된 scoping이 있으면 관련
   파일을 만질 때만 규칙을 적용한다.
+- OpenCode는 `opencode.json`의 `instructions` globs로 `.opencode/rules`와 선택
+  recipe를 등록하며 root `AGENTS.md`를 중복 소유하지 않는다.
 - Gemini처럼 per-pattern lazy loading이 없는 도구는 그 한계를 matrix에 공개한다.
 
 Skill·MCP를 수십 개 eager-load하면 실제로 사용하지 않아도 이름·설명·JSON
@@ -234,7 +237,7 @@ npx omniconductor init --target=claude . --check-anti-patterns --dry-run
 
 - **“8,000-token cap이 모델 답변을 자른다.”** 아니다. 개별 tool result의
   store-time 크기를 제한한다.
-- **“여섯 도구 모두 같은 hook으로 강제된다.”** 아니다. 실제 cap은 Claude,
+- **“일곱 도구 모두 같은 hook으로 강제된다.”** 아니다. 실제 cap은 Claude,
   Codex, Gemini shell에만 존재한다.
 - **“Prompt caching이 컨텍스트 토큰을 삭제한다.”** 아니다. 반복 prefix의 처리
   비용과 latency를 줄인다.

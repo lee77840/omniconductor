@@ -16,15 +16,16 @@
 # Freshness: any 'verified' date older than 90 days prints a WARN (re-verify).
 #
 # Usage:
-#   bash tools/live-verify.sh                 # all six (installed CLIs only)
+#   bash tools/live-verify.sh                 # all seven (installed CLIs only)
 #   bash tools/live-verify.sh --tool=codex    # one tool
 #   bash tools/live-verify.sh --runtime-only  # local version/contract inspection; no auth/network/write
 #   bash tools/live-verify.sh --check-only    # run live probes but do not update metadata/docs
 #   bash tools/live-verify.sh --dry-run       # show plan, run nothing, write nothing
 #
 # Env: CONDUCTOR_LIVE_TIMEOUT (seconds per probe, default 300)
+#      CONDUCTOR_OPENCODE_LIVE_MODEL (optional explicit provider/model for OpenCode)
 #
-# Local-first by design: CI cannot run six authenticated AI CLIs (see
+# Local-first by design: CI cannot run seven authenticated AI CLIs (see
 # docs/ADAPTER-LIVE-VERIFICATION.md "Why this is separate from CI").
 
 set -u
@@ -48,7 +49,7 @@ for a in "$@"; do
   esac
 done
 
-TOOLS="claude cursor copilot gemini codex windsurf"
+TOOLS="claude cursor copilot gemini codex windsurf opencode"
 TIMEOUT_S="${CONDUCTOR_LIVE_TIMEOUT:-300}"
 
 if [ -n "$ONLY_TOOL" ]; then
@@ -152,6 +153,13 @@ for tool in $TOOLS; do
       cursor-agent) run_with_timeout "$TIMEOUT_S" cursor-agent -p "$PROBE" ;;
       copilot)      run_with_timeout "$TIMEOUT_S" copilot -p "$PROBE" ;;
       devin)        run_with_timeout "$TIMEOUT_S" devin -p "$PROBE" ;;
+      opencode)
+        if [ -n "${CONDUCTOR_OPENCODE_LIVE_MODEL:-}" ]; then
+          run_with_timeout "$TIMEOUT_S" opencode run --model "$CONDUCTOR_OPENCODE_LIVE_MODEL" "$PROBE"
+        else
+          run_with_timeout "$TIMEOUT_S" opencode run "$PROBE"
+        fi
+        ;;
       *)            echo "unknown CLI '$cmd'" >&2; exit 2 ;;
     esac
   ) > "$out" 2>&1
@@ -164,6 +172,14 @@ for tool in $TOOLS; do
     # A non-zero CLI exit (auth failure, transport error, crash) must never be
     # recorded as verified — even if partial output happens to contain keywords.
     echo "FAIL  $tool — probe CLI exited $probe_rc (see $out)"; FAILED=1; continue
+  fi
+  # OpenCode v1.4.3 can print a provider/model failure while returning zero.
+  # Treat known model-resolution diagnostics as failed transport before keyword
+  # grading so an error body can never become live-verification evidence.
+  if grep -qE 'ProviderModelNotFoundError|Error: Model not found:' "$out"; then
+    echo "FAIL  $tool — probe reported a model-resolution error despite exit 0 (see $out)"
+    FAILED=1
+    continue
   fi
 
   read -r hits cw <<EOF_GRADE
@@ -216,7 +232,7 @@ done
 # Freshness guard — verified dates older than 90 days deserve a re-run.
 node -e '
   const fs = require("fs");
-  const tools = ["claude","cursor","copilot","gemini","codex","windsurf"];
+  const tools = ["claude","cursor","copilot","gemini","codex","windsurf","opencode"];
   const now = Date.now();
   for (const t of tools) {
     const m = JSON.parse(fs.readFileSync(`adapters/${t}/metadata.json`, "utf8"));

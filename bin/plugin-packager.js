@@ -10,7 +10,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const BASELINE_ROLES = ['planner', 'reviewer', 'code-reviewer', 'builder', 'helper', 'designer', 'scribe', 'utility'];
 const BASELINE_SKILLS = ['plan-change', 'verify-change', 'review-change'];
 const OPTIONAL_SKILLS = ['propose-skill', 'coordinate-work'];
@@ -155,7 +155,9 @@ function copyNativeAgents(tool, compiled, packageRoot) {
 function copyFallbackPayload(tool, compiled, packageRoot) {
   const paths = tool === 'cursor'
     ? ['.cursor/rules', '.cursor/agents', '.agents/skills']
-    : ['.windsurfrules', '.devin/rules', '.windsurf/workflows', '.agents/skills'];
+    : tool === 'opencode'
+      ? ['opencode.json', '.opencode/rules', '.opencode/agents', '.opencode/commands', '.opencode/skills']
+      : ['.windsurfrules', '.devin/rules', '.windsurf/workflows', '.agents/skills'];
   for (const relative of paths) {
     const source = path.join(compiled, relative);
     if (fs.existsSync(source)) copyTree(source, path.join(packageRoot, 'direct-install', relative));

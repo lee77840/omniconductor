@@ -1,0 +1,127 @@
+{
+  "_comment": "Single source for enumerable adapter facts (ADR-040). CI asserts transform.sh / validator / matrix agree with this file. Update HERE first; docs follow.",
+  "tool": "opencode",
+  "display_name": "OpenCode",
+  "tier": "T2",
+  "outputs": [
+    { "path": "opencode.json", "kind": "config", "validated": true },
+    { "path": ".opencode/rules", "kind": "rules", "validated": true },
+    { "path": ".opencode/agents", "kind": "agents", "validated": true },
+    { "path": ".opencode/plugins", "kind": "hooks", "validated": true },
+    { "path": ".opencode/commands", "kind": "commands", "validated": true },
+    { "path": ".opencode/skills", "kind": "skills", "validated": true },
+    { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
+  ],
+  "reflector_outputs": [
+    { "path": ".opencode/commands/reflect.md", "note": "manual propose-only Reflector command (recipe-gated)" },
+    { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
+  ],
+  "install": { "ala_carte": "per-file" },
+  "legacy_paths": [],
+  "capabilities": {
+    "tool_native": {
+      "hooks": "yes",
+      "sub_agents": "yes",
+      "model_routing": "yes",
+      "commands": "yes",
+      "glob_scoping": "yes",
+      "scheduler": "no",
+      "skills": "yes"
+    },
+    "conductor_emitted": {
+      "rules": "full",
+      "guard_hooks": "commit-native-review-rule-fallback",
+      "reflector_loop": "recipe-manual-command",
+      "role_agents": "full",
+      "model_routing": "saved-tier-native-with-provider-fallback",
+      "skills": "full"
+    }
+  },
+  "agent_skills": {
+    "schema_version": 1,
+    "project_path": ".opencode/skills",
+    "path_status": "native",
+    "activation": "automatic-and-explicit",
+    "explicit_invocation": "/plan-change",
+    "source": {
+      "url": "https://opencode.ai/docs/skills/",
+      "checked": "2026-08-13"
+    }
+  },
+  "hook_compiler": {
+    "schema_version": 1,
+    "config_path": ".opencode/plugins/conductor-guards.js",
+    "native_policies": ["commit-current-work", "commit-test-coverage"],
+    "fallback_policies": ["review-before-stop"],
+    "source": {
+      "url": "https://opencode.ai/docs/plugins/",
+      "checked": "2026-08-13"
+    }
+  },
+  "extension_trust": {
+    "schema_version": 1,
+    "audit_roots": [".opencode"],
+    "native_controls": ["permission-rules", "plugin-config", "mcp-config"],
+    "mcp_protocol_2026_07_28": "verification-required",
+    "sources": [
+      { "url": "https://opencode.ai/docs/permissions/", "checked": "2026-08-13" }
+    ]
+  },
+  "skill_proposals": {
+    "schema_version": 1,
+    "inbox_path": ".conductor/skill-proposals",
+    "recipe": "self-improvement",
+    "opt_in_skill_path": ".opencode/skills/propose-skill/SKILL.md",
+    "application": "human-reviewed-separate-change",
+    "native_acceleration": "verification-required",
+    "source": { "url": "https://opencode.ai/docs/skills/", "checked": "2026-08-13" }
+  },
+  "plugin_packaging": {
+    "schema_version": 1,
+    "mode": "direct-fallback",
+    "manifest_path": null,
+    "native_components": [],
+    "inactive_reference_components": ["universal-rules", "hook-registry"],
+    "direct_install_required_for": ["skills", "roles", "rules", "guard-hooks", "reflector", "model-routing", "work-coordination", "reversible-ownership"],
+    "source": { "url": "https://opencode.ai/docs/plugins/", "checked": "2026-08-13" }
+  },
+  "runtime_contract": {
+    "schema_version": 1,
+    "product": {
+      "canonical_name": "OpenCode",
+      "aliases": [],
+      "lifecycle": "active",
+      "note": "OpenCode stable v1 is the supported contract; beta v2 plugin compatibility is explicitly not claimed."
+    },
+    "version": {
+      "args": ["--version"],
+      "capability_floors": []
+    },
+    "auth": {
+      "status": "policy-controlled",
+      "modes": ["provider-auth"],
+      "note": "Provider availability and organization policy remain authoritative for model-backed probes."
+    },
+    "policy_gates": ["permission-policy", "provider-availability"],
+    "probe": {
+      "kind": "headless-model",
+      "requires_auth": true,
+      "requires_network": true,
+      "note": "An authenticated opencode run probe is opt-in and not part of installation."
+    },
+    "sources": [
+      {
+        "label": "OpenCode project rules",
+        "url": "https://opencode.ai/docs/rules/",
+        "checked": "2026-08-13"
+      },
+      {
+        "label": "OpenCode v1 plugins",
+        "url": "https://opencode.ai/docs/plugins/",
+        "checked": "2026-08-13"
+      }
+    ]
+  },
+  "live_verification": { "status": "verified", "date": "2026-08-13", "cli": "1.4.3", "note": "headless explicit-model probe listed 5/5 rules + read-CURRENT_WORK-first" },
+  "headless_cli": { "command": "opencode", "invocation": "opencode run" }
+}

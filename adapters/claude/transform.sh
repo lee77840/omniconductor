@@ -1480,6 +1480,11 @@ echo "========================================================"
 echo " Done."
 echo "  Target: $TARGET_ABS"
 echo "  Mode: $MODE"
+# Counts are derived from the shipped sources. Hardcoding them drifted: the
+# summary claimed 7 base roles while the adapter emitted 8, so the installer
+# under-reported its own output on every full install.
+SUMMARY_BASE_ROLES="$(find "$CORE_ROOT/roles" -maxdepth 1 -name '*.md' ! -name 'README.md' ! -name 'reflector.md' 2>/dev/null | wc -l | tr -d ' ')"
+SUMMARY_UNIVERSAL_RULES="$(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   echo "  Universal rules: 0 (à la carte)"
   case ",$RECIPES," in
@@ -1487,13 +1492,13 @@ if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
     *)                      echo "  Roles: 0" ;;
   esac
 else
-  echo "  Universal rules: 5"
+  echo "  Universal rules: $SUMMARY_UNIVERSAL_RULES"
   if [ "$MODE" = "minimal" ]; then
     echo "  Roles: 0 (--mode=minimal)"
   else
     case ",$RECIPES," in
-      *",self-improvement,"*) echo "  Roles: 8 (incl. reflector)" ;;
-      *)                      echo "  Roles: 7" ;;
+      *",self-improvement,"*) echo "  Roles: $((SUMMARY_BASE_ROLES + 1)) (incl. reflector)" ;;
+      *)                      echo "  Roles: $SUMMARY_BASE_ROLES" ;;
     esac
   fi
 fi

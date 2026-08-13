@@ -44,14 +44,14 @@ git init -q "$TARGET"
 
 if node bin/omniconductor.js init --target=all "$TARGET" --no-prompt --accept-model-defaults \
   --recipes=self-improvement,git-hygiene,loop-engineering >/dev/null 2>&1; then
-  ok "all six adapters install in one project"
+  ok "all seven adapters install in one project"
 else
   bad "all-target install"
 fi
 
-[ "$(manifest_count "$TARGET")" -eq 6 ] \
-  && [ "$(projection_count "$TARGET")" -eq 6 ] \
-  && ok "six authoritative manifests + aggregate root projection" \
+[ "$(manifest_count "$TARGET")" -eq 7 ] \
+  && [ "$(projection_count "$TARGET")" -eq 7 ] \
+  && ok "seven authoritative manifests + aggregate root projection" \
   || bad "manifest aggregation"
 
 role_ok=true
@@ -62,12 +62,14 @@ for f in \
   .gemini/agents/code-reviewer.md \
   .codex/agents/code-reviewer.toml \
   .windsurf/workflows/code-reviewer.md \
+  .opencode/agents/code-reviewer.md \
   .claude/agents/utility.md \
   .cursor/agents/utility.md \
   .github/agents/utility.agent.md \
   .gemini/agents/utility.md \
   .codex/agents/utility.toml \
-  .windsurf/workflows/utility.md; do
+  .windsurf/workflows/utility.md \
+  .opencode/agents/utility.md; do
   [ -s "$TARGET/$f" ] || role_ok=false
 done
 $role_ok && ok "every supported tool has code-review and Tier 3 utility role entries" || bad "cross-tool role emission"
@@ -78,16 +80,20 @@ for skill in plan-change verify-change review-change; do
     || portable_skills_ok=false
   /usr/bin/cmp -s "core/skills/$skill/SKILL.md" "$TARGET/.agents/skills/$skill/SKILL.md" \
     || portable_skills_ok=false
+  /usr/bin/cmp -s "core/skills/$skill/SKILL.md" "$TARGET/.opencode/skills/$skill/SKILL.md" \
+    || portable_skills_ok=false
   /usr/bin/grep -qF "\"path\": \".claude/skills/$skill/SKILL.md\"" \
     "$TARGET/.conductor/manifests/claude.json" || portable_skills_ok=false
   for tool in cursor copilot gemini codex windsurf; do
     /usr/bin/grep -qF "\"path\": \".agents/skills/$skill/SKILL.md\"" \
       "$TARGET/.conductor/manifests/$tool.json" || portable_skills_ok=false
   done
+  /usr/bin/grep -qF "\"path\": \".opencode/skills/$skill/SKILL.md\"" \
+    "$TARGET/.conductor/manifests/opencode.json" || portable_skills_ok=false
 done
 skill_backup_count="$(find "$TARGET/.agents" -type f -name '*.conductor-backup-*' 2>/dev/null | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
 if $portable_skills_ok && [ "$skill_backup_count" -eq 0 ]; then
-  ok "portable skills compile byte-identically with six manifests and no shared backup chain"
+  ok "portable skills compile byte-identically with seven manifests and no shared backup chain"
 else
   bad "portable skill bytes, ownership, or shared backup hygiene"
 fi
@@ -108,14 +114,16 @@ for spec in \
   ".github/agents/planner.agent.md:1" ".github/agents/helper.agent.md:2" \
   ".gemini/agents/planner.md:1" ".gemini/agents/helper.md:2" \
   ".codex/agents/planner.toml:1" ".codex/agents/helper.toml:2" \
-  ".windsurf/workflows/planner.md:1" ".windsurf/workflows/helper.md:2"; do
+  ".windsurf/workflows/planner.md:1" ".windsurf/workflows/helper.md:2" \
+  ".opencode/agents/planner.md:1" ".opencode/agents/helper.md:2"; do
   path="${spec%:*}"; tier="${spec##*:}"
   /usr/bin/grep -qE "CONDUCTOR difficulty contract:.*Tier ${tier}([^0-9]|$)" "$TARGET/$path" || tier_contract_ok=false
 done
 for path in \
   .claude/agents/utility.md .cursor/agents/utility.md \
   .github/agents/utility.agent.md .gemini/agents/utility.md \
-  .codex/agents/utility.toml .windsurf/workflows/utility.md; do
+  .codex/agents/utility.toml .windsurf/workflows/utility.md \
+  .opencode/agents/utility.md; do
   /usr/bin/grep -qE 'CONDUCTOR difficulty contract:.*Tier 3([^0-9]|$)' "$TARGET/$path" || tier_contract_ok=false
 done
 if $tier_contract_ok \
@@ -129,14 +137,15 @@ fi
 
 # Vendor model families must not leak into another vendor's role profiles.
 if ! find "$TARGET/.cursor" "$TARGET/.github" "$TARGET/.gemini" "$TARGET/.codex" \
-  "$TARGET/.devin" "$TARGET/.windsurf" -type f -print0 \
+  "$TARGET/.devin" "$TARGET/.windsurf" "$TARGET/.opencode" -type f -print0 \
   | xargs -0 /usr/bin/grep -Eiq '(^|[^A-Za-z])(Opus|Sonnet|Haiku)([^A-Za-z]|$)' \
   && ! /usr/bin/grep -Eiq '(^|[^A-Za-z])(Opus|Sonnet|Haiku)([^A-Za-z]|$)' "$TARGET/GEMINI.md" "$TARGET/AGENTS.md" "$TARGET/.windsurfrules" \
   && /usr/bin/grep -qF 'model: gpt-5.6-sol' "$TARGET/.cursor/agents/planner.md" \
   && /usr/bin/grep -qF 'model: pro' "$TARGET/.gemini/agents/planner.md" \
   && /usr/bin/grep -qF 'model: gpt-5.6-sol' "$TARGET/.github/agents/planner.agent.md" \
   && /usr/bin/grep -qF 'model = "gpt-5.6-sol"' "$TARGET/.codex/agents/planner.toml" \
-  && /usr/bin/grep -qF 'select **Adaptive**' "$TARGET/.windsurf/workflows/planner.md"; then
+  && /usr/bin/grep -qF 'select **Adaptive**' "$TARGET/.windsurf/workflows/planner.md" \
+  && /usr/bin/grep -qF 'model: openai/gpt-5.6-sol' "$TARGET/.opencode/agents/planner.md"; then
   ok "non-Claude adapters compile saved native Tier mappings without Claude model leakage"
 else
   bad "cross-vendor model leakage or saved-routing compilation regression"
@@ -256,7 +265,7 @@ ordered_ignore_before="$(/usr/bin/cksum < "$ORDERED/.gitignore")"
 node bin/omniconductor.js init --target=all "$ORDERED" --no-prompt --accept-model-defaults \
   --recipes=self-improvement,git-hygiene,loop-engineering >/dev/null 2>&1
 ordered_ok=true
-for tool in claude cursor copilot gemini codex windsurf; do
+for tool in claude cursor copilot gemini codex windsurf opencode; do
   bash "adapters/$tool/transform.sh" "$ORDERED" --uninstall >/dev/null 2>&1 || ordered_ok=false
 done
 ordered_ignore_after="$(/usr/bin/cksum < "$ORDERED/.gitignore")"
@@ -284,19 +293,19 @@ else
 fi
 
 if bash adapters/codex/transform.sh "$TARGET" --uninstall >/dev/null 2>&1 \
-  && [ "$(manifest_count "$TARGET")" -eq 5 ] \
-  && [ "$(projection_count "$TARGET")" -eq 5 ] \
+  && [ "$(manifest_count "$TARGET")" -eq 6 ] \
+  && [ "$(projection_count "$TARGET")" -eq 6 ] \
   && [ -s "$TARGET/.claude/rules/workflow.md" ] \
   && [ -s "$TARGET/.agents/skills/plan-change/SKILL.md" ] \
   && [ -s "$TARGET/docs/CURRENT_WORK.md" ]; then
-  ok "uninstalling one adapter preserves the other five, shared skills, and shared docs"
+  ok "uninstalling one adapter preserves the other six, shared skills, and shared docs"
 else
   bad "scoped uninstall isolation"
 fi
 
 if CONDUCTOR_CLI_DISPATCH=0 bash adapters/codex/transform.sh "$TARGET" --no-prompt --accept-model-defaults \
   --recipes=self-improvement,git-hygiene,loop-engineering >/dev/null 2>&1 \
-  && [ "$(manifest_count "$TARGET")" -eq 6 ] \
+  && [ "$(manifest_count "$TARGET")" -eq 7 ] \
   && [ "$(doctor_fail_count "$TARGET")" -eq 0 ]; then
   ok "removed adapter can be reinstalled without ownership drift"
 else

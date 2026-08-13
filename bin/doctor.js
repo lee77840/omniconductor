@@ -136,6 +136,7 @@ function rolePath(tool, role) {
     gemini: `.gemini/agents/${role}.md`,
     codex: `.codex/agents/${role}.toml`,
     windsurf: `.windsurf/workflows/${role}.md`,
+    opencode: `.opencode/agents/${role}.md`,
   };
   return paths[tool];
 }
@@ -422,7 +423,22 @@ function run(targetDir, opts) {
 
   // ---- D5 hook validity ---------------------------------------------------------
   let hookProblems = 0, hookWarnings = 0, hookChecked = 0;
-  let bashAvailable = true;
+  // Windows resolves a bare `bash` to the WSL relay (System32\bash.exe). When no
+  // distribution provides /bin/bash that relay still spawns successfully and
+  // exits non-zero, so the status check below reported every emitted hook as a
+  // syntax error on an install that was in fact correct. Resolve the same
+  // interpreter the installer itself uses, and skip honestly when there is none.
+  const doctorBash = installerPlatform.resolveBash();
+  let bashAvailable = doctorBash !== null;
+  let bashSkipReported = false;
+  let pythonRequiredByHook = false;
+  let hookPython = null;
+  if (doctorBash) {
+    const probe = spawnSync(doctorBash.command, ['-lc', 'for p in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do [ -n "$p" ] || continue; command -v "$p" >/dev/null 2>&1 && "$p" -c "import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)" >/dev/null 2>&1 && { printf "%s" "$p"; exit 0; }; done; exit 1'], {
+      encoding: 'utf8', windowsHide: true, timeout: 5000, env: process.env,
+    });
+    if (!probe.error && probe.status === 0) hookPython = (probe.stdout || '').trim() || null;
+  }
   for (const ef of manifest.emitted_files) {
     if (!ef || typeof ef.path !== 'string') continue;
     const abs = path.join(targetAbs, ef.path);
@@ -436,13 +452,23 @@ function run(targetDir, opts) {
       try { fs.accessSync(abs, fs.constants.X_OK); }
       catch { hookProblems++; add('D5', 'FAIL', `${ef.path} is not executable (chmod +x)`); }
       if (bashAvailable) {
-        const r = spawnSync('bash', ['-n', abs], { stdio: 'pipe' });
+        const r = spawnSync(doctorBash.command, ['-n', abs], { stdio: 'pipe' });
         if (r.error) { bashAvailable = false; add('D5', 'WARN', 'bash not available — skipping syntax checks'); }
         else if (r.status !== 0) { hookProblems++; add('D5', 'FAIL', `${ef.path} has a bash syntax error`); }
+      } else if (!bashSkipReported) {
+        bashSkipReported = true;
+        add('D5', 'WARN', 'no POSIX shell interpreter resolved (Git Bash on Windows) — skipping hook syntax checks');
+      }
+    } else if (ef.path.endsWith('.js') && ef._adapter === 'opencode') {
+      hookChecked++;
+      const syntax = spawnSync(process.execPath, ['--check', abs], { encoding: 'utf8', timeout: 5000 });
+      if (syntax.error || syntax.status !== 0) {
+        hookProblems++; add('D5', 'FAIL', `${ef.path} has invalid JavaScript syntax`);
       }
     }
-    if (/\.(json|sh|toml)$/.test(ef.path)) {
+    if (/\.(json|sh|toml|js)$/.test(ef.path)) {
       const src = fs.readFileSync(abs, 'utf8');
+      if (ef.path.endsWith('.sh') && src.includes('CONDUCTOR_PYTHON_BIN')) pythonRequiredByHook = true;
       if (src.includes('.Codex/')) {
         hookProblems++; add('D5', 'FAIL', `${ef.path} contains case-drifting '.Codex/' (must be '.codex/')`);
       }
@@ -482,13 +508,20 @@ function run(targetDir, opts) {
           hookProblems++; add('D5', 'FAIL', `${ef.path} has an invalid Codex agent TOML contract or role sandbox`);
         }
       }
-      const refs = [...src.matchAll(/(?:\.claude|\.cursor|\.codex|\.windsurf|\.conductor|\.github|\.gemini)\/[A-Za-z0-9_./-]+\.sh/g)]
+      const refs = [...src.matchAll(/(?:\.claude|\.cursor|\.codex|\.windsurf|\.conductor|\.github|\.gemini|\.opencode)\/[A-Za-z0-9_./-]+\.sh/g)]
         .map((m) => m[0]);
       for (const ref of new Set(refs)) {
         if (!fs.existsSync(path.join(targetAbs, ref))) {
           hookProblems++; add('D5', 'FAIL', `${ef.path} references missing hook script ${ref}`);
         }
       }
+    }
+  }
+  if (pythonRequiredByHook) {
+    if (hookPython) add('D5', 'OK', `Python 3 hook runtime resolved as '${hookPython}'`);
+    else {
+      hookWarnings++;
+      add('D5', 'WARN', 'Python 3 hook runtime is unavailable — JSON-dependent guards will fail open with an explicit diagnostic; install Python 3 or set CONDUCTOR_PYTHON_BIN');
     }
   }
   const requiresProfile = manifestSources.some(({ manifest: m }) => ['full', 'minimal', 'strict'].includes(m.mode));
@@ -715,6 +748,7 @@ function run(targetDir, opts) {
     gemini: ['GEMINI.md', '.gemini/styleguide.md'],
     codex: ['.codex/hooks.json', '.codex/agents'],
     windsurf: ['.windsurfrules', '.devin/rules'],
+    opencode: ['opencode.json', '.opencode/rules'],
   };
   let unowned = 0;
   for (const [tool, paths] of Object.entries(footprints)) {
@@ -747,9 +781,9 @@ function run(targetDir, opts) {
     const durable = [...new Set(manifest.emitted_files
       .map((ef) => ef && ef.path)
       .filter((p) => p && (/^(AGENTS|CLAUDE|GEMINI)\.md$/.test(p)
-        || /^\.(claude|cursor|codex|gemini|github|windsurf|devin)\//.test(p)
-        || p === '.windsurfrules' || p === '.conductor/project.json'))
-      .concat(manifestPaths.map((p) => path.relative(targetAbs, p)), ['.conductor-manifest.json', '.conductor/model-routing.json']))];
+        || /^\.(claude|cursor|codex|gemini|github|windsurf|devin|opencode)\//.test(p)
+        || p === '.windsurfrules' || p === 'opencode.json' || p === '.conductor/project.json'))
+      .concat(manifestPaths.map((p) => path.relative(targetAbs, p).replace(/\\/g, '/')), ['.conductor-manifest.json', '.conductor/model-routing.json']))];
     const notTracked = durable.filter((p) => spawnSync('git', ['-C', targetAbs, 'ls-files', '--error-unmatch', '--', p], { stdio: 'ignore' }).status !== 0);
     if (notTracked.length) add('D9', 'WARN', `${notTracked.length} durable runtime file(s) are not Git-tracked: ${notTracked.slice(0, 6).join(', ')}${notTracked.length > 6 ? ', …' : ''}`);
     else add('D9', 'OK', `${durable.length} durable runtime file(s) are Git-tracked`);

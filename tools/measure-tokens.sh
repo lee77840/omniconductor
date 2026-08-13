@@ -16,7 +16,7 @@
 #
 # Requirements:
 #   - Claude Code installed (sessions live under ~/.claude/projects/<encoded>/*.jsonl)
-#   - python3 (standard on macOS / Linux)
+#   - Python 3 (`CONDUCTOR_PYTHON_BIN`, `python3`, or `python`)
 #
 # Output:
 #   - Total input tokens / output tokens / tool calls / dispatches
@@ -73,13 +73,26 @@ else
   exit 1
 fi
 
-# Use python3 for robust large-file parsing (jq -s fails on 100MB+ files).
+# Use Python 3 for robust large-file parsing (jq -s fails on 100MB+ files).
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+[ -n "$PYTHON_BIN" ] || {
+  echo "Error: Python 3 not found; install it or set CONDUCTOR_PYTHON_BIN" >&2
+  exit 1
+}
+
 EXPORT_ARG=""
 if [ -n "$EXPORT_CSV" ]; then
   EXPORT_ARG="$EXPORT_CSV"
 fi
 
-python3 - "$SESSION_PATH" "$EXPORT_ARG" <<'PYEOF'
+"$PYTHON_BIN" - "$SESSION_PATH" "$EXPORT_ARG" <<'PYEOF'
 import json, os, sys
 
 path = sys.argv[1]

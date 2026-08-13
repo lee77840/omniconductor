@@ -15,7 +15,7 @@
 #
 # Behavior:
 #   1. Locate latest session JSONL under ~/.claude/projects/<encoded>/*.jsonl.
-#   2. Sum cache_read_input_tokens vs uncached input_tokens via python3.
+#   2. Sum cache_read_input_tokens vs uncached input_tokens via Python 3.
 #   3. If hit_rate < ${CONDUCTOR_CACHE_HIT_FLOOR_PERCENT}% AND total
 #      effective input tokens >= ${CONDUCTOR_CACHE_TOTAL_FLOOR}, emit a
 #      stderr reminder listing the 5 candidate anti-patterns.
@@ -25,7 +25,7 @@
 #   ${CONDUCTOR_CACHE_SKIP_ENV}=1
 #
 # Skip conditions:
-#   - python3 missing
+#   - Python 3 missing (reported explicitly)
 #   - no session JSONL found
 #   - session token volume below floor (too short to draw conclusions)
 #   - skip env var set
@@ -47,7 +47,18 @@ ANTI_PATTERNS_DOC="${CONDUCTOR_ANTI_PATTERNS_PATH:-core/anti-patterns/README.md}
 SKIP_VAL="$(/usr/bin/printenv "$SKIP_ENV_NAME" 2>/dev/null || true)"
 [ "$SKIP_VAL" = "1" ] && exit 0
 
-command -v python3 >/dev/null 2>&1 || exit 0
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  printf '%s\n' '[CONDUCTOR hook] Python 3 is unavailable; cache-hit baseline was not evaluated.' >&2
+  exit 0
+fi
 
 # Allow tests to inject a fixture directly.
 FIXTURE="${CONDUCTOR_CACHE_TEST_FIXTURE:-}"
@@ -72,8 +83,8 @@ else
   [ -n "$SESSION_PATH" ] && [ -f "$SESSION_PATH" ] || exit 0
 fi
 
-# Parse + decide. python3 prints a single line: "<hit_rate> <total_eff>".
-RESULT=$(SESSION="$SESSION_PATH" python3 - <<'PYEOF' 2>/dev/null
+# Parse + decide. Python prints a single line: "<hit_rate> <total_eff>".
+RESULT=$(SESSION="$SESSION_PATH" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
 import json, os, sys
 path = os.environ.get("SESSION", "")
 total_input = 0

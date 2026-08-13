@@ -37,6 +37,11 @@ const CONTRACTS = {
     pathStatus: 'recommended',
     activation: 'automatic-and-explicit-one-active',
   },
+  opencode: {
+    projectPath: '.opencode/skills',
+    pathStatus: 'native',
+    activation: 'automatic-and-explicit',
+  },
 };
 
 function isNonEmptyString(value) {
@@ -108,7 +113,7 @@ function validateSourceRoot(sourceRoot) {
     for (const problem of validateSkillText(text, name)) {
       problems.push(`${name}: ${problem}`);
     }
-    if (/\b(?:Claude|Cursor|Copilot|Gemini|Codex|Windsurf|Devin)\b/i.test(text)) {
+    if (/\b(?:Claude|Cursor|Copilot|Gemini|Codex|Windsurf|Devin|OpenCode)\b/i.test(text)) {
       problems.push(`${name}: provider-specific tool name found`);
     }
     if (/\$(?:ARGUMENTS|CODEX_HOME|CLAUDE_PROJECT_DIR)\b/.test(text)) {

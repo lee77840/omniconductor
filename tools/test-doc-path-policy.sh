@@ -15,10 +15,11 @@ primary_surface() {
     gemini) echo "GEMINI.md" ;;
     codex) echo "AGENTS.md" ;;
     windsurf) echo ".windsurfrules" ;;
+    opencode) echo ".opencode/rules/workflow.md" ;;
   esac
 }
 
-for adapter in claude cursor copilot gemini codex windsurf; do
+for adapter in claude cursor copilot gemini codex windsurf opencode; do
   target="$TMP/$adapter"
   mkdir -p "$target"
   node "$ROOT/bin/omniconductor.js" init --target="$adapter" "$target" \
@@ -103,7 +104,7 @@ node -e '
 grep -qF 'not a ban on other documentation' "$ROOT/core/universal-rules/workflow.md" \
   || fail "workflow lost the ordinary-document allowance"
 
-echo "PASS: canonical document paths across all six adapters"
+echo "PASS: canonical document paths across all seven adapters"
 echo "PASS: preserved pre-ADR-052 INDEX is a visible non-failing upgrade warning"
 echo "PASS: doctor distinguishes accidental precedent from explicit override"
 echo "PASS: stock docs/* paths cannot mask top-level plans/specs legacy roots"

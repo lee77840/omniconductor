@@ -6,18 +6,18 @@ Honest comparison of CONDUCTOR against the major existing options. Updated 2026-
 
 | | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR** |
 |---|---|---|---|---|---|---|
-| **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 6 tools, all with working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf) — npm-published (`npx omniconductor`) |
+| **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 7 working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf / OpenCode v1) — npm-published (`npx omniconductor`) |
 | **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 8 roles) + 17 opt-in recipes + verified hook set |
-| **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — five native profile formats plus Windsurf role workflows |
+| **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — six native profile formats plus Windsurf role workflows |
 | **Spec-as-you-go enforcement** | Soft (encouraged) | Yes (gates) | Yes (artifacts) | No | No | ABSOLUTE everywhere; verified Stop guard on Claude/Codex, installed completion checklist elsewhere |
-| **Two-stage code review** | Yes | Yes | Yes | No | No | Eight-role topology on all six; mechanical guard subset on Claude/Codex and native review/checklist elsewhere |
+| **Two-stage code review** | Yes | Yes | Yes | No | No | Eight-role topology on all seven; mechanical guards follow verified native contracts |
 | **Token economy rules** | Bonus | Bonus | Not specifically | No | No | Built-in from day 1; instruction-fidelity-first since 0.4.0 (ADR-035/036) |
-| **Self-improvement loop** | No | No | No | No | No | Opt-in `self-improvement` Reflector — propose-only, human-approved (ADR-030/032/033), emitted on all 6 tools |
+| **Self-improvement loop** | No | No | No | No | No | Opt-in propose-only Reflector on all 7; capture automation remains tool-specific |
 | **Agent-loop / git discipline** | No | No | No | No | No | Opt-in `loop-engineering` (bounded, externally-verified loops, ADR-038) + `git-hygiene` (shared-repo discipline, ADR-037) recipes |
 | **Memory pattern** | No | No | No | No | No | Universal 4-type pattern; native managed memory on Claude/Copilot/Codex/Windsurf, documented fallbacks elsewhere |
 | **Bilingual (한/영)** | Translations available | English-first | English-first | English-first | DIY | First-class (한/영, README + marketing) |
 | **Origin** | Single-author theory | Microsoft research roots | Indie author | IDE vendor | None | One year of production iteration at LFamily Labs |
-| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | All 6 adapters working + CI-validated, npm-published; 1.0 shipped 2026-07 (current version in `CHANGELOG.md`) |
+| **Maturity** | High (many skills) | High (well-documented) | High (community) | Medium | N/A | All 7 adapters working and locally release-gated; npm-published (current version in `CHANGELOG.md`) |
 | **License** | MIT (varies) | MIT | Commercial-friendly | Proprietary IDE | N/A | Apache 2.0 + CONDUCTOR-name trademark (ADR-029) |
 | **Telemetry** | Varies | None | None | Cursor opt-in | None | None ever (ADR-008) |
 | **Uninstall path** | Per-skill manual delete | Per-phase manual delete | Per-artifact manual delete | None (rules accumulate) | N/A | `transform.sh --uninstall` (manifest-tracked, restores backups) — ADR-020 |
@@ -52,11 +52,11 @@ If you only want format conversion, you can write a 50-line script that reads `*
 ## Honest weaknesses of CONDUCTOR
 
 - **No installer GUI.** Bash adapters + the `npx omniconductor` CLI only. Power-user tool. (A VSCode-extension launcher is Phase 2 — ADR-023/025.)
-- **Mechanical guard coverage is capability-specific.** Claude gets the full set, Codex gets the verified native subset, and other adapters avoid translating unverified hook contracts. All six receive role entry points and the opt-in Reflector loop.
-- **Live verification is not complete.** All 6 adapters are emit-verified in CI; live rule-loading is probed per tool by `tools/live-verify.sh`, and the current per-tool status lives in the generated table in `docs/ADAPTER-LIVE-VERIFICATION.md` (single-sourced from adapter metadata).
+- **Mechanical guard coverage is capability-specific.** Every adapter receives role entry points, but only verified native decisions compile to guards. OpenCode v1 has two commit guards and rule fallback for review-stop.
+- **Live verification is not complete.** All 7 adapters are emit-verified by local release gates; model-backed rule loading remains a separate opt-in probe with status generated from metadata.
 - **No community yet.** No Discord, no Twitter/X presence. You're an early adopter.
 - **Tool fragmentation risk.** If 12 new tools launch in 2026, we cannot keep up. Mitigated by documented adapter contribution path (`docs/CONTRIBUTING.md`).
-- **Guard asymmetry.** Claude receives the full verified guard set and Codex receives the verified native subset. Cursor, Copilot, Gemini, and Windsurf retain the same obligations through native rules plus only the lifecycle/recipe hooks whose contracts are verified.
+- **Guard asymmetry.** Each tool retains the same obligation through rules, while mechanical enforcement is emitted only for first-party-verified decision contracts. OpenCode v2 beta is not covered by the v1 plugin.
 - **External review plugins are optional.** Every adapter emits the base `code-reviewer` role; a compatible third-party plugin may add another review signal but is not required for the two-stage workflow.
 - **Mobile rule (project-specific) is React Native flavored.** If your stack is native iOS or native Android, that rule is mostly noise — but it's project-specific and lives in your adapted output, not in `core/`.
 

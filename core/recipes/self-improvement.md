@@ -43,12 +43,14 @@ Run weekly (batch), or on demand via `/reflect`. To automate the weekly run, reg
 
 ## Per-tool automation
 
-- **All six adapters**: emit the nearest verified lifecycle hook, native `/reflect`
-  entry point, reflector agent/workflow, deterministic pruning utility, runner,
-  brief, and scheduling guide. Event names differ by product and Windsurf lacks a
-  session/Stop event, so its response hook is not represented as identical.
-- **Proposal skill**: all six adapters emit `propose-skill` only with this recipe.
-  Claude uses `.claude/skills`; the other adapters share `.agents/skills`. Native
+- **All seven adapters**: emit a native or portable `/reflect` entry point,
+  reflector agent/workflow, deterministic pruning utility, runner, brief, and
+  scheduling guide. The nearest verified lifecycle hook is added only when it can
+  supply the required trajectory evidence. OpenCode remains manual/propose-only;
+  Windsurf's response hook is not represented as identical to a Stop event.
+- **Proposal skill**: all seven adapters emit `propose-skill` only with this recipe.
+  Claude and OpenCode use their native skill roots; the other adapters share
+  `.agents/skills`. Native
   capture/suggestion features may help collect evidence, but the CONDUCTOR inbox
   and human decision contract is identical.
 - **Scheduling**: register `run-weekly.sh` with OS cron/launchd, or a verified native

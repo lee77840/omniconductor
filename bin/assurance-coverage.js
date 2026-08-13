@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const LEVELS = [
   'unsupported',
   'instruction-only',
@@ -193,7 +193,7 @@ function compare(current, previous) {
   if (!Array.isArray(previous.adapters)
       || previous.adapters.length !== TOOLS.length
       || previous.adapters.some((tool, index) => tool !== TOOLS[index])) {
-    throw new Error('comparison report must contain the exact six-adapter contract');
+    throw new Error(`comparison report must contain the exact ${TOOLS.length}-adapter contract`);
   }
   const previousIds = new Set();
   for (const record of previous.records) {
@@ -249,8 +249,8 @@ function render(report) {
     'Levels: `—` unsupported · `I` instruction-only · `E` emit-verified ·',
     '`N` native-contract-tested · `L` live-verified · `A` adversarially-verified.',
     '',
-    '| Artifact | Kind | Claude | Cursor | Copilot | Gemini | Codex | Windsurf |',
-    '|---|---|---:|---:|---:|---:|---:|---:|',
+    `| Artifact | Kind | ${TOOLS.map((tool) => tool === 'claude' ? 'Claude' : tool === 'gemini' ? 'Gemini' : tool[0].toUpperCase() + tool.slice(1)).join(' | ')} |`,
+    `|---|---|${TOOLS.map(() => '---:').join('|')}|`,
   ];
   for (const record of report.records) {
     lines.push(`| \`${record.id}\` | ${record.kind} | ${TOOLS.map((tool) => icon[record.adapters[tool].level]).join(' | ')} |`);

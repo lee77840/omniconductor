@@ -11,7 +11,8 @@ adapters/
 ├── copilot/       # GitHub Copilot (T2)
 ├── gemini/        # Gemini CLI (T2)
 ├── codex/         # OpenAI Codex (T2)
-└── windsurf/      # Windsurf / Devin Desktop (T3)
+├── windsurf/      # Windsurf / Devin Desktop (T3)
+└── opencode/      # OpenCode stable v1 (T2; v2 beta unsupported)
 ```
 
 Each adapter directory contains:
@@ -40,13 +41,14 @@ Every adapter MUST honor:
 - `docs/` templates from `core/docs-templates/` install at `<target>/docs/` for every adapter (universal across tools).
 - Full/minimal/strict installs compile the three baseline `plan-change`,
   `verify-change`, and `review-change` procedures from `core/skills/` to
-  `.claude/skills` for Claude and shared `.agents/skills` for the other five
-  adapters. Recipes-only and Reflector-only do not emit those baseline skills.
+  `.claude/skills` for Claude, `.opencode/skills` for OpenCode, and shared
+  `.agents/skills` for the other five adapters. Recipes-only and Reflector-only do
+  not emit those baseline skills.
 - The `self-improvement` recipe additionally emits `propose-skill` at the same
   provider path. It writes only typed `.conductor/skill-proposals/` inbox items;
   accept/reject never promotes a live skill.
 - The `git-hygiene` recipe additionally emits `coordinate-work` at the same provider
-  path. All six tools use the same local claim/handoff/release contract; provider
+  path. All seven tools use the same local claim/handoff/release contract; provider
   lifecycle hooks do not receive invented distributed-lock semantics.
 - `omniconductor audit extensions` reads metadata-declared project roots without
   executing configuration or revealing credentials. `omniconductor package` emits
@@ -94,10 +96,11 @@ The Layer-1 universal-rules use `applies_to:` front-matter for routing hints. Ea
 | (Copilot) | `applyTo: '**/*.ts,**/*.tsx'` |
 | (Gemini / Codex) | (bundled — no per-pattern routing) |
 | (Windsurf) | (bundled into `.devin/rules/`; legacy `.windsurf/rules/` still read) |
+| (OpenCode v1) | Markdown body under `.opencode/rules/`; `opencode.json` owns instruction globs |
 
 | `core/` front-matter | Adapter behavior |
 |---|---|
-| `always_loaded: true` | Merge content into the always-loaded baseline (`CLAUDE.md`, `.cursor/rules/*.mdc` `alwaysApply: true`, `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md`, `.windsurfrules`) |
+| `always_loaded: true` | Merge content into the always-loaded baseline (`CLAUDE.md`, `.cursor/rules/*.mdc` `alwaysApply: true`, `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md`, `.windsurfrules`, or OpenCode `instructions`) |
 | `always_loaded: false` (or absent) | Emit as a separate rule file with appropriate per-pattern scoping |
 
 ## Adapter-specific extensions
@@ -106,7 +109,7 @@ Each adapter MAY also install tool-native artifacts that have no `core/` source 
 
 - **Claude adapter** also installs `.claude/agents/*.md`, `.claude/hooks/*.sh`, and a generated `.claude/settings.json` (written by `transform.sh`).
 - **Cursor adapter** also installs `.cursor/commands/*.md` (project commands, where applicable).
-- **Cursor / Copilot / Gemini / Codex / Windsurf adapters** emit their verified
+- **Cursor / Copilot / Gemini / Codex / Windsurf / OpenCode adapters** emit their verified
   native agent/workflow, command, hook, and model-routing surfaces as documented in
   each adapter README. Unsupported contracts remain explicit omissions.
 
@@ -114,7 +117,7 @@ These tool-native artifacts live IN THE ADAPTER (not in `core/`) and are documen
 
 ## Running an adapter
 
-All six adapters ship a runnable `transform.sh`. Every public direct invocation
+All seven adapters ship a runnable `transform.sh`. Every public direct invocation
 requires Node.js and delegates to `omniconductor init --target=<tool>` so it
 performs the same one-time project-saved model setup before the CLI dispatches
 back to the adapter child. `npx omniconductor` remains recommended because it
@@ -135,7 +138,7 @@ npx omniconductor init --target=<tool> [target-dir]
 
 ## Status
 
-All 6 adapter directories have:
+All 7 adapter directories have:
 - ✅ `README.md`
 - ✅ `SUPPORTED-FEATURES.md`
 - ✅ `transform-spec.md`

@@ -32,8 +32,19 @@ cd "$REPO_ROOT" || exit 0
 
 CURRENT_WORK="${CONDUCTOR_CURRENT_WORK_PATH:-}"
 PROFILE=".conductor/project.json"
-if [ -z "$CURRENT_WORK" ] && [ -f "$PROFILE" ] && command -v /usr/bin/python3 >/dev/null 2>&1; then
-  CURRENT_WORK="$(/usr/bin/python3 -c 'import json; print(json.load(open(".conductor/project.json")).get("current_work_path", ""))' 2>/dev/null || true)"
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  printf '%s\n' '[CONDUCTOR hook] Python 3 is unavailable; project-profile stop checks use documented defaults.' >&2
+fi
+if [ -z "$CURRENT_WORK" ] && [ -f "$PROFILE" ] && [ -n "$PYTHON_BIN" ]; then
+  CURRENT_WORK="$("$PYTHON_BIN" -c 'import json; print(json.load(open(".conductor/project.json")).get("current_work_path", ""))' 2>/dev/null || true)"
 fi
 CURRENT_WORK="${CURRENT_WORK:-docs/CURRENT_WORK.md}"
 [ -f "$CURRENT_WORK" ] || exit 0
@@ -43,8 +54,8 @@ COOLDOWN="${CONDUCTOR_COOLDOWN_SECONDS:-600}"
 SRC_GLOB="${CONDUCTOR_SOURCE_GLOB:-}"
 SPEC_PATH="${CONDUCTOR_SPEC_PATH:-}"
 PLAN_THRESHOLD="${CONDUCTOR_PLAN_THRESHOLD:-}"
-if [ -f "$PROFILE" ] && command -v /usr/bin/python3 >/dev/null 2>&1; then
-  PROFILE_VALUES="$(/usr/bin/python3 -c '
+if [ -f "$PROFILE" ] && [ -n "$PYTHON_BIN" ]; then
+  PROFILE_VALUES="$("$PYTHON_BIN" -c '
 import json
 try:
     p=json.load(open(".conductor/project.json"))

@@ -6,7 +6,7 @@
 # (output paths, legacy paths, tier, capabilities, live-verification, headless CLI).
 # This checker asserts the places that state those facts agree with it:
 #
-#   M1: metadata.json exists for all 6 adapters, is valid JSON, has required keys —
+#   M1: metadata.json exists for all 7 adapters, is valid JSON, has required keys —
 #       including NON-EMPTY nested fields (tier, live_verification.status,
 #       headless_cli.command, at least one output with a path)
 #   M2: every outputs[].path literal appears in adapters/<tool>/transform.sh
@@ -43,7 +43,7 @@ cd "$(dirname "$0")/.." || exit 2
 
 command -v node >/dev/null 2>&1 || { echo "ERROR: node is required" >&2; exit 2; }
 
-TOOLS="claude cursor copilot gemini codex windsurf"
+TOOLS="claude cursor copilot gemini codex windsurf opencode"
 VALIDATOR="tools/validate-adapter-output.sh"
 LIVE_DOC="docs/ADAPTER-LIVE-VERIFICATION.md"
 MATRIX_DOC="docs/COMPATIBILITY-MATRIX.md"

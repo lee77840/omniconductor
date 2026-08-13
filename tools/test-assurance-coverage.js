@@ -16,7 +16,7 @@ function test(name, fn) {
   process.stdout.write(`OK   [assurance-coverage] ${name}\n`);
 }
 
-test('report is deterministic and covers every artifact across six adapters', () => {
+test('report is deterministic and covers every artifact across seven adapters', () => {
   const first = coverage.buildReport();
   const second = coverage.buildReport();
   assert.deepStrictEqual(first, second);

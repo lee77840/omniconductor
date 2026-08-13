@@ -23,7 +23,8 @@ PREVIOUS_PACKAGE="$(cd "$(dirname "$PREVIOUS_PACKAGE")" && pwd)/$(basename "$PRE
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/conductor-npm-upgrade.XXXXXX")"
 CONSUMER="$BASE/consumer"
 CACHE="${CONDUCTOR_NPM_CACHE:-${TMPDIR:-/tmp}/conductor-npm-cache}"
-TOOLS="claude cursor copilot gemini codex windsurf"
+PREVIOUS_TOOLS="claude cursor copilot gemini codex windsurf"
+TOOLS="$PREVIOUS_TOOLS opencode"
 RECIPES="self-improvement,git-hygiene,loop-engineering"
 
 fail() { echo "FAIL [npm-upgrade] $* (fixture: $BASE)" >&2; exit 1; }
@@ -37,6 +38,7 @@ baseline_for() {
     gemini) echo "GEMINI.md" ;;
     codex) echo "AGENTS.md" ;;
     windsurf) echo ".windsurfrules" ;;
+    opencode) echo "opencode.json" ;;
   esac
 }
 
@@ -93,7 +95,7 @@ fi
 
 # Prepare six independent existing-user projects, including a user edit to the
 # primary managed surface, before replacing the installed npm package.
-for tool in $TOOLS; do
+for tool in $PREVIOUS_TOOLS; do
   project="$BASE/single-$tool"
   mkdir -p "$project"
   printf 'KEEP-%s\n' "$tool" > "$project/KEEP.txt"
@@ -111,7 +113,7 @@ done
 MULTI="$BASE/multi"
 mkdir -p "$MULTI"
 printf 'KEEP-MULTI\n' > "$MULTI/KEEP.txt"
-for tool in $TOOLS; do
+for tool in $PREVIOUS_TOOLS; do
   "$CLI" init --target="$tool" "$MULTI" --no-prompt \
     ${PREVIOUS_INIT_MODEL_ARG:+"$PREVIOUS_INIT_MODEL_ARG"} --recipes="$RECIPES" >/dev/null 2>&1 \
     || fail "multi-project $tool $PREVIOUS_VERSION fixture install"
@@ -138,7 +140,7 @@ AFTER_DRY_RUN="$(tree_fingerprint "$MULTI")"
   || fail "six-tool previous-version dry-run changed files or directories"
 ok "previous-version six-tool dry-run is byte- and path-zero-write"
 
-for tool in $TOOLS; do
+for tool in $PREVIOUS_TOOLS; do
   project="$BASE/single-$tool"
   baseline="$(baseline_for "$tool")"
   sentinel="USER-UPGRADE-SENTINEL-$tool"
@@ -165,6 +167,22 @@ for tool in $TOOLS; do
   ok "$tool $PREVIOUS_VERSION → $CURRENT_VERSION upgrade, validation, doctor, and rollback"
 done
 
+# OpenCode is new in 1.6.0, so the previous package cannot create its fixture.
+# Exercise its packaged fresh-install/doctor/uninstall lifecycle alongside the
+# six real upgrades instead of fabricating a predecessor it never had.
+project="$BASE/single-opencode"
+mkdir -p "$project"
+printf 'KEEP-opencode\n' > "$project/KEEP.txt"
+"$CLI" init --target=opencode "$project" --no-prompt --accept-model-defaults \
+  --recipes="$RECIPES" >/dev/null 2>&1 || fail "opencode fresh install"
+bash "$PKG/tools/validate-adapter-output.sh" "$project" opencode >/dev/null 2>&1 \
+  || fail "opencode fresh output validation"
+doctor_has_no_failures "$CLI" "$project" "single-opencode"
+"$CLI" init --target=opencode "$project" --uninstall >/dev/null 2>&1 \
+  || fail "opencode fresh uninstall"
+[ "$(/bin/cat "$project/KEEP.txt")" = "KEEP-opencode" ] || fail "opencode user sentinel changed"
+ok "opencode fresh packaged install, validation, doctor, and rollback"
+
 "$CLI" init --target=all "$MULTI" --no-prompt --accept-model-defaults \
   --recipes="$RECIPES" >/dev/null 2>&1 || fail "six-tool legacy project upgrade"
 for tool in $TOOLS; do
@@ -172,13 +190,13 @@ for tool in $TOOLS; do
     || fail "six-tool upgraded $tool output validation"
 done
 doctor_has_no_failures "$CLI" "$MULTI" "multi"
-[ "$(find "$MULTI/.conductor/manifests" -type f -name '*.json' | /usr/bin/wc -l | /usr/bin/tr -d ' ')" -eq 6 ] \
-  || fail "six-tool upgrade did not create six authoritative manifests"
-node -e 'const c=require(process.argv[1]); if (Object.keys(c.adapters || {}).length !== 6) process.exit(1)' \
-  "$MULTI/.conductor/model-routing.json" || fail "six-tool routing migration"
+[ "$(find "$MULTI/.conductor/manifests" -type f -name '*.json' | /usr/bin/wc -l | /usr/bin/tr -d ' ')" -eq 7 ] \
+  || fail "seven-tool upgrade did not create seven authoritative manifests"
+node -e 'const c=require(process.argv[1]); if (Object.keys(c.adapters || {}).length !== 7) process.exit(1)' \
+  "$MULTI/.conductor/model-routing.json" || fail "seven-tool routing migration"
 "$CLI" init --target=all "$MULTI" --uninstall >/dev/null 2>&1 || fail "six-tool post-upgrade uninstall"
 [ "$(/bin/cat "$MULTI/KEEP.txt")" = "KEEP-MULTI" ] || fail "six-tool user sentinel changed"
 [ -s "$MULTI/.conductor/model-routing.json" ] || fail "six-tool model choices were not retained"
-ok "previous-version six-tool project upgrades and uninstalls without losing user data"
+ok "previous-version six-tool project expands to seven and uninstalls without losing user data"
 
 echo "npm upgrade suite: PASS ($BASE)"

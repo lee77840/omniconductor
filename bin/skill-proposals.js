@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const INBOX_REL = '.conductor/skill-proposals';
-const SOURCE_TOOLS = new Set(['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf']);
+const SOURCE_TOOLS = new Set(['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode']);
 const TOP_LEVEL_FIELDS = new Set(['schema_version', 'name', 'summary', 'procedure', 'evidence', 'constraints', 'source_tool']);
 const EVIDENCE_FIELDS = new Set(['path', 'observation', 'occurrences']);
 const STORED_FIELDS = new Set(['schema_version', 'id', 'status', 'applied', 'created_at', 'proposal', 'review']);

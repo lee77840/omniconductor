@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared manifest-safety helpers for the six adapters.
+# Shared manifest-safety helpers for all adapters.
 #
 # This file is sourced after an adapter defines TARGET_ABS, MANIFEST_PATH,
 # DRY_RUN, and log().  It deliberately uses only bash + shasum/sha256sum so
@@ -11,7 +11,7 @@
 # compatibility projection for pre-v2 consumers.
 
 # Read the portable difficulty contract from a role source. Keeping this parser
-# shared prevents six adapters from silently assigning different capability to
+# shared prevents adapters from silently assigning different capability to
 # the same role. Only the three tiers defined by meta-discipline.md are valid.
 conductor_role_difficulty_tier() {
   local src="$1" tier
@@ -62,6 +62,19 @@ conductor_validate_cursor_model() {
   if [ -z "$model" ] || [ "${#model}" -gt 160 ] \
     || ! printf '%s' "$model" | /usr/bin/grep -qE '^[A-Za-z0-9][A-Za-z0-9._:/-]*(\[[A-Za-z0-9._:=,-]+\])?$'; then
     echo "Error: invalid $context '$model'" >&2
+    return 1
+  fi
+}
+
+# OpenCode model identifiers use the provider/model form. Keep this grammar
+# explicit so saved routing cannot inject YAML, whitespace, or extra segments
+# into `.opencode/agents/*.md` frontmatter.
+conductor_validate_opencode_model() {
+  local model="$1" context="${2:-OpenCode model}"
+  if [ "$model" = "inherit" ]; then return 0; fi
+  if [ -z "$model" ] || [ "${#model}" -gt 160 ] \
+    || ! printf '%s' "$model" | /usr/bin/grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:-]*$'; then
+    echo "Error: invalid $context '$model' (expected provider/model)" >&2
     return 1
   fi
 }

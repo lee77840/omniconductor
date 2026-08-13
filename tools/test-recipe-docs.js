@@ -17,6 +17,12 @@ function fixture() {
   for (const name of ['alpha', 'beta', 'gamma']) {
     write(path.join(root, 'core', 'recipes', `${name}.md`), `# ${name}\n`);
   }
+  // `gamma` is the fixture's single stack-specific recipe, so the documented
+  // stack-agnostic total must derive to 2 rather than a hardcoded count - 1.
+  write(path.join(root, 'core', 'recipes', 'gamma.md'), '---\nstack_specific: true\n---\n\n# gamma\n');
+  for (const name of ['operations', 'quality-gates']) {
+    write(path.join(root, 'core', 'universal-rules', `${name}.md`), `# ${name}\n`);
+  }
   write(path.join(root, 'core', 'recipes', 'README.md'), `# Recipes
 
 ## The 3 recipes
@@ -47,7 +53,9 @@ Recipes from the 3 in core.
 
 Check recipe name spelling. Available: \`alpha\`, \`beta\`, \`gamma\`.
 
-The other 2 recipes are generic.
+3개 recipe options are documented here.
+
+A: Skip \`gamma\` (stack-specific). The 2 universal rule bundles and the other 2 recipes are stack-agnostic.
 `);
   return root;
 }
@@ -89,4 +97,34 @@ write(readmePath, fs.readFileSync(readmePath, 'utf8').replace(
 assert.match(errorsFor(root), /main table recipe catalog drift.*duplicate: gamma/);
 fs.rmSync(root, { recursive: true, force: true });
 
-console.log('recipe documentation drift tests: 5/5 passed');
+// A guarded sentence that is reworded must fail loudly. Before the presence
+// assertion this silently dropped the guard and the gate still reported OK.
+root = fixture();
+readmePath = path.join(root, 'README.md');
+write(readmePath, fs.readFileSync(readmePath, 'utf8').replace('**3 opt-in recipes**', '**three opt-in recipes**'));
+assert.match(errorsFor(root), /opt-in recipe count guard matched no living document/);
+fs.rmSync(root, { recursive: true, force: true });
+
+// A second stack-specific recipe must move the derived stack-agnostic total
+// rather than force the docs to state count - 1.
+root = fixture();
+write(path.join(root, 'core', 'recipes', 'delta.md'), '---\nstack_specific: true\n---\n\n# delta\n');
+readmePath = path.join(root, 'README.md');
+write(readmePath, fs.readFileSync(readmePath, 'utf8')
+  .replace(/\b3 opt-in recipes\b/, '4 opt-in recipes')
+  .replace('Recipes from the 3 in core.', 'Recipes from the 4 in core.')
+  .replace('**Recipe names** (3): `alpha`, `beta`, `gamma`.', '**Recipe names** (4): `alpha`, `beta`, `delta`, `gamma`.')
+  .replace('Check recipe name spelling. Available: `alpha`, `beta`, `gamma`.', 'Check recipe name spelling. Available: `alpha`, `beta`, `delta`, `gamma`.')
+  .replace('3개 recipe options', '4개 recipe options')
+  .replace('| `gamma` | C |', '| `delta` | D |\n| `gamma` | C |'));
+const corePath = path.join(root, 'core', 'recipes', 'README.md');
+write(corePath, fs.readFileSync(corePath, 'utf8')
+  .replace('## The 3 recipes', '## The 4 recipes')
+  .replace('| `gamma.md` | C |', '| `delta.md` | D |\n| `gamma.md` | C |'));
+// With two stack-specific recipes out of four, "the other 2 are stack-agnostic"
+// is the true sentence and must pass. The previous count - 1 rule expected 3
+// here, so it would have rejected the correct documentation.
+assert.doesNotMatch(errorsFor(root), /stack-agnostic recipe count/);
+fs.rmSync(root, { recursive: true, force: true });
+
+console.log('recipe documentation drift tests: 7/7 passed');

@@ -4,13 +4,24 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOOK="$ROOT/core/hooks/output-cap.sh.template"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+[ -n "$PYTHON_BIN" ] || fail "Python 3 test runtime not found (set CONDUCTOR_PYTHON_BIN)"
+printf -v PYTHON_BIN_Q '%q' "$PYTHON_BIN"
+
 # NOTE: this file runs under `set -e`, so rc is captured via `cmd || rc=$?`
 # (not `cmd; rc=$?`) — the latter would let `set -e` abort the script on a
 # non-zero exit before the assertion below ever runs.
 
 # Large Claude PostToolUse result -> truncated via updatedToolOutput.
 big="$(head -c 80000 /dev/zero | tr '\0' 'x')"
-payload="$(python3 -c "import json,sys;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'Bash','tool_response':{'stdout':sys.argv[1]}}))" "$big")"
+payload="$("$PYTHON_BIN" -c "import json,sys;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'Bash','tool_response':{'stdout':sys.argv[1]}}))" "$big")"
 rc=0
 out="$(printf '%s' "$payload" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_OUTPUT_CAP_TOKENS=1000 bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0, got $rc"
@@ -20,7 +31,7 @@ printf '%s' "$out" | grep -q 'output truncated' || fail "elision marker missing"
 # output schema and silently DISCARDS a mismatched replacement (claude.exe
 # 2.1.215 `outputSchema.safeParse` gate). An object response MUST come back as
 # the same object shape with its string leaves clipped — never as a string.
-printf '%s' "$out" | python3 -c "
+printf '%s' "$out" | "$PYTHON_BIN" -c "
 import json,sys
 u=json.load(sys.stdin)['hookSpecificOutput']['updatedToolOutput']
 assert isinstance(u,dict), 'object response must stay an object (schema gate)'
@@ -30,11 +41,11 @@ assert len(u['stdout']) < 60000, 'stdout not actually clipped'
 " || fail "updatedToolOutput is not shape-preserving for an object response"
 
 # Plain-string tool_response -> plain-string replacement (string in, string out).
-payload_str="$(python3 -c "import json,sys;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'WebFetch','tool_response':sys.argv[1]}))" "$big")"
+payload_str="$("$PYTHON_BIN" -c "import json,sys;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'WebFetch','tool_response':sys.argv[1]}))" "$big")"
 rc=0
 out_s="$(printf '%s' "$payload_str" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_OUTPUT_CAP_TOKENS=1000 bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0 on string response, got $rc"
-printf '%s' "$out_s" | python3 -c "
+printf '%s' "$out_s" | "$PYTHON_BIN" -c "
 import json,sys
 u=json.load(sys.stdin)['hookSpecificOutput']['updatedToolOutput']
 assert isinstance(u,str), 'string response must stay a string'
@@ -44,14 +55,14 @@ assert 'output truncated' in u
 # Many-medium-leaf (MCP-style) payload: total must land near the budget and the
 # result must NEVER be larger than the input (adversarial-review regression:
 # per-leaf marker overhead used to GROW such payloads and miss the budget 7x).
-mcp_payload="$(python3 -c "
+mcp_payload="$("$PYTHON_BIN" -c "
 import json
 leaves=[('段落 %d ' % i) + 'y'*300 for i in range(1000)]
 print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'mcp__search','tool_response':{'content':[{'type':'text','text':t} for t in leaves]}}))")"
 rc=0
 out_m="$(printf '%s' "$mcp_payload" | CONDUCTOR_HOOK_DIALECT=claude bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0 on MCP-shaped payload, got $rc"
-printf '%s\n%s' "${#mcp_payload}" "$out_m" | python3 -c "
+printf '%s\n%s' "${#mcp_payload}" "$out_m" | "$PYTHON_BIN" -c "
 import json,sys
 lines=sys.stdin.read().split('\n',1)
 in_len=int(lines[0]); u=json.loads(lines[1])['hookSpecificOutput']['updatedToolOutput']
@@ -64,14 +75,14 @@ assert isinstance(u,dict) and isinstance(u['content'],list) and len(u['content']
 " || fail "many-medium-leaf payload not bounded/shape-preserved"
 
 # Growth guard: leaves just above MIN_KEEP must be left alone, never enlarged.
-grow_payload="$(python3 -c "
+grow_payload="$("$PYTHON_BIN" -c "
 import json
 print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'X','tool_response':{'items':['q'*250 for _ in range(30)]}}))")"
 rc=0
 out_g="$(printf '%s' "$grow_payload" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_OUTPUT_CAP_TOKENS=1 bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0 on growth-guard payload, got $rc"
 if [ -n "$out_g" ]; then
-  printf '%s\n%s' "${#grow_payload}" "$out_g" | python3 -c "
+  printf '%s\n%s' "${#grow_payload}" "$out_g" | "$PYTHON_BIN" -c "
 import json,sys
 lines=sys.stdin.read().split('\n',1)
 in_len=int(lines[0]); u=json.loads(lines[1])['hookSpecificOutput']['updatedToolOutput']
@@ -83,7 +94,7 @@ fi
 # O(n^2) hang that returned a LARGER payload).
 big_start=$(date +%s)
 big_payload_file="$(mktemp)"
-python3 -c "
+"$PYTHON_BIN" -c "
 import json
 leaves=['y'*300 for _ in range(5000)]
 open('$big_payload_file','w').write(json.dumps({'hook_event_name':'PostToolUse','tool_name':'mcp__big','tool_response':{'content':[{'type':'text','text':t} for t in leaves]}}))"
@@ -93,7 +104,7 @@ big_secs=$(( $(date +%s) - big_start ))
 [ "$rc" -eq 0 ] || fail "hook must exit 0 on 5000-leaf payload, got $rc"
 [ "$big_secs" -le 10 ] || fail "5000-leaf payload took ${big_secs}s (O(n^2) regression)"
 in_b=$(wc -c < "$big_payload_file")
-printf '%s\n%s' "$in_b" "$out_b" | python3 -c "
+printf '%s\n%s' "$in_b" "$out_b" | "$PYTHON_BIN" -c "
 import json,sys
 lines=sys.stdin.read().split('\n',1)
 in_len=int(lines[0]); u=json.loads(lines[1])['hookSpecificOutput']['updatedToolOutput']
@@ -104,7 +115,7 @@ assert len(s)//4 <= max(8000*1.15, (in_len//4)*0.45), '5000-leaf result not boun
 rm -f "$big_payload_file"
 
 # Small result -> no output (untouched).
-small="$(python3 -c "import json;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'Bash','tool_response':{'stdout':'hello'}}))")"
+small="$("$PYTHON_BIN" -c "import json;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'Bash','tool_response':{'stdout':'hello'}}))")"
 rc=0
 out2="$(printf '%s' "$small" | CONDUCTOR_HOOK_DIALECT=claude bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0, got $rc"
@@ -117,7 +128,7 @@ out3="$(printf '%s' "$payload" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_SKIP_OU
 [ -z "$out3" ] || fail "opt-out not honored"
 
 # tool_result fallback key -> also truncated.
-payload_tr="$(python3 -c "import json,sys;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'Bash','tool_result':{'stdout':sys.argv[1]}}))" "$big")"
+payload_tr="$("$PYTHON_BIN" -c "import json,sys;print(json.dumps({'hook_event_name':'PostToolUse','tool_name':'Bash','tool_result':{'stdout':sys.argv[1]}}))" "$big")"
 rc=0
 out4="$(printf '%s' "$payload_tr" | CONDUCTOR_HOOK_DIALECT=claude CONDUCTOR_OUTPUT_CAP_TOKENS=1000 bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "hook must exit 0, got $rc"
@@ -148,7 +159,7 @@ grep -q '^tool_output_token_limit = 8000' "$CX/.codex/config.toml" || fail "code
 rm -rf "$CX"
 
 # Gemini dialect: rewrite run_shell_command to append a truncator, as a clean success.
-gp="$(python3 -c "import json;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'run_shell_command','tool_input':{'command':'printf \"AAAA\\n\"'}}))")"
+gp="$("$PYTHON_BIN" -c "import json;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'run_shell_command','tool_input':{'command':'printf \"AAAA\\n\"'}}))")"
 rc=0
 gout="$(printf '%s' "$gp" | CONDUCTOR_HOOK_DIALECT=gemini CONDUCTOR_OUTPUT_CAP_TOKENS=1000 bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "gemini hook must exit 0, got $rc"
@@ -160,9 +171,9 @@ printf '%s' "$gout" | grep -q 'BeforeTool' || fail "gemini hookEventName wrong"
 # print the rewritten command (passed via argv, not interpolated into the
 # python source, so quoting in the original command is never a hazard).
 gemini_rewrite_cmd() {
-  python3 -c "import json,sys;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'run_shell_command','tool_input':{'command':sys.argv[1]}}))" "$1" \
+  "$PYTHON_BIN" -c "import json,sys;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'run_shell_command','tool_input':{'command':sys.argv[1]}}))" "$1" \
     | CONDUCTOR_HOOK_DIALECT=gemini CONDUCTOR_OUTPUT_CAP_TOKENS=1000 bash "$HOOK" \
-    | python3 -c "import json,sys;print(json.loads(sys.stdin.read())['hookSpecificOutput']['tool_input']['command'])"
+    | "$PYTHON_BIN" -c "import json,sys;print(json.loads(sys.stdin.read())['hookSpecificOutput']['tool_input']['command'])"
 }
 
 # The rewritten command must be VALID shell that truncates: run it (as a whole,
@@ -184,26 +195,26 @@ printf '%s' "$capped_fail" | grep -q 'output truncated' || fail "failing large c
 
 # Regression: stderr must pass through the same cap. Previously, a command
 # could emit an arbitrarily large error log while stdout stayed empty.
-newcmd_stderr="$(gemini_rewrite_cmd "python3 -c 'import sys; sys.stderr.write(\"E\"*40000)'")"
+newcmd_stderr="$(gemini_rewrite_cmd "$PYTHON_BIN_Q -c 'import sys; sys.stderr.write(\"E\"*40000)'")"
 rc=0; capped_stderr="$(bash -c "$newcmd_stderr")" || rc=$?
 [ "$rc" -eq 0 ] || fail "rewritten stderr-only command must preserve success, got $rc"
 printf '%s' "$capped_stderr" | grep -q 'output truncated' || fail "large stderr did not pass through the cap"
 [ "$(printf '%s' "$capped_stderr" | wc -c)" -lt 20000 ] || fail "stderr cap did not actually bound the output"
 
 # Mixed stdout+stderr uses one bounded stream and still preserves failure.
-newcmd_mixed="$(gemini_rewrite_cmd "python3 -c 'import sys; print(\"O\"*25000); sys.stderr.write(\"E\"*25000); sys.exit(7)'")"
+newcmd_mixed="$(gemini_rewrite_cmd "$PYTHON_BIN_Q -c 'import sys; print(\"O\"*25000); sys.stderr.write(\"E\"*25000); sys.exit(7)'")"
 rc=0; capped_mixed="$(bash -c "$newcmd_mixed")" || rc=$?
 [ "$rc" -eq 7 ] || fail "rewritten mixed-output command must preserve exit 7, got $rc"
 printf '%s' "$capped_mixed" | grep -q 'output truncated' || fail "mixed stdout/stderr did not emit the cap marker"
 [ "$(printf '%s' "$capped_mixed" | wc -c)" -lt 20000 ] || fail "mixed stream was not bounded"
 
 # run_shell_command with the marker already present -> idempotent no-op (no double-wrap).
-gp2="$(python3 -c "import json;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'run_shell_command','tool_input':{'command':'echo hi | awk 1 #…[CONDUCTOR]'}}))")"
+gp2="$("$PYTHON_BIN" -c "import json;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'run_shell_command','tool_input':{'command':'echo hi | awk 1 #…[CONDUCTOR]'}}))")"
 rc=0; gout2="$(printf '%s' "$gp2" | CONDUCTOR_HOOK_DIALECT=gemini bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "gemini idempotency case must exit 0"
 [ -z "$gout2" ] || fail "gemini should not re-wrap an already-capped command"
 # Non-shell tool -> no-op.
-gp3="$(python3 -c "import json;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'read_file','tool_input':{'path':'x'}}))")"
+gp3="$("$PYTHON_BIN" -c "import json;print(json.dumps({'hook_event_name':'BeforeTool','tool_name':'read_file','tool_input':{'path':'x'}}))")"
 rc=0; gout3="$(printf '%s' "$gp3" | CONDUCTOR_HOOK_DIALECT=gemini bash "$HOOK")" || rc=$?
 [ "$rc" -eq 0 ] || fail "gemini non-shell case must exit 0"
 [ -z "$gout3" ] || fail "gemini should not touch non-shell tools"
@@ -212,7 +223,7 @@ GEM="$(mktemp -d)"
 node "$ROOT/bin/omniconductor.js" init --target=gemini "$GEM" --no-prompt --accept-model-defaults >/dev/null 2>&1 || true
 [ -x "$GEM/.gemini/hooks/output-cap.sh" ] || fail "gemini hook not emitted/executable"
 grep -q 'BeforeTool' "$GEM/.gemini/settings.json" || fail "gemini settings missing BeforeTool"
-python3 -c "import json;json.load(open('$GEM/.gemini/settings.json'))" || fail "gemini settings.json is not valid JSON"
+"$PYTHON_BIN" -c "import json;json.load(open('$GEM/.gemini/settings.json'))" || fail "gemini settings.json is not valid JSON"
 rm -rf "$GEM"
 
 # Task 6: validator + doctor accept the new surfaces on a fresh full-mode

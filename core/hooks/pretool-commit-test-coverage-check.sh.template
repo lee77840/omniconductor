@@ -52,12 +52,23 @@ set -u
 
 SRC_GLOB="${CONDUCTOR_SOURCE_GLOB:-ts|tsx}"
 
-command -v /usr/bin/python3 >/dev/null 2>&1 || exit 0
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  printf '%s\n' '[CONDUCTOR hook] Python 3 is unavailable; test-coverage commit guard was not evaluated.' >&2
+  exit 0
+fi
 
 export PAYLOAD_RAW="$(/bin/cat 2>/dev/null || true)"
 [ -n "${PAYLOAD_RAW:-}" ] || exit 0
 
-CMD=$(/usr/bin/python3 -c "
+CMD=$("$PYTHON_BIN" -c "
 import json, os, sys
 try:
     d = json.loads(os.environ.get('PAYLOAD_RAW', '{}'))
@@ -115,7 +126,7 @@ esac
 
 REASON="[test-coverage-check] A new feature-shaped source file is staged but no new test file (path with test/spec/__tests__/e2e) is in this commit. Per quality-gates.md Q3, add or update the covering test in the same commit. (Skip once: set CONDUCTOR_SKIP_TEST_COVERAGE_HOOK=1.)"
 
-REASON="$REASON" /usr/bin/python3 -c "
+REASON="$REASON" "$PYTHON_BIN" -c "
 import json, os
 reason = os.environ.get('REASON', '')
 if os.environ.get('CONDUCTOR_HOOK_DIALECT') == 'codex':

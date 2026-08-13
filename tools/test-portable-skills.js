@@ -6,6 +6,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+// Windows maps a bare `bash` to the WSL relay, which spawns and then exits
+// non-zero when no distribution provides /bin/bash. Resolve the same shell the
+// installer uses so this suite is runnable on Windows, not only POSIX.
+const BASH = (require('../bin/installer-platform.js').resolveBash() || { command: 'bash' }).command;
 const {
   CONTRACTS,
   SKILL_NAMES,
@@ -97,7 +101,7 @@ try {
     assert.match(verify, /reuse it/);
   });
 
-  test('all six metadata contracts agree with their emitted roots', () => {
+  test('all seven metadata contracts agree with their emitted roots', () => {
     for (const tool of TOOLS) {
       const metadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'adapters', tool, 'metadata.json'), 'utf8'));
       assert.deepStrictEqual(validateAgentSkillsMetadata(metadata), [], tool);
@@ -226,7 +230,7 @@ try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, 'USER CONFLICT\n');
     run([
-      'bash',
+      BASH,
       'adapters/cursor/transform.sh',
       target,
       '--mode=strict',
@@ -244,7 +248,7 @@ try {
     fs.mkdirSync(path.join(target, '.agents'), { recursive: true });
     fs.writeFileSync(path.join(target, '.agents', 'skills'), 'NOT A DIRECTORY\n');
     run([
-      'bash',
+      BASH,
       'adapters/cursor/transform.sh',
       target,
       '--mode=minimal',
@@ -264,7 +268,7 @@ try {
     fs.copyFileSync(path.join(SOURCE_ROOT, 'plan-change', 'SKILL.md'), file);
     fs.writeFileSync(path.join(path.dirname(file), 'unmanaged.txt'), 'KEEP\n');
     run([
-      'bash',
+      BASH,
       'adapters/cursor/transform.sh',
       target,
       '--mode=strict',

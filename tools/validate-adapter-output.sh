@@ -8,7 +8,7 @@
 # Usage:
 #   bash tools/validate-adapter-output.sh <target-dir> <adapter>
 #
-# Adapters: cursor | copilot | claude | gemini | codex | windsurf
+# Adapters: cursor | copilot | claude | gemini | codex | windsurf | opencode
 #
 # Exit codes:
 #   0  no structural failures (adopter-disabled optional rules may WARN)
@@ -70,7 +70,7 @@ TARGET="${1:-}"
 ADAPTER="${2:-}"
 
 if [ -z "$TARGET" ] || [ -z "$ADAPTER" ]; then
-  echo "Usage: $0 <target-dir> <adapter:cursor|copilot|claude|gemini|codex|windsurf>" >&2
+  echo "Usage: $0 <target-dir> <adapter:cursor|copilot|claude|gemini|codex|windsurf|opencode>" >&2
   exit 2
 fi
 
@@ -80,8 +80,8 @@ if [ ! -d "$TARGET" ]; then
 fi
 
 case "$ADAPTER" in
-  cursor|copilot|claude|gemini|codex|windsurf) ;;
-  *) echo "ERROR: unknown adapter '$ADAPTER'. Use cursor|copilot|claude|gemini|codex|windsurf." >&2; exit 2 ;;
+  cursor|copilot|claude|gemini|codex|windsurf|opencode) ;;
+  *) echo "ERROR: unknown adapter '$ADAPTER'. Use cursor|copilot|claude|gemini|codex|windsurf|opencode." >&2; exit 2 ;;
 esac
 
 PASS=0
@@ -201,6 +201,7 @@ validate_role_set() {
     gemini) dir="$TARGET/.gemini/agents"; suffix=".md" ;;
     codex) dir="$TARGET/.codex/agents"; suffix=".toml" ;;
     windsurf) dir="$TARGET/.windsurf/workflows"; suffix=".md" ;;
+    opencode) dir="$TARGET/.opencode/agents"; suffix=".md" ;;
   esac
   for role in planner reviewer code-reviewer builder helper designer scribe utility; do
     local expected_tier expected_effort expected_model actual_model
@@ -261,7 +262,7 @@ validate_role_set() {
       if [ "$fm_open" != "1" ] || [ -z "$fm_close" ] || [ -z "$desc" ] || [ "$body_check" != "OK" ]; then
         emit_fail "${file#"$TARGET/"}" "invalid native role frontmatter or markdown body"
         missing=$((missing + 1))
-      elif [ "$adapter" != "windsurf" ] && [ "$name" != "$role" ]; then
+      elif [ "$adapter" != "windsurf" ] && [ "$adapter" != "opencode" ] && [ "$name" != "$role" ]; then
         emit_fail "${file#"$TARGET/"}" "frontmatter name '$name' does not match role '$role'"
         missing=$((missing + 1))
       elif [ "$adapter" = "claude" ] && [ -z "$(fm_field "$file" "model")" ]; then
@@ -272,6 +273,14 @@ validate_role_set() {
         missing=$((missing + 1))
       elif [ "$adapter" = "gemini" ] && [ -z "$(fm_field "$file" "model")" ]; then
         emit_fail "${file#"$TARGET/"}" "Gemini role must declare inherit or an explicit Tier override"
+        missing=$((missing + 1))
+      elif [ "$adapter" = "opencode" ] && { [ "$(fm_field "$file" "mode")" != "subagent" ] || [ -z "$(fm_field "$file" "model")" ]; }; then
+        emit_fail "${file#"$TARGET/"}" "OpenCode role must declare mode: subagent and its saved Tier translation"
+        missing=$((missing + 1))
+      elif [ "$adapter" = "opencode" ] && printf '%s\n' 'planner reviewer code-reviewer' | /usr/bin/grep -qw "$role" \
+        && { ! /usr/bin/grep -qE '^[[:space:]]+edit:[[:space:]]+deny$' "$file" \
+          || ! /usr/bin/grep -qE '^[[:space:]]+bash:[[:space:]]+deny$' "$file"; }; then
+        emit_fail "${file#"$TARGET/"}" "OpenCode read-only role must deny edit and bash through permission"
         missing=$((missing + 1))
       fi
       actual_model="$(fm_field "$file" "model")"
@@ -329,6 +338,7 @@ validate_portable_skill_set() {
   case "$ADAPTER" in
     claude) root=".claude/skills" ;;
     cursor|copilot|gemini|codex|windsurf) root=".agents/skills" ;;
+    opencode) root=".opencode/skills" ;;
   esac
   if node "$SCRIPT_ROOT/bin/portable-skills.js" \
     --installed "$TARGET" "$ADAPTER" "$SCRIPT_ROOT/core/skills" >/dev/null 2>&1; then
@@ -615,6 +625,49 @@ run_windsurf() {
   done
   validate_role_set windsurf
   validate_no_claude_model_aliases windsurf "$TARGET/.windsurfrules" "$TARGET/.devin/rules" "$TARGET/.windsurf/workflows"
+}
+
+# ---- OpenCode mode -------------------------------------------------------
+
+run_opencode() {
+  local config="$TARGET/opencode.json" plugin="$TARGET/.opencode/plugins/conductor-guards.js"
+  # Optional recipe command surface: .opencode/commands/*.md
+  if [ ! -s "$config" ]; then
+    emit_fail "opencode.json" "project config missing or empty"
+  elif node -e '
+    const fs=require("fs"); const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+    if(!Array.isArray(c.instructions)) process.exit(1);
+    for(const p of [".opencode/rules/*.md"]) if(!c.instructions.includes(p)) process.exit(1);
+  ' "$config" 2>/dev/null; then
+    emit_pass "opencode.json (valid instructions registry)"
+  else
+    emit_fail "opencode.json" "invalid JSON or missing baseline instruction glob"
+  fi
+
+  local rule missing=0
+  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
+    if [ -s "$TARGET/.opencode/rules/$rule.md" ]; then
+      body_sanity "$TARGET/.opencode/rules/$rule.md" 0 | /usr/bin/grep -q '^OK$' \
+        || { emit_fail ".opencode/rules/$rule.md" "invalid markdown body"; missing=$((missing + 1)); }
+    else
+      emit_fail ".opencode/rules/$rule.md" "required universal rule missing or empty"
+      missing=$((missing + 1))
+    fi
+  done
+  [ "$missing" -ne 0 ] || emit_pass ".opencode/rules (5 universal rules)"
+
+  if [ ! -s "$plugin" ]; then
+    emit_fail ".opencode/plugins" "native guard plugin missing"
+  elif node --check "$plugin" >/dev/null 2>&1 \
+    && /usr/bin/grep -qF "'tool.execute.before'" "$plugin" \
+    && /usr/bin/grep -qF 'execFileSync' "$plugin"; then
+    emit_pass ".opencode/plugins/conductor-guards.js (native pre-tool guard contract)"
+  else
+    emit_fail ".opencode/plugins/conductor-guards.js" "syntax or native hook contract invalid"
+  fi
+
+  validate_role_set opencode
+  validate_no_claude_model_aliases opencode "$TARGET/.opencode/rules" "$TARGET/.opencode/agents" "$TARGET/.opencode/skills"
 }
 
 # ---- cursor mode ---------------------------------------------------------
@@ -942,7 +995,7 @@ run_claude() {
 
 validate_canonical_docs() {
   # À-la-carte modes intentionally omit docs. When the document bundle is
-  # present, however, all six adapters must emit the same visible precedent.
+  # present, however, all seven adapters must emit the same visible precedent.
   [ -e "$TARGET/docs/INDEX.md" ] || return
 
   local rel
@@ -983,6 +1036,7 @@ case "$ADAPTER" in
   gemini)   run_gemini   ;;
   codex)    run_codex    ;;
   windsurf) run_windsurf ;;
+  opencode) run_opencode ;;
 esac
 validate_portable_skill_set
 validate_canonical_docs

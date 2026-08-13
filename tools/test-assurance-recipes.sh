@@ -22,12 +22,13 @@ recipe_file() {
     codex) echo "$target/.codex/conductor/recipes/$recipe.md" ;;
     windsurf) echo "$target/.devin/rules/$recipe.md" ;;
     gemini) echo "$target/GEMINI.md" ;;
+    opencode) echo "$target/.opencode/rules/recipes/$recipe.md" ;;
   esac
 }
 
 cd "$ROOT"
 
-for tool in claude cursor copilot gemini codex windsurf; do
+for tool in claude cursor copilot gemini codex windsurf opencode; do
   target="$TMP/$tool"
   mkdir -p "$target"
   printf 'USER-DATA-%s\n' "$tool" > "$target/user.keep"

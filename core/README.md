@@ -54,7 +54,7 @@ If a rule has to reference a capability-specific mechanism, label the exact veri
 
 The universal rules, eight base roles, three baseline portable skills plus two
 recipe-scoped skills (`self-improvement` proposal and `git-hygiene` coordination), workflow, recipes,
-memory pattern, and hook templates are production assets consumed by all six adapters.
+memory pattern, and hook templates are production assets consumed by all seven adapters.
 
 ## Adapter contract (referenced, not implemented here)
 

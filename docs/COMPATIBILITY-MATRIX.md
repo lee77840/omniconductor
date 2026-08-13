@@ -2,7 +2,7 @@
 
 This matrix describes which CONDUCTOR features are supported by each target tool. ✅ = native support, ⚠️ = partial / requires manual work, ❌ = not supported.
 
-> **Status note (re-verified 2026-07-27)**: ratings are the *tool-capability* level, re-verified against **first-party sources** (official docs / changelogs / tool GitHub repos) through 2026-07-27. The prior matrix (dated 2026-05-03) marked hooks and several other features as Claude-only; that is now **out of date** — all six tools ship event hooks (see the Hooks row + footnotes).
+> **Status note (re-verified 2026-08-13)**: ratings are the *tool-capability* level, verified against first-party sources. OpenCode stable v1 is the seventh adapter; its v2 beta plugin API is explicitly unsupported. Capability does not imply CONDUCTOR emission or live verification.
 >
 > **Capability ≠ CONDUCTOR emission.** A ✅ in the feature matrix means the tool documents the capability. **Runtime update (2026-07-27, ADR-045/049/056):** full/strict installs emit eight role entries—including Tier 3 utility—for every adapter, and the CLI performs one-time saved Tier-model setup before role emission. Claude, Cursor, Copilot, Gemini, and Codex receive native model fields; Windsurf receives an explicit Adaptive session preflight because its workflow schema has no model field. Within P2's three portable policies, the hook compiler emits all three guards for Claude, Copilot, and Codex; review-before-stop for Cursor and Gemini; and rule fallbacks where a verified native decision contract is absent. This is not the total hook inventory: full Codex additionally emits its session-state Stop guard, and full Gemini additionally emits output-cap BeforeTool.
 >
@@ -10,25 +10,25 @@ This matrix describes which CONDUCTOR features are supported by each target tool
 
 ## Feature support matrix
 
-| Feature | Claude Code | Cursor | Copilot | Gemini CLI | Codex | Windsurf |
-|---|---|---|---|---|---|---|
-| **Sub-agent dispatch** (Plan → delegate → verify) | ✅ Agent tool | ✅¹ | ✅¹ | ✅¹ | ✅¹ | ✅¹ |
-| **Hooks** (PreToolUse / Stop / etc.) | ✅ | ✅² | ✅² | ✅² | ✅² | ⚠️² |
-| **Custom named agents** (own system prompt) | ✅ `.claude/agents/*.md` | ✅³ | ✅³ | ✅³ | ✅³ | ⚠️³ |
-| **Difficulty/model translation** | ✅ saved alias / exact ID | ✅ saved exact ID; provider fallback possible | ✅ saved exact ID; policy-controlled | ✅ saved semantic alias / exact ID | ✅ saved model + reasoning effort | ⚠️ saved Adaptive; advisory-session |
-| **Slash / custom commands** | ✅ | ✅⁵ | ✅⁵ | ✅⁵ | ✅⁵ | ✅⁵ |
-| **Built-in managed memory** | ✅ `~/.claude/projects/.../memory/` | ⚠️⁶ | ✅⁶ | ⚠️⁶ | ✅⁶ | ✅⁶ |
-| **Native scheduled agents/jobs** | ✅ Routines | ✅⁷ | ✅⁷ | ⚠️⁷ | ✅⁷ | ⚠️⁷ |
-| **Machine-readable transcripts** | ✅ JSONL | ✅⁸ | ⚠️⁸ | ✅⁸ | ✅⁸ | ✅⁸ |
-| **AGENTS.md context file** | ⚠️⁹ (CLAUDE.md) | ✅⁹ | ✅⁹ | ⚠️⁹ | ✅⁹ | ✅⁹ |
-| **Lazy-loaded rules** (glob on file-touch) | ✅ paths front-matter | ✅ `globs:` on `.mdc` | ✅ `applyTo:` | ⚠️¹⁰ | ⚠️¹⁰ | ⚠️ directory-based |
-| **Always-loaded baseline** | ✅ `CLAUDE.md` | ✅ `.cursor/rules/*.mdc` (`alwaysApply`; `.cursorrules` legacy) | ✅ `applyTo: '**'` | ✅ `GEMINI.md` | ✅ `AGENTS.md` | ✅ `.windsurf`/`.devin` rules¹¹ |
-| **Portable Agent Skills** | ✅ `.claude/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ |
-| **Spec-as-you-go enforcement (auto-block)** | ✅ Stop hook | ✅¹² | ✅¹² | ✅¹² | ✅¹² | ⚠️¹² |
-| **Two-stage code review enforcement** | ✅ Stop hook | ✅¹² | ✅¹² (+ native PR review) | ✅¹² | ✅¹² | ⚠️¹² |
-| **In-repo doc templates work as-is** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Bilingual rule support (한/영)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Tool-output cap (store-time)** | ✅ PostToolUse hook (≥v2.1.121)¹³ | ❌¹³ | ❌¹³ | ✅ BeforeTool shell rewrite (shell only)¹³ | ✅ native config key¹³ | ❌¹³ |
+| Feature | Claude Code | Cursor | Copilot | Gemini CLI | Codex | Windsurf | OpenCode v1 |
+|---|---|---|---|---|---|---|---|
+| **Sub-agent dispatch** (Plan → delegate → verify) | ✅ Agent tool | ✅¹ | ✅¹ | ✅¹ | ✅¹ | ✅¹ | ✅ native agents |
+| **Hooks** (PreToolUse / Stop / etc.) | ✅ | ✅² | ✅² | ✅² | ✅² | ⚠️² | ✅ v1 plugins; no stop continuation |
+| **Custom named agents** (own system prompt) | ✅ `.claude/agents/*.md` | ✅³ | ✅³ | ✅³ | ✅³ | ⚠️³ | ✅ `.opencode/agents/*.md` |
+| **Difficulty/model translation** | ✅ saved alias / exact ID | ✅ saved exact ID; provider fallback possible | ✅ saved exact ID; policy-controlled | ✅ saved semantic alias / exact ID | ✅ saved model + reasoning effort | ⚠️ saved Adaptive; advisory-session | ✅ saved `provider/model`; policy-controlled |
+| **Slash / custom commands** | ✅ | ✅⁵ | ✅⁵ | ✅⁵ | ✅⁵ | ✅⁵ | ✅ `.opencode/commands` |
+| **Built-in managed memory** | ✅ `~/.claude/projects/.../memory/` | ⚠️⁶ | ✅⁶ | ⚠️⁶ | ✅⁶ | ✅⁶ | ⚠️ not used by adapter |
+| **Native scheduled agents/jobs** | ✅ Routines | ✅⁷ | ✅⁷ | ⚠️⁷ | ✅⁷ | ⚠️⁷ | ❌ not verified |
+| **Machine-readable transcripts** | ✅ JSONL | ✅⁸ | ⚠️⁸ | ✅⁸ | ✅⁸ | ✅⁸ | ⚠️ export exists; trajectory contract unverified |
+| **AGENTS.md context file** | ⚠️⁹ (CLAUDE.md) | ✅⁹ | ✅⁹ | ⚠️⁹ | ✅⁹ | ✅⁹ | ✅ native read; adapter intentionally does not own it |
+| **Lazy-loaded rules** (glob on file-touch) | ✅ paths front-matter | ✅ `globs:` on `.mdc` | ✅ `applyTo:` | ⚠️¹⁰ | ⚠️¹⁰ | ⚠️ directory-based | ✅ `instructions` globs |
+| **Always-loaded baseline** | ✅ `CLAUDE.md` | ✅ `.cursor/rules/*.mdc` (`alwaysApply`; `.cursorrules` legacy) | ✅ `applyTo: '**'` | ✅ `GEMINI.md` | ✅ `AGENTS.md` | ✅ `.windsurf`/`.devin` rules¹¹ | ✅ `opencode.json` instructions |
+| **Portable Agent Skills** | ✅ `.claude/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.agents/skills`¹⁴ | ✅ `.opencode/skills` |
+| **Spec-as-you-go enforcement (auto-block)** | ✅ Stop hook | ✅¹² | ✅¹² | ✅¹² | ✅¹² | ⚠️¹² | ⚠️ commit guards + rule fallback |
+| **Two-stage code review enforcement** | ✅ Stop hook | ✅¹² | ✅¹² (+ native PR review) | ✅¹² | ✅¹² | ⚠️¹² | ⚠️ commit guard; review-stop fallback |
+| **In-repo doc templates work as-is** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Bilingual rule support (한/영)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Tool-output cap (store-time)** | ✅ PostToolUse hook (≥v2.1.121)¹³ | ❌¹³ | ❌¹³ | ✅ BeforeTool shell rewrite (shell only)¹³ | ✅ native config key¹³ | ❌¹³ | ❌ no verified rewrite contract |
 
 **Footnotes (first-party sources, verified 2026-07-04; emission updated 2026-07-13).** ✅ = tool capability confirmed; see the status note for what CONDUCTOR emits.
 
@@ -50,12 +50,12 @@ This matrix describes which CONDUCTOR features are supported by each target tool
 
 ## Installer platform contract
 
-This platform contract applies equally to all six adapters and does not change their
+This platform contract applies equally to all seven adapters and does not change their
 feature tier or native enforcement rating.
 
 | Node runtime | Adapter shell | Status | Contract |
 |---|---|---|---|
-| Windows Node.js | Git Bash from Git for Windows | ✅ release-tested | One-use CLI dispatch proof, six CLI + six direct-entry regressions, no-write preflight, doctor D16. |
+| Windows Node.js | Git Bash from Git for Windows | ✅ supported; OpenCode device rerun pending | One-use CLI dispatch proof, no-write preflight, and doctor D16 are release-tested for the original six. The v1.6 suite now enumerates OpenCode; its exact Windows runtime execution still requires an adopter-machine rerun. |
 | Linux Node.js inside named Ubuntu/Debian WSL | bash in the same distro | ✅ supported | Run the entire command in that distro. |
 | Windows Node.js | default/arbitrary WSL bash | ❌ unsupported | Mixed runtime/path semantics; no automatic fallback. |
 | Any | `docker-desktop` / `docker-desktop-data` | ❌ unsupported | Infrastructure-only WSL distros are filtered out. |
@@ -66,6 +66,11 @@ are written. The proof prevents CLI→adapter recursion and is consumed once; no
 path containment, model-routing, manifest, lock, validator, and uninstall contracts
 remain independently enforced.
 
+JSON-dependent shell hooks additionally resolve Python 3 through
+`CONDUCTOR_PYTHON_BIN`, `python3`, or `python`. Installation remains available without
+Python, but affected hooks emit an explicit fail-open diagnostic and doctor D5 warns;
+that environment must not be reported as full hook enforcement.
+
 ## Tier assignment
 
 Compatibility tiers reflect **how completely CONDUCTOR can map the full workflow** (rule scoping, verified lifecycle events, native role surface, and scheduler). They are unrelated to the task difficulty Tier 1/2/3 contract in `meta-discipline.md`.
@@ -73,7 +78,7 @@ Compatibility tiers reflect **how completely CONDUCTOR can map the full workflow
 | Tier | Tools | Definition |
 |---|---|---|
 | **T1 — Full** | Claude Code, Cursor | Rich rule scoping plus native role surfaces. Claude emits the full guard set; Cursor emits its verified review-stop continuation and keeps unsupported soft confirmations as rule fallbacks. |
-| **T2 — Good** | Copilot, Codex, Gemini CLI | Native role/config surfaces and commands are present. Caveats: Copilot rule-scoping is glob (`applyTo:`) but the coding agent has no transcript API; Codex/Gemini scope by nested-file hierarchy, not glob; Gemini has no native scheduler (external Action). |
+| **T2 — Good** | Copilot, Codex, Gemini CLI, OpenCode | Native role/config surfaces and commands are present. OpenCode has native instruction globs and commit guards but no verified review-stop continuation or automatic trajectory contract; v2 beta is excluded. |
 | **T3 — Basic** | Windsurf / Devin Desktop | Has hooks (but **no session/stop events** → no Stop-style enforcement), sub-agents (Devin Local), commands, memory. No desktop scheduler; rules path moved to `.devin/rules/` (adapter emits it). |
 
 ## Adapter outputs at a glance (generated)
@@ -87,6 +92,7 @@ Compatibility tiers reflect **how completely CONDUCTOR can map the full workflow
 | Gemini CLI | T2 | `GEMINI.md` + `.gemini/styleguide.md` + `.gemini/agents` + `.gemini/hooks` + `.gemini/settings.json` + `.agents/skills` + `docs/CURRENT_WORK.md` | — | 🧪 pending | `gemini -p` | marked block |
 | Codex | T2 | `AGENTS.md` + `.codex/conductor/rules` + `.codex/agents` + `.codex/hooks` + `.codex/hooks.json` + `.codex/config.toml` + `.agents/skills` + `docs/CURRENT_WORK.md` | `.codex/codex.md` (legacy) | ✅ 2026-07-13 | `codex exec` | marked block |
 | Windsurf | T3 | `.windsurfrules` + `.devin/rules` + `.windsurf/workflows` + `.agents/skills` + `docs/CURRENT_WORK.md` | `.windsurf/rules` (legacy) | 🧪 pending | `devin -p` | per-file |
+| OpenCode | T2 | `opencode.json` + `.opencode/rules` + `.opencode/agents` + `.opencode/plugins` + `.opencode/commands` + `.opencode/skills` + `docs/CURRENT_WORK.md` | — | ✅ 2026-08-13 | `opencode run` | per-file |
 <!-- /generated:adapter-outputs-table -->
 
 Source of truth: `adapters/<tool>/metadata.json` (ADR-040) — CI regenerates and fails on drift.
@@ -102,6 +108,7 @@ Source of truth: `adapters/<tool>/metadata.json` (ADR-040) — CI regenerates an
 | Gemini CLI | `.agents/skills` | alias | automatic + activation consent | `not-documented` | [official](https://geminicli.com/docs/cli/using-agent-skills/) (2026-07-27) |
 | Codex | `.agents/skills` | native | automatic + explicit | `$plan-change` | [official](https://developers.openai.com/codex/skills) (2026-07-27) |
 | Windsurf | `.agents/skills` | recommended | automatic + explicit; one active | `@skills:plan-change` | [official](https://docs.devin.ai/product-guides/skills) (2026-07-27) |
+| OpenCode | `.opencode/skills` | native | automatic + explicit | `/plan-change` | [official](https://opencode.ai/docs/skills/) (2026-08-13) |
 <!-- /generated:portable-skills-table -->
 
 The skills are procedures, not roles. They do not change the eight baseline roles,
@@ -116,7 +123,7 @@ open references, and distinguish schema validity from a completed all-passed gat
 
 `database-change-assurance`, `non-vacuous-testing`,
 `visual-baseline-integrity`, and `release-provenance` are instruction-only opt-in
-recipes on all six adapters. Their portable obligations are emit-verified through the
+recipes on all seven adapters. Their portable obligations are emit-verified through the
 existing install-mode and lifecycle suites. They do **not** imply a native database,
 test-mutation, screenshot, CI, legal, or policy engine in any provider. Project tools
 create the observations; the shared evidence contract prevents unresolved results from
@@ -138,6 +145,7 @@ does not expose the required native decision or continuation contract.
 | Gemini CLI | `.gemini/settings.json` | 📘 rule fallback | 📘 rule fallback | ✅ native | [official](https://geminicli.com/docs/hooks/reference/) (2026-07-27) |
 | Codex | `.codex/hooks.json` | ✅ native | ✅ native | ✅ native | [official](https://learn.chatgpt.com/docs/hooks) (2026-07-27) |
 | Windsurf | `.windsurf/hooks.json` | 📘 rule fallback | 📘 rule fallback | 📘 rule fallback | [official](https://docs.windsurf.com/windsurf/cascade/hooks) (2026-07-27) |
+| OpenCode | `.opencode/plugins/conductor-guards.js` | ✅ native | ✅ native | 📘 rule fallback | [official](https://opencode.ai/docs/plugins/) (2026-08-13) |
 <!-- /generated:hook-compiler-table -->
 
 ### Extension and MCP trust audit
@@ -156,6 +164,7 @@ provider-version boundary, not a claim that MCP is unavailable.
 | Gemini CLI | `.gemini` + `gemini-extension.json` | trusted-folders, extension-environment-declarations, sandbox | verification-required | [official](https://geminicli.com/docs/extensions/reference/) (2026-08-10) |
 | Codex | `.codex` + `.agents/plugins` + `.mcp.json` | project-trust, plugin-hook-trust, sandbox-and-approval, secret-redaction | verified | [official](https://developers.openai.com/codex/changelog) (2026-08-10) |
 | Windsurf | `.windsurf` + `.devin` | restricted-mode, plugin-permissions, mcp-marketplace | verification-required | [official](https://docs.devin.ai/desktop/changelog) (2026-08-10) |
+| OpenCode | `.opencode` | permission-rules, plugin-config, mcp-config | verification-required | [official](https://opencode.ai/docs/permissions/) (2026-08-13) |
 <!-- /generated:extension-trust-table -->
 
 ### Propose-only skill inbox
@@ -173,6 +182,7 @@ acceleration can help collect evidence, but `accept` never creates a live skill.
 | Gemini CLI | `.agents/skills/propose-skill/SKILL.md` | documented | human-reviewed-separate-change | [official](https://github.com/google-gemini/gemini-cli/blob/main/docs/changelogs/index.md) (2026-08-10) |
 | Codex | `.agents/skills/propose-skill/SKILL.md` | documented | human-reviewed-separate-change | [official](https://learn.chatgpt.com/docs/extend/record-and-replay) (2026-08-10) |
 | Windsurf | `.agents/skills/propose-skill/SKILL.md` | documented | human-reviewed-separate-change | [official](https://docs.devin.ai/product-guides/skills) (2026-08-10) |
+| OpenCode | `.opencode/skills/propose-skill/SKILL.md` | verification-required | human-reviewed-separate-change | [official](https://opencode.ai/docs/skills/) (2026-08-13) |
 <!-- /generated:skill-proposals-table -->
 
 ### Optional provider packages
@@ -192,14 +202,15 @@ provider manifest.
 | Gemini CLI | native-partial | `gemini-extension.json` | context, skills, agents | guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://geminicli.com/docs/extensions/reference/) (2026-08-10) |
 | Codex | native-partial | `.codex-plugin/plugin.json` | skills | roles, rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://developers.openai.com/plugins/build/plugins) (2026-08-10) |
 | Windsurf | direct-fallback | — | none | skills, roles, rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://docs.devin.ai/desktop/changelog) (2026-08-10) |
+| OpenCode | direct-fallback | — | none | skills, roles, rules, guard-hooks, reflector, model-routing, work-coordination, reversible-ownership | [official](https://opencode.ai/docs/plugins/) (2026-08-13) |
 <!-- /generated:plugin-packaging-table -->
 
 ### Cross-tool assurance and workspace coordination
 
 These commands do not depend on a provider-native runtime and therefore apply equally
-to all six adapters:
+to all seven adapters:
 
-| Contract | Command | Six-tool boundary |
+| Contract | Command | Seven-tool boundary |
 |---|---|---|
 | Evidence coverage | `omniconductor eval coverage` | Reports exact instruction/emission/native/live evidence; never infers one tool's native support for another. |
 | Local work ownership | `omniconductor work claim/status/handoff/release` | Shared Git-common-dir ledger plus the byte-identical `coordinate-work` skill when `git-hygiene` is selected. No cross-machine lock claim. |
@@ -219,15 +230,17 @@ Detailed evidence is generated in `docs/AGENT-EVAL-COVERAGE.md` and
 | Cheap large-context exploration over long files | **Gemini CLI** |
 | Shell-driven scripting tasks | **Codex** |
 | Cursor-like flow in a different IDE | **Windsurf** |
+| Terminal-first open-source agent with native project plugins/skills | **OpenCode stable v1** |
 
 CONDUCTOR's job is to make sure **whichever tool you pick, you get the same Plan → Architecture → Tasks → Implementation → Review → Spec workflow**, while describing mechanical enforcement at its actual per-tool strength.
 
 ## What you LOSE going from Claude → other tools
 
-This list used to be long. Current adapters now provide a verified native role or workflow entry point for all six tools. Two real gaps remain:
+This list used to be long. Current adapters now provide a verified native role or workflow entry point for all seven tools. Real gaps remain capability-specific:
 
 - **Guard parity** — native role emission is closed across all adapters (Windsurf via workflows). Within P2's three-policy set, guard parity is intentionally partial: Copilot and Codex get all three verified portable guards, Cursor and Gemini get review continuation, and unsupported decisions remain explicit rule fallbacks. Separately, full Codex retains its session-state Stop guard and full Gemini retains output-cap.
 - **Windsurf / Devin Desktop** — its asynchronous post-response hook cannot continue the completed turn, so Stop-style enforcement cannot be built from the verified contract; it also has no desktop scheduler for a Reflector job.
+- **OpenCode stable v1** — commit guards are native, but review-stop continuation and automatic Reflector trajectory capture remain rule/manual fallbacks. OpenCode v2 beta is not compatible with the v1 plugin.
 
 Smaller residuals: Gemini/Codex scope rules by nested-file hierarchy rather than glob-on-file-touch; Gemini has no built-in scheduler (use the official GitHub Action); Copilot's coding agent exposes no transcript API.
 

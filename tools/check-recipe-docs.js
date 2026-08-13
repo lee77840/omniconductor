@@ -24,6 +24,32 @@ function recipeNames(root) {
     .sort();
 }
 
+/**
+ * Universal rule bundles, derived from source instead of a literal in the
+ * regex. A sixth bundle must move the documented number, not silently stop
+ * matching the sentence that guards it.
+ */
+function universalRuleCount(root) {
+  const ruleRoot = path.join(root, 'core', 'universal-rules');
+  if (!fs.existsSync(ruleRoot)) return 0;
+  return fs.readdirSync(ruleRoot)
+    .filter((name) => name.endsWith('.md') && name !== 'README.md')
+    .length;
+}
+
+/**
+ * Recipes that declare a stack in their front matter (`stack_specific: true`).
+ * The "other N recipes are stack-agnostic" sentence is derived from this, so a
+ * second stack-specific recipe cannot force the docs to state a false number.
+ */
+function stackSpecificCount(root) {
+  const recipeRoot = path.join(root, 'core', 'recipes');
+  return fs.readdirSync(recipeRoot)
+    .filter((name) => name.endsWith('.md') && name !== 'README.md')
+    .filter((name) => /^stack_specific:\s*true\s*$/m.test(readText(path.join(recipeRoot, name))))
+    .length;
+}
+
 function walkLivingFiles(root, relativeRoot) {
   const start = path.join(root, relativeRoot);
   if (!fs.existsSync(start)) return [];
@@ -82,26 +108,41 @@ function validateRecipeDocs(root) {
   const count = expected.length;
   const errors = [];
 
+  const rules = universalRuleCount(root);
+  const stackAgnostic = Math.max(0, count - stackSpecificCount(root));
+
+  // Every pattern is `required`: a guarded sentence that stops matching is a
+  // silently removed guard, which is the exact drift class this file exists to
+  // close. Rewording a sentence must fail here, not disappear from the gate.
   const countPatterns = [
     { regex: /\b(\d+)\s+(?:strictly\s+)?opt-in recipes\b/gi, expected: count, label: 'opt-in recipe count' },
     { regex: /\b(\d+)개\s+recipe\b/gi, expected: count, label: 'Korean recipe count' },
     { regex: /\brecipes from the (\d+)\b/gi, expected: count, label: 'recipe option count' },
     { regex: /\*\*Recipe names\*\*\s*\((\d+)\)/g, expected: count, label: 'recipe names count' },
     { regex: /^## The (\d+) recipes$/gm, expected: count, label: 'recipe catalog heading count' },
-    { regex: /\b5 universal rule bundles and the other (\d+) recipes are stack-agnostic\b/gi, expected: Math.max(0, count - 1), label: 'non-TypeScript recipe count' },
+    { regex: /\b(\d+) universal rule bundles and the other \d+ recipes are stack-agnostic\b/gi, expected: rules, label: 'universal rule bundle count' },
+    { regex: /\b\d+ universal rule bundles and the other (\d+) recipes are stack-agnostic\b/gi, expected: stackAgnostic, label: 'stack-agnostic recipe count' },
   ];
+  const seen = new Map(countPatterns.map((rule) => [rule.label, 0]));
 
   for (const file of livingFiles(root)) {
     const content = readText(file);
-    const relative = path.relative(root, file);
+    const relative = path.relative(root, file).replace(/\\/g, '/');
     for (const rule of countPatterns) {
       for (const match of content.matchAll(rule.regex)) {
+        seen.set(rule.label, seen.get(rule.label) + 1);
         const actual = Number(match[1]);
         if (actual !== rule.expected) {
           const line = content.slice(0, match.index).split('\n').length;
           errors.push(`${relative}:${line} ${rule.label} is ${actual}; expected ${rule.expected} from core/recipes/*.md`);
         }
       }
+    }
+  }
+
+  for (const rule of countPatterns) {
+    if (seen.get(rule.label) === 0) {
+      errors.push(`${rule.label} guard matched no living document; the sentence it validates was reworded or removed, so the count is no longer gated`);
     }
   }
 

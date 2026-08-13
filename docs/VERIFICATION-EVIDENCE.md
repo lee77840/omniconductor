@@ -93,6 +93,6 @@ non-reproduction, or another snapshot's evidence.
 - `web-mobile-parity` and `i18n` bind surface/locale matrix coverage.
 - `release-provenance` binds source, authority, policy, and release artifact evidence.
 
-The six adapters emit the same recipe and `verify-change` instruction text. This CLI
+The seven adapters emit the same recipe and `verify-change` instruction text. This CLI
 contract is universal enforcement; provider-native hooks remain limited to the exact
 capabilities declared in adapter metadata.

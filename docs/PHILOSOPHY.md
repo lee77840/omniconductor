@@ -12,7 +12,7 @@ The wrong move would be to fake unsupported enforcement. That is fragile, surpri
 
 ### 2. Sub-agent isolation is a feature, not a bug.
 
-Every adapter exposes the same eight base roles through its native role surface: Claude agents, Cursor agents, Copilot custom agents, Gemini agents, Codex agent profiles, or Windsurf workflows. A dispatch must still be self-contained because role context and project instruction inheritance differ by product. Verbose dispatches are documentation of intent. Read 10 of your own old dispatches and you'll learn what you actually meant six months ago.
+Every adapter exposes the same eight base roles through its native role surface: Claude agents, Cursor agents, Copilot custom agents, Gemini agents, Codex agent profiles, Windsurf workflows, or OpenCode subagents. A dispatch must still be self-contained because role context and project instruction inheritance differ by product. Verbose dispatches are documentation of intent. Read 10 of your own old dispatches and you'll learn what you actually meant six months ago.
 
 The orchestrator pattern is therefore portable: classify the task, choose the matching native role entry point, and supply the complete scope and acceptance criteria. The invocation syntax differs; the role topology and responsibility split do not.
 
@@ -22,7 +22,7 @@ Every team starts with great docs. Six months later, the docs lie. New contribut
 
 ### 4. Two-stage review is cheap insurance.
 
-Stage A (local pre-commit) catches the obvious mistakes before history records it. Stage B (PR pre-merge) provides an audit trail. Both use the same independent `code-reviewer` role exposed by all six adapters; guard automation remains capability-specific. Skip them once and you'll merge a regression you knew about.
+Stage A (local pre-commit) catches the obvious mistakes before history records it. Stage B (PR pre-merge) provides an audit trail. Both use the same independent `code-reviewer` role exposed by all seven adapters; guard automation remains capability-specific. Skip them once and you'll merge a regression you knew about.
 
 ### 5. Token economy isn't optional.
 

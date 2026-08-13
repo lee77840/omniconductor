@@ -39,8 +39,11 @@ check('.conductor parent symlink is refused before model config or adapter write
   assert.ok(!fs.existsSync(path.join(outside, 'model-routing.json')));
 });
 
-check('all six adapter managed-root symlinks are refused', () => {
-  const roots = { claude: '.claude', cursor: '.cursor', copilot: '.github', gemini: '.gemini', codex: '.codex', windsurf: '.windsurf' };
+check('all seven adapter managed-root symlinks are refused', () => {
+  const roots = {
+    claude: '.claude', cursor: '.cursor', copilot: '.github', gemini: '.gemini',
+    codex: '.codex', windsurf: '.windsurf', opencode: '.opencode',
+  };
   for (const [tool, rel] of Object.entries(roots)) {
     const parent = temp(`${tool}-root`);
     const target = path.join(parent, 'project');

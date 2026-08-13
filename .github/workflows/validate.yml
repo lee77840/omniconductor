@@ -8,6 +8,21 @@ name: validate
 # local release command and must not consume GitHub Actions minutes.
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Run only the validation surface that needs remote infrastructure
+        required: true
+        default: static
+        type: choice
+        options:
+          - static
+          - windows
+          - adapters
+          - full
+
+concurrency:
+  group: validate-${{ github.ref }}-${{ inputs.scope }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -19,6 +34,7 @@ jobs:
   purity:
     name: framework purity
     runs-on: ubuntu-latest
+    if: inputs.scope == 'static' || inputs.scope == 'full'
     steps:
       - uses: actions/checkout@v4
       - name: Run purity check
@@ -31,6 +47,7 @@ jobs:
   stale-tokens:
     name: stale tokens + version stamps
     runs-on: ubuntu-latest
+    if: inputs.scope == 'static' || inputs.scope == 'full'
     steps:
       - uses: actions/checkout@v4
       - name: Run stale-token check
@@ -43,6 +60,7 @@ jobs:
   adapter-metadata:
     name: adapter metadata consistency
     runs-on: ubuntu-latest
+    if: inputs.scope == 'static' || inputs.scope == 'full'
     steps:
       - uses: actions/checkout@v4
       - name: Run metadata consistency check
@@ -60,6 +78,7 @@ jobs:
   adapters:
     name: adapter ${{ matrix.tool }}
     runs-on: ubuntu-latest
+    if: inputs.scope == 'adapters' || inputs.scope == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -145,6 +164,7 @@ jobs:
   install-modes:
     name: modes ${{ matrix.tool }}
     runs-on: ubuntu-latest
+    if: inputs.scope == 'adapters' || inputs.scope == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -161,6 +181,7 @@ jobs:
   multitool-runtime:
     name: multitool runtime (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    if: inputs.scope == 'adapters' || inputs.scope == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -182,6 +203,8 @@ jobs:
   windows-installer:
     name: Windows Node + Git Bash installer
     runs-on: windows-latest
+    if: inputs.scope == 'windows' || inputs.scope == 'full'
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Locate the Git Bash runtime
@@ -204,6 +227,9 @@ jobs:
       - name: Run the six-adapter Windows installer regression
         shell: pwsh
         run: npm run test:windows-installer
+      - name: Run the complete cross-platform regression chain
+        shell: pwsh
+        run: npm test
 
   # ---------------------------------------------------------------------------
   # 3. CLI sanity — `list` reports all 6 adapters as implemented, and a
@@ -212,6 +238,7 @@ jobs:
   cli:
     name: cli sanity
     runs-on: ubuntu-latest
+    if: inputs.scope == 'static' || inputs.scope == 'full'
     steps:
       - uses: actions/checkout@v4
 

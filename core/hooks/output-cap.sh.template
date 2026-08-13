@@ -15,13 +15,13 @@
 #   3. Pure-bash char/size short-circuit: estimate tokens at ~4 chars/token
 #      (${#RAW} counts characters, not bytes, under UTF-8 — the python
 #      estimate() below uses the SAME char-count unit so the two stages
-#      agree) and skip spawning python3 entirely when the whole raw payload
+#      agree) and skip spawning Python entirely when the whole raw payload
 #      cannot possibly exceed the token budget (perf guard — do this BEFORE
-#      python3). This gate only fires on the Claude dialect (RAW *is* the
+#      Python runtime). This gate only fires on the Claude dialect (RAW *is* the
 #      tool output being measured there); the Gemini dialect always falls
-#      through to python3 regardless of RAW's size — see step 5.
-#   4. Delegate to python3 for JSON parsing + head/tail truncation. The raw
-#      payload is piped to python3 over STDIN (not an env var) so it is not
+#      through to Python regardless of RAW's size — see step 5.
+#   4. Delegate to Python 3 for JSON parsing + head/tail truncation. The raw
+#      payload is piped over STDIN (not an env var) so it is not
 #      subject to the OS argument/environment size limit (ARG_MAX, ~1MB on
 #      most platforms) — payloads larger than that would silently pass
 #      through untruncated if carried via env var. On the Claude dialect,
@@ -34,8 +34,8 @@
 #      Gemini has no post-hoc tool-output edit surface), unless the command
 #      already carries the …[CONDUCTOR] marker (idempotency guard) or the
 #      tool is not run_shell_command; otherwise print nothing (untouched).
-#   6. ALWAYS exit 0. Any error, missing input, or missing python3 -> allow
-#      silently (never fail a tool call because of this guard).
+#   6. ALWAYS exit 0. Any error or missing input -> allow silently. A missing
+#      Python runtime emits an explicit degraded-enforcement diagnostic.
 #
 # Overrides (runtime env, not compile-time placeholders):
 #   CONDUCTOR_SKIP_OUTPUT_CAP=1       disable entirely
@@ -58,8 +58,19 @@ case "${CONDUCTOR_OUTPUT_CAP_TOKENS:-}" in
 esac
 DIALECT="${CONDUCTOR_HOOK_DIALECT:-claude}"
 
-# Robust JSON handling needs python3; without it, degrade to silent allow.
-command -v python3 >/dev/null 2>&1 || exit 0
+# Accept POSIX python3 and the common Windows Python `python` command.
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  printf '%s\n' '[CONDUCTOR hook] Python 3 is unavailable; output-cap guard was not evaluated.' >&2
+  exit 0
+fi
 
 # Read the tool hook payload from stdin (no piped stdin -> nothing to do).
 RAW="$(/bin/cat 2>/dev/null || true)"
@@ -67,16 +78,16 @@ RAW="$(/bin/cat 2>/dev/null || true)"
 
 # Pure-bash char/size short-circuit: ~4 chars/token floor; skip python entirely
 # when the whole payload cannot exceed the token budget. This MUST run before
-# spawning python3 — it is the cheap perf guard for the common small-output case.
+# spawning Python — it is the cheap perf guard for the common small-output case.
 #
 # Allowlist (not denylist): only the Claude dialect's post-hoc byte gate may
-# skip python3, since RAW *is* the tool output being measured there. On the
+# skip Python, since RAW *is* the tool output being measured there. On the
 # Gemini dialect RAW is the (always small) BeforeTool payload — just the
 # not-yet-run command string — so its size says nothing about how much output
 # the command will later produce; short-circuiting there would skip the
 # rewrite unconditionally and silently disable the guard. Any future/unknown
-# dialect also falls through to python3 rather than being silently skipped —
-# python3's own dialect check (default: no-op) fails open safely either way.
+# dialect also falls through to Python rather than being silently skipped —
+# the parser's own dialect check (default: no-op) fails open safely either way.
 if [ "$DIALECT" = "claude" ]; then
   CHARS=${#RAW}
   [ "$CHARS" -lt $((LIMIT * 4)) ] && exit 0
@@ -255,5 +266,5 @@ elif dialect == "gemini":
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "BeforeTool", "tool_input": ti}}))
 PY
 )
-printf '%s' "$RAW" | LIMIT="$LIMIT" DIALECT="$DIALECT" python3 -c "$SCRIPT"
+printf '%s' "$RAW" | LIMIT="$LIMIT" DIALECT="$DIALECT" "$PYTHON_BIN" -c "$SCRIPT"
 exit 0

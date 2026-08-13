@@ -26,10 +26,21 @@ DIALECT="${CONDUCTOR_HOOK_DIALECT:-claude}"
 # Stop/AfterAgent hooks can force a continuation. Never force another one when
 # the runtime tells us this is already the retry pass. Cursor exposes loop_count;
 # Claude/Copilot/Gemini/Codex expose a stop-hook-active boolean.
-command -v /usr/bin/python3 >/dev/null 2>&1 || exit 0
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  printf '%s\n' '[CONDUCTOR hook] Python 3 is unavailable; pre-merge review guard was not evaluated.' >&2
+  exit 0
+fi
 export PAYLOAD_RAW="$(/bin/cat 2>/dev/null || true)"
 if [ -n "${PAYLOAD_RAW:-}" ]; then
-  REPEAT_STOP="$(DIALECT="$DIALECT" /usr/bin/python3 -c '
+  REPEAT_STOP="$(DIALECT="$DIALECT" "$PYTHON_BIN" -c '
 import json, os
 try:
     d = json.loads(os.environ.get("PAYLOAD_RAW", "{}"))
@@ -106,7 +117,7 @@ touch "$FLAG"
 
 REASON="[stop-hook Q2] Open PR #${PR_NUM} on branch \`${BRANCH}\` with recent push. Confirm the Q1 reviewed snapshot still matches the PR head/base. If identical, inspect only PR-specific evidence; otherwise run \`${REVIEW_COMMAND} ${PR_URL}\` on the unreviewed delta (full review when provenance is missing or unsafe). See universal-rules/quality-gates.md Q2. Docs-only PRs are exempt."
 
-REASON="$REASON" DIALECT="$DIALECT" /usr/bin/python3 -c '
+REASON="$REASON" DIALECT="$DIALECT" "$PYTHON_BIN" -c '
 import json, os
 reason = os.environ.get("REASON", "")
 dialect = os.environ.get("DIALECT", "claude")

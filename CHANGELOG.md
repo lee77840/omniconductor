@@ -3,6 +3,61 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.6.0] — 2026-08-13
+
+### Added
+
+- Add OpenCode stable v1 as the seventh first-class adapter with semantic
+  `opencode.json` instruction merging, five universal rule files, eight native
+  subagents, current permission frontmatter, native Agent Skills and commands, saved
+  `provider/model` Tier routing, reversible ownership, and all five install modes.
+- Add a project-local JavaScript plugin that narrowly enforces the two verified
+  pre-commit policies through `tool.execute.before` without logging prompts,
+  responses, command payloads, environment variables, or credentials.
+- Extend all-target dispatch, model routing, path safety, doctor, metadata, generated
+  docs, assurance coverage, packaging, upgrade, Windows structural regression, and
+  seven-adapter coexistence/uninstall suites to OpenCode.
+
+### Safety and compatibility
+
+- Never emit root `AGENTS.md` from OpenCode, so the Codex and OpenCode adapters can
+  coexist without manifest ownership collision.
+- Preserve unrelated regular `opencode.json` keys and instruction entries; refuse
+  `opencode.jsonc` before model routing or output writes rather than destroying
+  comments or creating a competing project config.
+- Support stable OpenCode v1 only. OpenCode v2 beta's breaking plugin API,
+  review-before-stop continuation, automatic trajectory capture, and store-time tool
+  output rewriting remain explicit unsupported or verification-required boundaries.
+- Classify OpenCode as adapter capability T2 without changing the immutable task
+  difficulty Tier 1/2/3 definitions or any existing adapter contract.
+
+## [1.5.2] — 2026-08-13
+
+### Fixed
+
+- Route every npm Bash suite through the same explicit Git Bash resolver used by
+  the installer, removing cmd.exe-incompatible POSIX loops and bare `bash` launches
+  from Windows PowerShell `npm test`.
+- Normalize Python-backed hooks across `CONDUCTOR_PYTHON_BIN`, `python3`, and
+  Windows `python`; emit an explicit degraded-enforcement diagnostic and doctor D5
+  warning when no valid Python 3 runtime exists instead of silently allowing.
+- Add a non-vacuous Windows hook fixture that requires a parseable `ask` decision
+  from CRLF input, and configure `windows-latest` to run the complete npm regression
+  when that scoped remote gate is explicitly dispatched.
+- Keep Actions manual-only and add `static`, `windows`, `adapters`, and `full`
+  dispatch scopes with cancellation of superseded identical runs, so remote minutes
+  are used only for the platform surface that local verification cannot prove.
+- Give the Windows six-adapter lifecycle a bounded ten-minute slow-host budget and
+  report spawn error, signal, elapsed time, and timeout instead of the opaque
+  `null !== 0` assertion produced when a real laptop exceeds the former four minutes.
+
+### Documentation
+
+- Correct the unimplemented OpenCode candidate spec: Markdown bodies are command
+  templates, JSONC merge fails closed until a comment-preserving strategy exists,
+  V1/V2 plugin contracts are distinct, and the existing six-adapter equality
+  boundary remains unchanged without explicit authorization.
+
 ## [1.5.1] — 2026-08-11
 
 ### Fixed

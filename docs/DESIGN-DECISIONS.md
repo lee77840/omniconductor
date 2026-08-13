@@ -2467,3 +2467,75 @@ so a partially updated release could pass every existing document check.
 **Consequences**: Adding or removing a recipe now forces all current public catalog
 surfaces to move together. Frozen changelog, ADR, plan, audit, and launch-history
 documents remain historical evidence and are not rewritten as current truth.
+
+## ADR-071 — Windows verification resolves runtimes and proves positive hook behavior
+
+**Status**: Accepted (2026-08-13)
+
+**Context**: The Node installer correctly resolved Git Bash on Windows, but npm still
+launched several regression scripts through Windows' default `cmd.exe` shell. One
+script used POSIX `for ...; do` syntax and others invoked a bare `bash`, reopening the
+same WSL-relay ambiguity outside product code. Separately, JSON-dependent hook
+templates required the absolute `/usr/bin/python3` path and silently returned success
+when it was absent. A zero exit from those fail-open hooks was therefore vacuous.
+
+**Decision**:
+
+1. All package-level Bash scripts execute through a Node launcher backed by
+   `installer-platform.resolveBash()`. Package scripts contain neither bare Bash
+   launches nor POSIX control-flow syntax interpreted by cmd.exe.
+2. The Windows release job retains focused installer diagnostics and additionally
+   runs the complete `npm test` chain under PowerShell.
+3. Python-backed hooks resolve an explicit `CONDUCTOR_PYTHON_BIN`, then `python3`,
+   then `python`, and validate that the candidate is Python 3 and imports JSON. Missing Python remains
+   fail-open to avoid blocking tool calls, but emits a visible diagnostic and doctor
+   D5 warning.
+4. Windows hook verification must force a positive policy branch with CRLF input and
+   assert the parsed decision body. Exit zero or absence of an exception is not proof.
+5. These mechanics do not change the six adapters, Tier definitions, roles, recipes,
+   or provider-native enforcement claims.
+6. GitHub validation remains manual-only. A required dispatch scope selects static,
+   Windows, adapter/multi-tool, or full validation, and a newer identical ref/scope
+   run cancels its predecessor. Local release verification remains the default gate;
+   remote infrastructure is reserved for a capability that cannot be proved locally.
+
+**Consequences**: Windows PowerShell becomes a valid launcher for both installation
+and the complete repository regression. Full JSON-dependent hook behavior additionally
+requires Python 3 and is now diagnosed honestly. A future Node-native hook parser may
+remove that dependency, but cannot weaken the positive-fixture contract.
+
+## ADR-072 — OpenCode stable v1 is the seventh first-class adapter
+
+**Status**: Accepted (2026-08-13)
+
+**Context**: An adopter explicitly requested OpenCode support. OpenCode stable v1 has
+documented project instruction globs, Markdown subagents and commands, native Agent
+Skills, `provider/model` overrides, and project-local JavaScript plugins. Reusing its
+root `AGENTS.md` would collide with Codex ownership, while OpenCode v2 beta changes the
+plugin API and is explicitly incompatible with v1 plugins.
+
+**Decision**:
+
+1. Add OpenCode stable v1 as the seventh first-class adapter without changing task
+   difficulty Tier 1/2/3, the eight baseline roles, or existing adapter output.
+2. Assign OpenCode adapter capability tier T2. Two commit preconditions compile to
+   `tool.execute.before`; review-before-stop remains rule fallback because v1 has no
+   verified stop-continuation decision contract.
+3. Never emit or own root `AGENTS.md`. Semantically merge CONDUCTOR-owned instruction
+   globs into regular `opencode.json`; reject `opencode.jsonc` before any write until a
+   reviewed comment-preserving merge exists.
+4. Emit current `permission` frontmatter, native `.opencode/agents`, `.opencode/skills`,
+   `.opencode/commands`, and a narrowly scoped JavaScript guard plugin. The plugin does
+   not log prompts, responses, payloads, environment variables, or credentials.
+5. Keep Reflector manual/propose-only on OpenCode. Do not claim automatic trajectory
+   capture or a native scheduled loop without a verified transcript contract.
+6. Treat v2 beta as unsupported. A later v2 adapter requires its own contract and
+   runtime proof; v1 plugin emission can never imply v2 enforcement.
+7. Expand all-target ownership, install modes, model routing, path safety, metadata,
+   generated docs, package-consumer, upgrade, and Windows structural regressions from
+   six to seven adapters. GitHub Actions remain uncalled under the current quota hold.
+
+**Consequences**: OpenCode users receive the same portable workflow, roles, recipes,
+skills, reversible ownership, and saved Tier routing through native v1 surfaces.
+Codex/OpenCode can coexist without path ownership conflict. Live rule consumption and
+Windows OpenCode execution are reported separately from local emission evidence.

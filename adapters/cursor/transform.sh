@@ -934,7 +934,7 @@ echo "  Mode: $MODE"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   echo "  Universal rules: 0 (à la carte)"
 else
-  echo "  Universal rules: 5 (.cursor/rules/*.mdc, alwaysApply:true)"
+  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") (.cursor/rules/*.mdc, alwaysApply:true)"
 fi
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 if [ "$LEGACY_CURSORRULES" = "true" ]; then

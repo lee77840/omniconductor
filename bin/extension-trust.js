@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_DEPTH = 5;
 const CANDIDATE_NAMES = new Set([
@@ -27,6 +27,7 @@ const CANDIDATE_NAMES = new Set([
   'settings.local.json',
   'config.toml',
   'hooks.json',
+  'opencode.json',
 ]);
 const SECRET_KEY = /(^|[_-])(api[_-]?key|token|secret|password|authorization|bearer)([_-]|$)/i;
 const URL_KEY = /(url|uri|endpoint)$/i;

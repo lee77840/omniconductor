@@ -26,6 +26,10 @@
     "windsurf": {
       "config_path": ".windsurf/hooks.json",
       "shape": "flat"
+    },
+    "opencode": {
+      "config_path": ".opencode/plugins/conductor-guards.js",
+      "shape": "plugin"
     }
   },
   "registrations": [
@@ -70,6 +74,12 @@
               }
             ]
           }
+        },
+        "opencode": {
+          "event": "tool.execute.before",
+          "handler": {
+            "command": "ConductorGuards:commit-current-work"
+          }
         }
       }
     },
@@ -113,6 +123,12 @@
                 "statusMessage": "Checking staged test coverage"
               }
             ]
+          }
+        },
+        "opencode": {
+          "event": "tool.execute.before",
+          "handler": {
+            "command": "ConductorGuards:commit-test-coverage"
           }
         }
       }

@@ -35,11 +35,20 @@ set -u
 export PAYLOAD_RAW="$(/bin/cat 2>/dev/null || true)"
 [ -n "${PAYLOAD_RAW:-}" ] || exit 0
 
-if ! command -v /usr/bin/python3 >/dev/null 2>&1; then
+PYTHON_BIN=""
+for candidate in "${CONDUCTOR_PYTHON_BIN:-}" python3 python; do
+  [ -n "$candidate" ] || continue
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import json,sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  printf '%s\n' '[CONDUCTOR hook] Python 3 is unavailable; agent-routing guard was not evaluated.' >&2
   exit 0
 fi
 
-PARSED=$(/usr/bin/python3 -c "
+PARSED=$("$PYTHON_BIN" -c "
 import json, os, sys
 try:
     d = json.loads(os.environ.get('PAYLOAD_RAW', '{}'))
@@ -82,7 +91,7 @@ fi
 
 [ -z "$REASONS" ] && exit 0
 
-REASONS_JSON=$(REASONS="$REASONS" /usr/bin/python3 -c "
+REASONS_JSON=$(REASONS="$REASONS" "$PYTHON_BIN" -c "
 import json, os
 print(json.dumps({
     'hookSpecificOutput': {

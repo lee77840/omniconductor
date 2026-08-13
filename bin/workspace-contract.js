@@ -7,9 +7,9 @@ const crypto = require('crypto');
 const workContract = require('./work-contract.js');
 
 const SCHEMA_VERSION = 1;
-const MANIFEST_REL = path.join('.conductor', 'workspace.json');
+const MANIFEST_REL = '.conductor/workspace.json';
 const MANIFEST_LIMIT = 256 * 1024;
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const ROOT_KEYS = new Set(['schema_version', 'workspace_id', 'repositories']);
 const REPO_KEYS = new Set(['id', 'path', 'depends_on', 'write_scopes', 'target_branch', 'required_adapters']);
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,79}$/;

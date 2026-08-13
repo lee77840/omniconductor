@@ -243,13 +243,14 @@ Before any commit:
 
 ## 6. Cross-tool enforcement summary
 
-| Gate | Claude Code | Cursor | Copilot | Gemini | Codex | Windsurf |
-|---|---|---|---|---|---|---|
-| Q1 pre-commit review | `code-reviewer` + full guard set | `code-reviewer` agent | `code-reviewer` + GitHub native | `code-reviewer` agent | `code-reviewer` + verified commit guards | `code-reviewer` workflow |
-| Q2 pre-merge review | Slash command + Stop-hook | Native agent/review surface | GitHub native | Native agent + checklist | Native role + Stop-hook | Native workflow + checklist |
-| Q3 test coverage sync | Rule text + checklist | Same | Same | Same | Same | Same |
-| Q4 verify-after-changes | Rule text + LLM self-discipline | Same | Same | Same | Same | Same |
+| Gate | Claude Code | Cursor | Copilot | Gemini | Codex | Windsurf | OpenCode |
+|---|---|---|---|---|---|---|---|
+| Q1 pre-commit review | `code-reviewer` + full guard set | `code-reviewer` agent | `code-reviewer` + GitHub native | `code-reviewer` agent | `code-reviewer` + verified commit guards | `code-reviewer` workflow | `code-reviewer` + verified commit guards |
+| Q2 pre-merge review | Slash command + Stop-hook | Native agent/review surface | GitHub native | Native agent + checklist | Native role + Stop-hook | Native workflow + checklist | Native agent + checklist |
+| Q3 test coverage sync | Rule text + checklist | Same | Same | Same | Same | Same | Same |
+| Q4 verify-after-changes | Rule text + LLM self-discipline | Same | Same | Same | Same | Same | Same |
 
-All six adapters expose the independent review role, but only Claude and Codex
-receive CONDUCTOR's verified mechanical guard hooks. Elsewhere the native review
+All seven adapters expose the independent review role, but only providers with a
+verified native decision contract receive the corresponding mechanical guard hooks.
+Elsewhere the native review
 surface, installed checklist, and operator approval carry the gate.

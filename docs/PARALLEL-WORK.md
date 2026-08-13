@@ -47,5 +47,5 @@ recreate the handoff.
 - Released task IDs remain tombstones and cannot be reused.
 - `doctor` D14 reads the ledger and fails on unsafe records, conflicting scopes,
   missing worktrees, or handed-off snapshot drift.
-- The `coordinate-work` skill is emitted on all six adapters only with the
+- The `coordinate-work` skill is emitted on all seven adapters only with the
   `git-hygiene` recipe.

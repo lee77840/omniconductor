@@ -18,8 +18,8 @@ set -u
 
 TOOL="${1:-}"
 case "$TOOL" in
-  claude|cursor|copilot|gemini|codex|windsurf) : ;;
-  *) echo "Usage: $0 <claude|cursor|copilot|gemini|codex|windsurf> [base-tmp-dir]" >&2; exit 2 ;;
+  claude|cursor|copilot|gemini|codex|windsurf|opencode) : ;;
+  *) echo "Usage: $0 <claude|cursor|copilot|gemini|codex|windsurf|opencode> [base-tmp-dir]" >&2; exit 2 ;;
 esac
 
 cd "$(dirname "$0")/.." || exit 2
@@ -46,11 +46,14 @@ case "$TOOL" in
   gemini)   BASELINE="GEMINI.md";                       RULE="GEMINI.md" ;;
   codex)    BASELINE="AGENTS.md";                       RULE="AGENTS.md" ;;
   windsurf) BASELINE=".windsurfrules";                  RULE=".devin/rules/workflow.md" ;;
+  opencode) BASELINE="opencode.json";                  RULE=".opencode/rules/workflow.md" ;;
 esac
 # claude special-case: universal rule location
 [ "$TOOL" = "claude" ] && RULE=".claude/rules/workflow.md"
 if [ "$TOOL" = "claude" ]; then
   SKILL_ROOT=".claude/skills"
+elif [ "$TOOL" = "opencode" ]; then
+  SKILL_ROOT=".opencode/skills"
 else
   SKILL_ROOT=".agents/skills"
 fi
@@ -77,6 +80,7 @@ recipe_artifact() { # path proving the tdd recipe landed, per tool + mode-kind (
     cursor)   echo "$d/.cursor/rules/tdd.mdc" ;;
     copilot)  echo "$d/.github/instructions/tdd.instructions.md" ;;
     windsurf) echo "$d/.devin/rules/tdd.md" ;;
+    opencode) echo "$d/.opencode/rules/recipes/tdd.md" ;;
     gemini)   echo "$d/GEMINI.md" ;;   # block host
     codex)    echo "$d/AGENTS.md" ;;   # block host
   esac
@@ -278,6 +282,7 @@ d="$BASE/strict-seeded"; mkdir -p "$d"
 case "$TOOL" in
   cursor)  mkdir -p "$d/.cursor/rules"; echo x > "$d/.cursor/rules/mine.mdc" ;;
   copilot) mkdir -p "$d/.github"; echo MINE > "$d/.github/copilot-instructions.md" ;;
+  opencode) mkdir -p "$d/.opencode/rules"; echo MINE > "$d/.opencode/rules/mine.md" ;;
   *)       mkdir -p "$d/$(dirname "$BASELINE")" 2>/dev/null; echo MINE > "$d/$BASELINE" ;;
 esac
 run_adapter "$d" --mode=strict --no-prompt >/dev/null 2>&1
@@ -385,6 +390,7 @@ case "$TOOL" in
   gemini)   { grep -q 'conductor:block reflector' "$d/GEMINI.md" && have "$d/.gemini/settings.json"; } || okay=false ;;
   codex)    { grep -q 'conductor:block reflector' "$d/AGENTS.md" && have "$d/.codex/hooks.json"; } || okay=false ;;
   windsurf) { have "$d/.devin/rules/self-improvement.md" && have "$d/.windsurf/hooks.json" && [ ! -f "$d/.windsurfrules" ]; } || okay=false ;;
+  opencode) { have "$d/.opencode/rules/recipes/self-improvement.md" && have "$d/.opencode/commands/reflect.md" && have "$d/.opencode/agents/reflector.md" && [ ! -f "$d/.opencode/rules/workflow.md" ]; } || okay=false ;;
 esac
 $okay && ok "reflector-only: loop artifacts only" || bad "reflector-only emission"
 run_adapter "$d" --uninstall >/dev/null 2>&1

@@ -1,6 +1,7 @@
 ---
 recipe_id: coding-conventions
 recipe_name: "TypeScript-first coding conventions"
+stack_specific: true
 applies_when: "TypeScript / TSX project that wants explicit naming + error-handling + type-safety conventions"
 severity: STRONG (when installed)
 linked_rules:

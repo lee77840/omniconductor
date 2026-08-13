@@ -17,6 +17,7 @@ const MANAGED = {
   gemini: ['GEMINI.md', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.gemini/settings.json', '.agents/skills'],
   codex: ['AGENTS.md', '.codex/conductor', '.codex/agents', '.codex/hooks', '.codex/hooks.json', '.codex/config.toml', '.agents/skills'],
   windsurf: ['.windsurfrules', '.windsurf/workflows', '.windsurf/hooks', '.windsurf/hooks.json', '.devin/rules', '.agents/skills'],
+  opencode: ['opencode.json', 'opencode.jsonc', '.opencode/rules', '.opencode/agents', '.opencode/commands', '.opencode/plugins', '.opencode/skills'],
 };
 const COMMON_MANIFEST_FILES = new Set([
   'docs/CURRENT_WORK.md', 'docs/REMAINING_TASKS.md', 'docs/PLANS.md',
@@ -31,6 +32,7 @@ const MANIFEST_DIRS = {
   gemini: ['.gemini/agents', '.gemini/commands', '.gemini/hooks', '.agents/skills'],
   codex: ['.codex/conductor', '.codex/agents', '.codex/hooks', '.agents/skills'],
   windsurf: ['.windsurf/workflows', '.windsurf/hooks', '.devin/rules', '.agents/skills'],
+  opencode: ['.opencode/rules', '.opencode/agents', '.opencode/commands', '.opencode/plugins', '.opencode/skills'],
 };
 
 function isInside(root, candidate) {

@@ -977,9 +977,9 @@ echo "  Target: $TARGET_ABS"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   echo "  Universal rules: 0 (à la carte)"
 elif [ "$PER_RULE" = "true" ]; then
-  echo "  Universal rules: 5 → .github/instructions/*.instructions.md (per-rule mode)"
+  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") → .github/instructions/*.instructions.md (per-rule mode)"
 else
-  echo "  Universal rules: 5 → .github/copilot-instructions.md (single-file mode)"
+  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") → .github/copilot-instructions.md (single-file mode)"
 fi
 echo "  Recipes installed: ${RECIPES:-(none)}"
 echo "  Mode: $MODE"

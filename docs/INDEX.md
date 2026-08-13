@@ -35,11 +35,12 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/roles/designer.md` | UI / UX, design tokens, accessibility. Tier 2. |
 | `core/roles/scribe.md` | Documentation sync after impl. Tier 2. |
 | `core/roles/reflector.md` | Reads session trajectories; proposes lesson deltas (propose-only, opt-in). Tier 1. |
-| `docs/MODEL-ROUTING.md` | One-time Tier-model setup, six-adapter recommendations, enforcement boundaries, CI and lifecycle behavior. |
+| `docs/MODEL-ROUTING.md` | One-time Tier-model setup, seven-adapter recommendations, enforcement boundaries, CI and lifecycle behavior. |
 | `docs/specs/2026-07-13-vendor-neutral-model-routing.md` | Model-routing invariants and acceptance criteria. |
 | `docs/plans/2026-07-13-vendor-neutral-model-routing.md` | Implementation and verification plan. |
 | `docs/specs/2026-08-11-verification-assurance-contracts.md` | Evidence schema and DB/test/visual/provenance/multi-surface invariants. |
 | `docs/plans/2026-08-11-verification-assurance-contracts.md` | P0→P2 implementation and verification checklist. |
+| `docs/specs/2026-08-12-opencode-adapter.md` | Implemented OpenCode stable-v1 contract: JSON merge, v1/v2 boundary, native agents/skills/plugins, and seven-adapter impact. |
 | `core/recipes/README.md` | The 17 opt-in recipes catalog + selection guidance. |
 | `core/recipes/self-improvement.md` | Opt-in Reflector loop — propose-only session self-review (ADR-030/032/033). |
 | `core/recipes/web-mobile-parity.md` | P1 + P2 (feature + bug parity). |
@@ -103,6 +104,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `adapters/gemini/transform.sh` | **✅ adapter shipped (v0.2).** core → `GEMINI.md` + `.gemini/styleguide.md`. Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 | `adapters/codex/transform.sh` | **✅ adapter shipped (v0.2).** core → `AGENTS.md`. Emit-verified + **live-verified** (auto-probe `tools/live-verify.sh`) — current status in `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 | `adapters/windsurf/transform.sh` | **✅ adapter shipped (v0.2).** core → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/` still read). Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
+| `adapters/opencode/transform.sh` | **✅ adapter shipped (v1.6).** core → `opencode.json` instructions + `.opencode/{rules,agents,plugins,skills,commands}`. Stable v1 live-verified; v2 beta unsupported. |
 
 ## `tools/`
 
@@ -115,6 +117,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `tools/check-recipe-docs.js` + `tools/test-recipe-docs.js` | Derives the recipe inventory from `core/recipes/*.md` and rejects stale public totals, missing catalog entries, or invented recipe names. |
 | `tools/check-adapter-metadata.sh` | **v0.7.0 (ADR-040).** Asserts `adapters/*/metadata.json` agrees with transform.sh / validator / matrix / live-verification doc. CI job `adapter-metadata`. |
 | `tools/test-doc-path-policy.sh` | Six-adapter canonical-document emission plus doctor legacy/override regression suite (ADR-052). |
+| `tools/run-bash.js` + `tools/test-install-modes-all.js` | Cross-platform npm Bash launcher and seven-adapter mode orchestrator using the installer-resolved Git Bash contract (ADR-071/072). |
 | `bin/evidence-contract.js` + `tools/test-evidence-contract.js` | Read-only schema validation and completeness gate for snapshot-bound verification evidence. |
 | `tools/test-assurance-recipes.sh` | Six-adapter emit/manifest/uninstall and coverage regression for the four assurance recipes. |
 | `tools/check-release-version.js` + `tools/test-release-version.js` | Fail-closed npm candidate uniqueness/order guard and its regressions (ADR-053). |
@@ -126,7 +129,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/ARCHITECTURE.md` | 3-layer model. |
 | `docs/COMPATIBILITY-MATRIX.md` | Feature support per tool. |
 | `docs/PHILOSOPHY.md` | Design principles. |
-| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-070. |
+| `docs/DESIGN-DECISIONS.md` | ADR-001 ~ ADR-071. |
 | `docs/HOW-IT-WORKS-PER-TOOL.md` | Per-tool install paths + limitations. |
 | `docs/MODEL-ROUTING.md` | Immutable Tier difficulty plus one-time, per-adapter native model setup. |
 | `docs/MIGRATION.md` | Tool-switching migration guide. |

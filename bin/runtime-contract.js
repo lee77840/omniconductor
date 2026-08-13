@@ -13,7 +13,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const LIFECYCLES = new Set(['active', 'renamed', 'source-conflict']);
 const AUTH_STATUSES = new Set(['documented', 'policy-controlled', 'source-conflict', 'verification-required']);
 const PROBE_KINDS = new Set(['local-renderer', 'headless-model', 'manual-ide']);

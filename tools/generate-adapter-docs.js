@@ -29,7 +29,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf'];
+const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
 const CHECK = process.argv.includes('--check');
 
 function die(msg) { process.stderr.write(`generate-adapter-docs: ${msg}\n`); process.exit(2); }
