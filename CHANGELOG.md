@@ -3,6 +3,127 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.7.0] — 2026-08-20
+
+### Added
+
+- Compile a bounded always-loaded runtime kernel for all seven adapters while
+  preserving every universal rule and selected recipe as a byte-identical on-demand
+  reference. Add compact native recipe pointers only where the provider contract is
+  verified and fail closed when references drift or instruction budgets regress.
+- Add read-only `omniconductor audit instructions [dir] [--requests=N]` reporting:
+  current eager/scoped/reference bytes, heuristic per-request context avoided versus
+  the same policy set loaded eagerly, optional request-count totals, and explicit
+  non-billing/non-monetary attribution boundaries.
+- Add zero-telemetry `omniconductor audit savings` personal reports. Claude users can
+  derive request count and observed output-elision lower bounds from local JSONL;
+  every adapter can report a caller-counted structural estimate. The report omits
+  session content, excludes provider caching attribution, and refuses a misleading
+  grand total across evidence classes.
+- Report output-cap marker-declared `tokens elided` as an observed local lower bound.
+
+- Inventory unmanaged tool instruction surfaces before a first install. Interactive
+  installs must choose recipes-only preservation, timestamped backup-and-replace, or
+  cancellation; non-interactive implicit-full installs now fail before model routing,
+  manifests, backups, or adapter output. Explicit `--mode=` remains the auditable
+  automation contract, and `--conflict-policy=` provides a named equivalent.
+- Classify the 17 recipes into automatic safe defaults, project-detected
+  recommendations, and explicit-consent capabilities; resolve the grouped choice
+  before model or adapter writes, preserve each adapter's existing selection on
+  update, and keep `--recipes=` as an exact non-interactive override.
+- Add a schema-validating reflection proposal writer that accepts only typed
+  `ADD`/`UPDATE`/`STALE` operations for `docs/REFLECTION-PROPOSALS.md` and refuses
+  unsafe paths, hardlinks, malformed envelopes, and content drift.
+
+### Fixed
+
+- Regenerate capability-assurance coverage from the recorded Devin instruction-load
+  probe, so the public JSON/Markdown evidence reports Windsurf/Devin as live-verified
+  instead of leaving the generated view at emit-verified.
+- Make authenticated Devin live verification compatible with the current CLI
+  workspace-trust contract. The non-interactive probe bypasses trust only inside
+  CONDUCTOR's generated throwaway fixture, never through user-level configuration,
+  and a regression test keeps that exception single-site.
+- Make the Windows installer regression observable and slow-host safe: every major
+  phase reports progress and elapsed time, direct Git Bash dispatch uses the same
+  180-second per-adapter budget as CLI installs, timeout diagnostics retain their
+  actual budget, and the duplicate direct pass uses minimal mode while proving the
+  requested mode survives CLI recursion protection. The combined lifecycle also
+  uses minimal mode after seven individual full installs, while separately asserting
+  all seven shared manifests, mode stamps, uninstall cleanup, and adopter data.
+- Make fresh Windsurf and OpenCode bounded-kernel dry-runs successful and truly
+  byte-zero instead of attempting to copy on-demand references into directories
+  that a preview deliberately does not create. The published-version upgrade gate
+  now exercises OpenCode as a real predecessor from v1.6+, retires only unchanged
+  eager rule copies, and proves customized former eager rules survive without stale
+  manifest ownership.
+- Isolate the release-version registry fixture from caller-supplied local-gate
+  baselines, so the exact clean-SHA release command tests its fake fresh-cache
+  contract instead of inheriting and misreading the parent's verified snapshot.
+- Unify all cache reporters on `cache_read / (cache_read + cache_write +
+  uncached_input)`, call it cache-read token share, retain the three raw values, and
+  preserve legacy field names only as compatibility aliases with the corrected value.
+- Treat Codex `tool_output_token_limit` as the officially documented positive numeric
+  config key instead of warning that a present Codex CLI cannot prove recognition.
+- Correct current tool-output-cap reach from 3/6 to 3/7 and derive the denominator
+  from adapter metadata in regression tests.
+
+- Prevent an omitted `--mode` from silently turning the historical `full` default
+  into consent to replace an adopter's existing Markdown instruction baseline.
+- Build the review-stop hook's deterministic `git`/`gh` fixture path inside Git
+  Bash instead of prepending a Unix-delimited native Windows path, so the complete
+  PowerShell `npm test` run exercises every continuation schema without empty-output
+  JSON failures.
+- Read review-stop cooldown timestamps with GNU/Git-Bash `stat -c` before the BSD
+  `stat -f` fallback, validate the epoch before arithmetic, and exercise the actual
+  cooldown branch in every native continuation-schema fixture.
+- Make the generic adapter-output validator understand minimal, recipes-only, and
+  reflector-only manifests instead of requiring full-mode roles and rules.
+- Install and register Claude trajectory capture only when `self-improvement` is
+  selected, while preserving user-modified legacy hooks during opt-out migration.
+- Run scheduled Reflector analysis with provider read-only contracts and import its
+  typed stdout through the trusted writer instead of granting the model general
+  workspace-write authority.
+- Canonicalize repository paths through the operating system resolver. Windows
+  keeps 8.3 short names alive, so `os.tmpdir()` reported `SANGYO~1.LEE` while
+  `git rev-parse` answered with the long account name; the JS realpath preserved
+  whichever spelling it was handed. Every `work claim` aborted as "outside its
+  reported Git top-level" and workspace doctor reported correct repositories as
+  "not an exact repository root". Both contracts now share one resolver.
+- Decide path containment with `path.relative`, which compares case-insensitively
+  on Windows and exactly on POSIX, instead of a literal comparison that treated a
+  drive-letter difference as an escape. Sibling directories, prefix traps, parent
+  escapes and other drives are still rejected.
+- Make the suite runnable on Windows: resolve the shell instead of spawning a bare
+  `bash` that Windows maps to the WSL relay, normalize stored relative paths to
+  POSIX, remove dangling symlinks with `unlinkSync`, and skip PATH-stub provider
+  checks out loud rather than reporting them as passing.
+- Make runtime-version probes and their fixtures native-Windows aware: join fixture
+  search paths with the platform delimiter, expose deterministic `.cmd` fixtures,
+  resolve `.com`/`.exe`/`.bat`/`.cmd` launchers without an ambiguous shell search,
+  and invoke batch launchers through the Windows command processor only after schema
+  validation restricts commands and arguments to execution-safe forms. A missing CLI
+  remains distinguishable from an installed CLI whose version probe failed. Batch
+  command lines use cmd.exe's required outer/inner quote pairs with verbatim argument
+  delivery instead of C-runtime escaping, with a native Windows execution fixture
+  that proves the resolved npm-style shim actually returns its version.
+- Explain that `work claim` requires an initial commit when a newly initialized
+  repository has no `HEAD`, fail before creating claim state, and cover the recovery
+  path with a CLI-level regression. Validate the task, owner, session, and scopes
+  before acquiring the mutation lock so invalid input also leaves zero state.
+- Make the hook-compiler regression name every provider-specific path instead of
+  treating seven-adapter registry membership as behavioral proof. Claude now proves
+  native settings merge, idempotence, fail-before-write, and exact restoration in
+  this suite; OpenCode proves its two native commit guards independently, a complete
+  evidence allow path, and adopter-plugin restoration.
+
+### Verification
+
+- Complete the native Windows Node.js + Git Bash `npm test` run on an adopter
+  laptop for all seven adapters, including OpenCode, CRLF hook input, review-stop
+  continuation/cooldown, canonical 8.3-path handling, work/workspace contracts,
+  and install/uninstall preservation. GitHub Actions were not dispatched.
+
 ## [1.6.0] — 2026-08-13
 
 ### Added

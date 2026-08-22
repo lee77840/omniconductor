@@ -41,7 +41,7 @@
 #
 #   gemini:
 #     - GEMINI.md exists, non-empty
-#     - all 5 universal-rule sections present (distinctive markers)
+#     - bounded kernel plus all 5 byte-identical complete references
 #     - no unsubstituted ${...} template placeholders (outside code fences)
 #     - no reference-product leakage (tokens from .purity-banned-private; private repo only)
 #     - if .gemini/styleguide.md exists, it must be non-empty
@@ -88,6 +88,8 @@ PASS=0
 WARN=0
 FAIL=0
 FAILED_FILES=""
+INSTALL_MODE="full"
+MANIFEST_PATH="$TARGET/.conductor/manifests/$ADAPTER.json"
 
 emit_pass() {
   printf "  PASS  %s\n" "$1"
@@ -103,6 +105,102 @@ emit_fail() {
 emit_warn() {
   printf "  WARN  %s :: %s\n" "$1" "$2"
   WARN=$((WARN + 1))
+}
+
+load_install_mode() {
+  [ -e "$MANIFEST_PATH" ] || return 0
+  local mode
+  if ! mode="$(node -e '
+    const fs=require("fs");
+    const file=process.argv[1], adapter=process.argv[2];
+    const st=fs.lstatSync(file);
+    if(!st.isFile() || st.isSymbolicLink() || st.nlink !== 1) process.exit(2);
+    const m=JSON.parse(fs.readFileSync(file,"utf8"));
+    if(m.schema_version!==2 || m.manifest_scope!=="adapter" || m.adapter!==adapter) process.exit(3);
+    if(!["full","minimal","strict","recipes-only","reflector-only"].includes(m.mode)) process.exit(4);
+    process.stdout.write(m.mode);
+  ' "$MANIFEST_PATH" "$ADAPTER" 2>/dev/null)"; then
+    INSTALL_MODE="invalid"
+    emit_fail ".conductor/manifests/$ADAPTER.json" "unsafe, malformed, or unsupported install-mode manifest"
+    return
+  fi
+  INSTALL_MODE="$mode"
+}
+
+manifest_recipe_enabled() {
+  local recipe="$1"
+  [ -f "$MANIFEST_PATH" ] || return 1
+  node -e '
+    const fs=require("fs");
+    const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+    process.exit(Array.isArray(manifest.recipes_enabled) && manifest.recipes_enabled.includes(process.argv[2]) ? 0 : 1);
+  ' "$MANIFEST_PATH" "$recipe" 2>/dev/null
+}
+
+validate_ala_carte_manifest() {
+  local details
+  if details="$(node - "$MANIFEST_PATH" "$TARGET" "$ADAPTER" "$INSTALL_MODE" <<'NODE'
+const fs=require('fs');
+const path=require('path');
+const crypto=require('crypto');
+const [manifestFile,target,adapter,mode]=process.argv.slice(2);
+const errors=[];
+let manifest;
+try { manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8')); }
+catch (error) { errors.push(`manifest JSON: ${error.message}`); }
+if (manifest) {
+  if (manifest.adapter!==adapter || manifest.mode!==mode) errors.push('adapter/mode does not match validator invocation');
+  const recipes=manifest.recipes_enabled;
+  if (!Array.isArray(recipes) || recipes.some((r)=>typeof r!=='string' || !/^[a-z0-9-]+$/.test(r))) {
+    errors.push('recipes_enabled must be a safe string array');
+  } else if (mode==='reflector-only' && (recipes.length!==1 || recipes[0]!=='self-improvement')) {
+    errors.push('reflector-only must enable exactly self-improvement');
+  } else if (mode==='recipes-only' && recipes.length===0) {
+    errors.push('recipes-only must contain at least one selected recipe');
+  }
+  const entries=manifest.emitted_files;
+  if (!Array.isArray(entries) || entries.length===0) errors.push('emitted_files must be non-empty');
+  const sources=[];
+  let markedRecipeBlock=false;
+  for (const entry of Array.isArray(entries)?entries:[]) {
+    const isBlock=entry && entry.type==='block';
+    if (!entry || typeof entry.path!=='string' || (!isBlock && typeof entry.source!=='string')) { errors.push('malformed emitted_files entry'); continue; }
+    if (!entry.path || path.isAbsolute(entry.path) || entry.path.includes('\\') || entry.path.split('/').includes('..')) {
+      errors.push(`unsafe emitted path: ${entry.path}`); continue;
+    }
+    if (typeof entry.source==='string') sources.push(entry.source);
+    if (isBlock && ['recipes','reflector'].includes(entry.block)) markedRecipeBlock=true;
+    const absolute=path.resolve(target,entry.path);
+    if (absolute!==path.resolve(target) && !absolute.startsWith(path.resolve(target)+path.sep)) { errors.push(`path escape: ${entry.path}`); continue; }
+    try {
+      const st=fs.lstatSync(absolute);
+      if (!st.isFile() || st.isSymbolicLink() || st.nlink!==1) { errors.push(`unsafe emitted file: ${entry.path}`); continue; }
+      if (entry.type!=='block' && typeof entry.sha256==='string' && entry.sha256) {
+        const actual=crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex');
+        if (actual!==entry.sha256) errors.push(`checksum drift: ${entry.path}`);
+      }
+    } catch { errors.push(`missing emitted file: ${entry.path}`); }
+  }
+  if (sources.some((s)=>s.startsWith('core/universal-rules/'))) errors.push(`${mode} must not own universal rules`);
+  const baselineRoles=new Set(['planner','reviewer','code-reviewer','builder','helper','designer','scribe','utility']);
+  if (sources.some((s)=>s.startsWith('core/roles/') && baselineRoles.has(path.basename(s,'.md')))) errors.push(`${mode} must not own baseline roles`);
+  if (mode==='reflector-only') {
+    for (const required of ['core/recipes/self-improvement.md','core/roles/reflector.md','core/reflector/reflect-brief.md','core/reflector/reflection-proposals.js']) {
+      if (!sources.includes(required) && !(required==='core/recipes/self-improvement.md' && markedRecipeBlock)) errors.push(`missing reflector source: ${required}`);
+    }
+  } else if (Array.isArray(recipes)) {
+    for (const recipe of recipes) if (!sources.includes(`core/recipes/${recipe}.md`) && !markedRecipeBlock) errors.push(`missing recipe source: ${recipe}`);
+  }
+}
+if (errors.length) { process.stdout.write(errors.join('\n')); process.exit(1); }
+NODE
+  )"; then
+    emit_pass ".conductor/manifests/$ADAPTER.json ($INSTALL_MODE ownership + checksum contract)"
+  else
+    while IFS= read -r detail; do
+      [ -n "$detail" ] && emit_fail ".conductor/manifests/$ADAPTER.json" "$detail"
+    done <<< "$details"
+  fi
 }
 
 # ---- shared helpers ------------------------------------------------------
@@ -194,6 +292,10 @@ file_empty() {
 
 validate_role_set() {
   local adapter="$1" dir suffix="" role file missing=0
+  if [ "$INSTALL_MODE" = "minimal" ]; then
+    emit_pass "native role set intentionally omitted (--mode=minimal)"
+    return
+  fi
   case "$adapter" in
     claude) dir="$TARGET/.claude/agents"; suffix=".md" ;;
     cursor) dir="$TARGET/.cursor/agents"; suffix=".md" ;;
@@ -227,7 +329,7 @@ validate_role_set() {
     fi
     if [ "$adapter" = "codex" ]; then
       local expected_sandbox="workspace-write"
-      case "$role" in planner|reviewer|code-reviewer) expected_sandbox="read-only" ;; esac
+      case "$role" in planner|reviewer|code-reviewer|reflector) expected_sandbox="read-only" ;; esac
       if ! /usr/bin/awk -v role="$role" -v sandbox="$expected_sandbox" -v expected_effort="$expected_effort" '
         BEGIN { state="header"; name=0; desc=0; effort=0; box=0; opened=0; closed=0; bad=0 }
         state=="header" && $0 == "developer_instructions = \"\"\"" { opened++; state="body"; next }
@@ -306,25 +408,26 @@ validate_role_set() {
 # names as if they were portable difficulty labels.
 validate_no_claude_model_aliases() {
   local adapter="$1" root file hit=""
-  local -a files=()
   shift
   for root in "$@"; do
     [ -e "$root" ] || continue
     if [ -f "$root" ]; then
-      files=("$root")
-    else
-      files=()
-      while IFS= read -r file; do files+=("$file"); done \
-        < <(find "$root" -type f ! -name '*.conductor-backup-*' -print 2>/dev/null)
-    fi
-    for file in "${files[@]}"; do
       hit="$(/usr/bin/awk '
         /^[[:space:]]*model[[:space:]]*[:=]/ { next }
         /saved (Cursor|Copilot) translation/ { next }
         tolower($0) ~ /(^|[^a-z])(opus|sonnet|haiku)([^a-z]|$)/ { print FILENAME ":" FNR ":" $0; exit }
-      ' "$file" 2>/dev/null || true)"
-      [ -z "$hit" ] || break 2
-    done
+      ' "$root" 2>/dev/null || true)"
+    else
+      while IFS= read -r file; do
+        hit="$(/usr/bin/awk '
+          /^[[:space:]]*model[[:space:]]*[:=]/ { next }
+          /saved (Cursor|Copilot) translation/ { next }
+          tolower($0) ~ /(^|[^a-z])(opus|sonnet|haiku)([^a-z]|$)/ { print FILENAME ":" FNR ":" $0; exit }
+        ' "$file" 2>/dev/null || true)"
+        [ -z "$hit" ] || break
+      done < <(find "$root" -type f ! -name '*.conductor-backup-*' -print 2>/dev/null)
+    fi
+    [ -z "$hit" ] || break
   done
   if [ -n "$hit" ]; then
     emit_fail "$adapter model isolation" "Claude family alias leaked into non-Claude output: $hit"
@@ -374,7 +477,7 @@ leakage_scan() {
   grep -nE "$pat" "$1" 2>/dev/null | head -1 || true
 }
 
-# Check that a file contains all 5 universal-rule sections by distinctive markers.
+# Legacy helper for validating pre-bounded single-file surfaces during migration.
 # Markers are derived from the rule titles emitted into the bundled GEMINI.md/AGENTS.md.
 # Prints the name of the first MISSING section, or empty if all present.
 missing_rule_section() {
@@ -384,6 +487,75 @@ missing_rule_section() {
   grep -qE '^#+ +Quality Gates — Two-Stage Review' "$file"          || { echo "quality-gates"; return; }
   grep -qE '^#+ +Operations — Session Continuity' "$file"           || { echo "operations"; return; }
   grep -qE '^#+ +Meta-Discipline — How CONDUCTOR Stays' "$file"     || { echo "meta-discipline"; return; }
+}
+
+# Validate the bounded always-loaded kernel and the byte-complete universal
+# references installed outside that eager surface. This proves optimization did
+# not silently abbreviate the authoritative rules.
+validate_bounded_kernel_and_refs() {
+  local kernel="$1" label="$2" refs="$3" bytes rule missing=0
+  if [ ! -s "$kernel" ]; then
+    emit_fail "$label" "bounded runtime kernel missing or empty"
+    return
+  fi
+  bytes="$(wc -c < "$kernel" | tr -d ' ')"
+  if [ "$bytes" -gt 12288 ]; then
+    emit_fail "$label" "always-loaded kernel is ${bytes} bytes; exceeds 12288-byte budget"
+    missing=$((missing + 1))
+  fi
+  for marker in '## Non-negotiable execution contract' '## Universal-rule loading table' '## Token and context discipline' '## Selected recipe routing'; do
+    if ! grep -qF "$marker" "$kernel"; then
+      emit_fail "$label" "bounded runtime kernel missing marker: $marker"
+      missing=$((missing + 1))
+    fi
+  done
+  [ "$missing" -ne 0 ] || emit_pass "$label (${bytes} bytes; bounded kernel)"
+
+  missing=0
+  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
+    if [ ! -s "$refs/$rule.md" ]; then
+      emit_fail "${refs#"$TARGET/"}/$rule.md" "complete universal-rule reference missing"
+      missing=$((missing + 1))
+    elif ! cmp -s "$SCRIPT_ROOT/core/universal-rules/$rule.md" "$refs/$rule.md"; then
+      emit_fail "${refs#"$TARGET/"}/$rule.md" "reference is not byte-identical to authoritative core rule"
+      missing=$((missing + 1))
+    fi
+  done
+  [ "$missing" -ne 0 ] || emit_pass "${refs#"$TARGET/"}/ (5 byte-identical complete references)"
+}
+
+# Every selected recipe must remain available as a byte-complete, non-eager
+# reference. The manifest is authoritative for the selected set.
+validate_selected_recipe_references() {
+  [ -s "$MANIFEST_PATH" ] || return 0
+  local details root
+  case "$ADAPTER" in
+    claude) root=".claude/conductor/recipes" ;;
+    cursor) root=".cursor/conductor/recipes" ;;
+    copilot) root=".github/conductor/recipes" ;;
+    gemini) root=".gemini/conductor/recipes" ;;
+    codex) root=".codex/conductor/recipes" ;;
+    windsurf) root=".devin/conductor/recipes" ;;
+    opencode) root=".opencode/conductor/recipes" ;;
+  esac
+  if details="$(node - "$MANIFEST_PATH" "$TARGET" "$SCRIPT_ROOT/core/recipes" "$root" <<'NODE'
+const fs=require('fs'), path=require('path');
+const [manifestFile,target,sourceRoot,relativeRoot]=process.argv.slice(2);
+const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'));
+const errors=[];
+for (const recipe of manifest.recipes_enabled || []) {
+  const source=path.join(sourceRoot,`${recipe}.md`);
+  const installed=path.join(target,relativeRoot,`${recipe}.md`);
+  if (!fs.existsSync(source) || !fs.existsSync(installed)) errors.push(`${recipe}: complete recipe reference missing`);
+  else if (!fs.readFileSync(source).equals(fs.readFileSync(installed))) errors.push(`${recipe}: reference differs from authoritative core recipe`);
+}
+if (errors.length) { process.stdout.write(errors.join('\n')); process.exit(1); }
+NODE
+  )"; then
+    emit_pass "$root (selected recipes are byte-identical complete references)"
+  else
+    while IFS= read -r detail; do [ -n "$detail" ] && emit_fail "$root" "$detail"; done <<< "$details"
+  fi
 }
 
 # ---- gemini mode ---------------------------------------------------------
@@ -399,12 +571,7 @@ run_gemini() {
     return
   fi
 
-  local miss
-  miss=$(missing_rule_section "$main")
-  if [ -n "$miss" ]; then
-    emit_fail "GEMINI.md" "missing universal-rule section: $miss"
-    return
-  fi
+  validate_bounded_kernel_and_refs "$main" "GEMINI.md" "$TARGET/.gemini/conductor/rules"
 
   local ph
   ph=$(unsubstituted_placeholder "$main")
@@ -419,8 +586,6 @@ run_gemini() {
     emit_fail "GEMINI.md" "reference-product leakage: $leak"
     return
   fi
-
-  emit_pass "GEMINI.md"
 
   # Optional styleguide — if present must be non-empty.
   local style="$TARGET/.gemini/styleguide.md"
@@ -491,13 +656,7 @@ run_codex() {
     return
   fi
 
-  if ! grep -qF 'CONDUCTOR_KERNEL_END' "$main" \
-    || ! grep -q '^## Non-negotiable execution contract' "$main" \
-    || ! grep -q '^## Rule loading table' "$main" \
-    || ! grep -q '^## Native role routing' "$main"; then
-    emit_fail "AGENTS.md" "bounded runtime kernel is incomplete"
-    return
-  fi
+  validate_bounded_kernel_and_refs "$main" "AGENTS.md" "$TARGET/.codex/conductor/rules"
 
   local ph
   ph=$(unsubstituted_placeholder "$main")
@@ -513,19 +672,6 @@ run_codex() {
     return
   fi
 
-  emit_pass "AGENTS.md (${bytes} bytes; bounded kernel)"
-
-  local refs_ok=true
-  local rule ref
-  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
-    ref="$TARGET/.codex/conductor/rules/$rule.md"
-    if [ ! -s "$ref" ]; then
-      emit_fail ".codex/conductor/rules/$rule.md" "complete universal-rule reference missing"
-      refs_ok=false
-    fi
-  done
-  $refs_ok && emit_pass ".codex/conductor/rules/ (5 complete references)"
-
   validate_role_set codex
   validate_no_claude_model_aliases codex "$TARGET/AGENTS.md" "$TARGET/.codex/conductor" "$TARGET/.codex/agents"
   local hooks="$TARGET/.codex/hooks.json"
@@ -534,7 +680,9 @@ run_codex() {
   # In that case it is absent from the Codex ownership manifest and must not be
   # judged as if CONDUCTOR emitted it. The warning printed during installation
   # remains the activation signal; this validator only certifies owned output.
-  if [ -s "$hooks" ] && [ -s "$manifest" ] \
+  if [ "$INSTALL_MODE" = "minimal" ]; then
+    emit_pass ".codex/hooks.json intentionally omitted (--mode=minimal)"
+  elif [ -s "$hooks" ] && [ -s "$manifest" ] \
     && ! grep -q '"path"[[:space:]]*:[[:space:]]*"\.codex/hooks\.json"' "$manifest"; then
     emit_pass ".codex/hooks.json (user-owned; preserved and excluded from CONDUCTOR output validation)"
   elif [ ! -s "$hooks" ]; then
@@ -553,12 +701,10 @@ run_codex() {
   local cfg="$TARGET/.codex/config.toml"
   local cfg_manifest="$TARGET/.conductor/manifests/codex.json"
   if [ -s "$cfg" ]; then
-    # Key-presence check only (aligned with doctor's hasLimitKey regex): the file
-    # is explicitly user-editable post-install, so legitimate TOML forms — an
-    # inline comment (`= 8000  # budget`) or digit separators (`= 12_000`) —
-    # must not fail validation. Value semantics are Codex's business (ADR-051).
-    if grep -qE '^tool_output_token_limit[[:space:]]*=[[:space:]]*[^[:space:]]' "$cfg"; then
-      emit_pass ".codex/config.toml (tool_output_token_limit present)"
+    # Official key takes a positive integer token budget. Accept TOML digit
+    # separators and an inline comment, but reject strings/zero/unknown shapes.
+    if grep -qE '^tool_output_token_limit[[:space:]]*=[[:space:]]*[1-9][0-9_]*([[:space:]]*(#.*)?)?$' "$cfg"; then
+      emit_pass ".codex/config.toml (documented tool_output_token_limit has a positive numeric budget)"
     elif [ -s "$cfg_manifest" ] && ! grep -q '"path"[[:space:]]*:[[:space:]]*"\.codex/config\.toml"' "$cfg_manifest"; then
       emit_pass ".codex/config.toml (user-owned; preserved and excluded from CONDUCTOR output validation)"
     else
@@ -598,33 +744,23 @@ run_windsurf() {
     emit_fail ".windsurfrules" "file missing"
   else
     validate_windsurf_file "$top"
+    validate_bounded_kernel_and_refs "$top" ".windsurfrules" "$TARGET/.devin/conductor/rules"
   fi
 
-  # Rules moved to .devin/rules/ (2026 Devin Desktop rebrand); legacy .windsurf/rules/
-  # is still read, so accept either — prefer .devin/rules/.
-  local rules_dir rules_label
+  # Optional selected-recipe pointers use the verified native .devin/rules
+  # surface. The five complete universal references deliberately do not: the
+  # bounded kernel routes to them on demand.
+  local rules_dir="" rules_label=""
   if [ -d "$TARGET/.devin/rules" ]; then
     rules_dir="$TARGET/.devin/rules"; rules_label=".devin/rules"
   elif [ -d "$TARGET/.windsurf/rules" ]; then
     rules_dir="$TARGET/.windsurf/rules"; rules_label=".windsurf/rules"
   else
-    emit_fail ".devin/rules/ (or legacy .windsurf/rules/)" "directory missing"
-    return
+    emit_pass ".devin/rules/ recipe pointers intentionally absent (no selected recipes)"
   fi
 
-  # The 5 required universal rule files must each be present.
-  local required="meta-discipline operations quality-gates spec-as-you-go workflow"
-  local r
-  for r in $required; do
-    local rf="$rules_dir/$r.md"
-    if [ ! -f "$rf" ]; then
-      emit_fail "$rules_label/$r.md" "required universal rule file missing"
-    else
-      validate_windsurf_file "$rf"
-    fi
-  done
   validate_role_set windsurf
-  validate_no_claude_model_aliases windsurf "$TARGET/.windsurfrules" "$TARGET/.devin/rules" "$TARGET/.windsurf/workflows"
+  validate_no_claude_model_aliases windsurf "$TARGET/.windsurfrules" "$TARGET/.devin/conductor" "$TARGET/.devin/rules" "$TARGET/.windsurf/workflows"
 }
 
 # ---- OpenCode mode -------------------------------------------------------
@@ -637,26 +773,18 @@ run_opencode() {
   elif node -e '
     const fs=require("fs"); const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
     if(!Array.isArray(c.instructions)) process.exit(1);
-    for(const p of [".opencode/rules/*.md"]) if(!c.instructions.includes(p)) process.exit(1);
+    for(const p of [".opencode/rules/conductor-kernel.md"]) if(!c.instructions.includes(p)) process.exit(1);
   ' "$config" 2>/dev/null; then
     emit_pass "opencode.json (valid instructions registry)"
   else
     emit_fail "opencode.json" "invalid JSON or missing baseline instruction glob"
   fi
 
-  local rule missing=0
-  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
-    if [ -s "$TARGET/.opencode/rules/$rule.md" ]; then
-      body_sanity "$TARGET/.opencode/rules/$rule.md" 0 | /usr/bin/grep -q '^OK$' \
-        || { emit_fail ".opencode/rules/$rule.md" "invalid markdown body"; missing=$((missing + 1)); }
-    else
-      emit_fail ".opencode/rules/$rule.md" "required universal rule missing or empty"
-      missing=$((missing + 1))
-    fi
-  done
-  [ "$missing" -ne 0 ] || emit_pass ".opencode/rules (5 universal rules)"
+  validate_bounded_kernel_and_refs "$TARGET/.opencode/rules/conductor-kernel.md" ".opencode/rules/conductor-kernel.md" "$TARGET/.opencode/conductor/rules"
 
-  if [ ! -s "$plugin" ]; then
+  if [ "$INSTALL_MODE" = "minimal" ]; then
+    emit_pass ".opencode/plugins intentionally omitted (--mode=minimal)"
+  elif [ ! -s "$plugin" ]; then
     emit_fail ".opencode/plugins" "native guard plugin missing"
   elif node --check "$plugin" >/dev/null 2>&1 \
     && /usr/bin/grep -qF "'tool.execute.before'" "$plugin" \
@@ -741,6 +869,7 @@ run_cursor() {
   if [ "$found" -eq 0 ]; then
     emit_fail ".cursor/rules/" "no .mdc files found"
   fi
+  validate_bounded_kernel_and_refs "$TARGET/.cursor/rules/conductor-kernel.mdc" ".cursor/rules/conductor-kernel.mdc" "$TARGET/.cursor/conductor/rules"
   validate_role_set cursor
   validate_no_claude_model_aliases cursor "$TARGET/.cursorrules" "$TARGET/.cursor/rules" "$TARGET/.cursor/agents"
 
@@ -841,6 +970,10 @@ validate_copilot_instruction() {
 run_copilot() {
   validate_copilot_top_level
 
+  local copilot_kernel="$TARGET/.github/copilot-instructions.md"
+  [ -s "$copilot_kernel" ] || copilot_kernel="$TARGET/.github/instructions/conductor-kernel.instructions.md"
+  validate_bounded_kernel_and_refs "$copilot_kernel" "${copilot_kernel#"$TARGET/"}" "$TARGET/.github/conductor/rules"
+
   local instr_dir="$TARGET/.github/instructions"
   if [ -d "$instr_dir" ]; then
     for f in "$instr_dir"/*.instructions.md; do
@@ -923,19 +1056,20 @@ validate_claude_rule() {
 }
 
 run_claude() {
+  validate_bounded_kernel_and_refs "$TARGET/CLAUDE.md" "CLAUDE.md" "$TARGET/.claude/conductor/rules"
   local rules_dir="$TARGET/.claude/rules"
   if [ ! -d "$rules_dir" ]; then
-    emit_fail ".claude/rules/" "directory missing"
-    return
-  fi
-  local found=0
-  for f in "$rules_dir"/*.md; do
-    [ -e "$f" ] || continue
-    found=$((found + 1))
-    validate_claude_rule "$f"
-  done
-  if [ "$found" -eq 0 ]; then
-    emit_fail ".claude/rules/" "no .md files found"
+    emit_pass ".claude/rules/ recipe pointers intentionally absent (no selected recipes)"
+  else
+    local found=0
+    for f in "$rules_dir"/*.md; do
+      [ -e "$f" ] || continue
+      found=$((found + 1))
+      validate_claude_rule "$f"
+    done
+    if [ "$found" -eq 0 ]; then
+      emit_pass ".claude/rules/ recipe pointers intentionally absent (no selected recipes)"
+    fi
   fi
   local hookify_count=0 hookify_file hookify_bad=0 hookify_disabled=0
   for hookify_file in "$TARGET"/.claude/hookify.*.local.md; do
@@ -957,11 +1091,14 @@ run_claude() {
     fi
   done
   if [ "$hookify_count" -gt 0 ]; then
+    local claude_self_improvement="false"
+    manifest_recipe_enabled self-improvement && claude_self_improvement="true"
     if node -e '
       const helper=require(process.argv[1]);
       const settings=process.argv[2];
-      process.exit(helper.configuredState(settings)==="enabled" && helper.missingCoreHooks(settings).length===0 ? 0 : 1)
-    ' "$SCRIPT_ROOT/bin/claude-hookify.js" "$TARGET/.claude/settings.json" 2>/dev/null; then
+      const options={selfImprovement: process.argv[3]==="true"};
+      process.exit(helper.configuredState(settings)==="enabled" && helper.missingCoreHooks(settings,options).length===0 ? 0 : 1)
+    ' "$SCRIPT_ROOT/bin/claude-hookify.js" "$TARGET/.claude/settings.json" "$claude_self_improvement" 2>/dev/null; then
       [ "$hookify_bad" -ne 0 ] || emit_pass "Hookify dependency + $hookify_count valid rule definition(s) ($hookify_disabled disabled)"
     else
       emit_fail ".claude/settings.json" "$hookify_count Hookify rules exist but the plugin/core-hook runtime registry is incomplete"
@@ -1029,17 +1166,32 @@ echo "  target  = $TARGET"
 echo "  adapter = $ADAPTER"
 echo "=========================================="
 
-case "$ADAPTER" in
-  cursor)   run_cursor   ;;
-  copilot)  run_copilot  ;;
-  claude)   run_claude   ;;
-  gemini)   run_gemini   ;;
-  codex)    run_codex    ;;
-  windsurf) run_windsurf ;;
-  opencode) run_opencode ;;
+load_install_mode
+echo "  mode    = $INSTALL_MODE"
+
+case "$INSTALL_MODE" in
+  recipes-only|reflector-only)
+    validate_ala_carte_manifest
+    ;;
+  full|minimal|strict)
+    case "$ADAPTER" in
+      cursor)   run_cursor   ;;
+      copilot)  run_copilot  ;;
+      claude)   run_claude   ;;
+      gemini)   run_gemini   ;;
+      codex)    run_codex    ;;
+      windsurf) run_windsurf ;;
+      opencode) run_opencode ;;
+    esac
+    validate_portable_skill_set
+    validate_canonical_docs
+    ;;
+  *) : ;;
 esac
-validate_portable_skill_set
-validate_canonical_docs
+
+case "$INSTALL_MODE" in
+  full|minimal|strict|recipes-only|reflector-only) validate_selected_recipe_references ;;
+esac
 
 echo ""
 echo "------------------------------------------"

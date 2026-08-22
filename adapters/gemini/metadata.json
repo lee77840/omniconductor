@@ -4,7 +4,9 @@
   "display_name": "Gemini CLI",
   "tier": "T2",
   "outputs": [
-    { "path": "GEMINI.md", "kind": "always_loaded", "validated": true },
+    { "path": "GEMINI.md", "kind": "bounded_kernel", "validated": true },
+    { "path": ".gemini/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".gemini/conductor/recipes", "kind": "recipe_references", "validated": true },
     { "path": ".gemini/styleguide.md", "kind": "rules", "validated": true },
     { "path": ".gemini/agents", "kind": "agents", "validated": true },
     { "path": ".gemini/hooks", "kind": "hooks", "validated": true },
@@ -12,6 +14,7 @@
     { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
+  "instruction_loading": { "strategy": "bounded-kernel+complete-references", "eager": ["GEMINI.md"], "reference_roots": [".gemini/conductor/rules", ".gemini/conductor/recipes"], "recipe_pointer_root": null, "native_scoping": "explicit-read" },
   "reflector_outputs": [
     { "path": ".gemini/settings.json", "note": "adds a SessionEnd trajectory entry composed into the same settings.json the output-cap BeforeTool hook writes (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
@@ -29,7 +32,7 @@
       "skills": "yes"
     },
     "conductor_emitted": {
-      "rules": "full",
+      "rules": "bounded-kernel+full-references",
       "guard_hooks": "output-cap+review-stop-native",
       "reflector_loop": "recipe",
       "role_agents": "full",

@@ -38,18 +38,18 @@ For each `core/universal-rules/<rule>.md`:
 
 ## Strengths to lean into
 
-- Always-loaded baseline + grouped rules directory is a natural fit for the universal-rules collection.
+- A bounded `.windsurfrules` kernel plus complete `.devin/conductor/` references keeps the universal contract available without eager-loading it all.
 - In-IDE experience similar to Cursor — many of the same UX wins.
 
 ## Weaknesses to acknowledge
 
-- Lack of per-pattern scoping means `coding-conventions.md` loads even when editing a `README.md`. Acceptable; just adds a small context cost per session.
+- No verified per-pattern loader is claimed. Full installs route from the bounded kernel to exact references; compact `.devin/rules/` pointers are reserved for à-la-carte modes where selected policy must be active.
 - Windsurf hooks are supported through `.windsurf/hooks.json`, but the verified post-response event cannot continue a completed turn. CONDUCTOR uses it for Reflector and native workflows for the eight roles; pair with Git/CI hooks for mechanical enforcement.
 - The documented workflow format is prompt steps, not a per-workflow model manifest. Select Adaptive in Cascade; CONDUCTOR preserves Tier requirements in workflow text and never claims automatic enforcement.
 
 ## Adapter status
 
-- ✅ `transform.sh` implemented — emits `.windsurfrules` (always-loaded baseline), `.devin/rules/*.md` (5 universal rules + opt-in recipes, front-matter stripped; legacy `.windsurf/rules/` still read), and `docs/*`. Supports `--recipes=`, `--dry-run`, `--no-prompt`, `--uninstall`/`--force`, `--help`. Writes a `.conductor-manifest.json` for clean rollback.
+- ✅ `transform.sh` implemented — emits a bounded `.windsurfrules` kernel, byte-identical complete references under `.devin/conductor/`, à-la-carte pointers under `.devin/rules/`, and `docs/*`. Supports `--recipes=`, `--dry-run`, `--no-prompt`, `--uninstall`/`--force`, `--help`. Writes an adapter manifest for clean rollback.
 
 ## Self-improvement (Reflector) — opt-in
 

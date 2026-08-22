@@ -62,9 +62,9 @@
     "windsurf": {
       "unsupported": 12,
       "instruction-only": 7,
-      "emit-verified": 28,
+      "emit-verified": 27,
       "native-contract-tested": 2,
-      "live-verified": 0,
+      "live-verified": 1,
       "adversarially-verified": 0
     },
     "opencode": {
@@ -460,8 +460,8 @@
           ]
         },
         "windsurf": {
-          "level": "emit-verified",
-          "reason": "adapter output is tested but effective instruction loading remains live-pending",
+          "level": "live-verified",
+          "reason": "recorded deterministic instruction-loading probe (2026-08-21)",
           "evidence": [
             "adapters/windsurf/metadata.json",
             "tools/live-verify.sh"

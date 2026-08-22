@@ -3,7 +3,8 @@
 # CONDUCTOR — OpenCode adapter transform.sh
 #
 # Reads core/ assets and writes them into a target project as native OpenCode
-# files: opencode.json, .opencode/rules/*.md, .opencode/agents/*.md,
+# files: opencode.json, bounded .opencode/rules/conductor-kernel.md,
+# complete .opencode/conductor references, .opencode/agents/*.md,
 # .opencode/plugins/*.js, optional commands/skills, and docs/*.
 #
 # Usage:
@@ -19,8 +20,9 @@
 #   bash adapters/opencode/transform.sh . --uninstall --force      # bypass safety checks
 #
 # Layer 2 transformation (per ADR-004 honesty + ADR-021):
-#   core/universal-rules/*.md      →  <target>/.opencode/rules/*.md
-#   core/recipes/*.md (selected)   →  <target>/.opencode/rules/recipes/*.md
+#   core/runtime-kernel.md         →  <target>/.opencode/rules/conductor-kernel.md
+#   core/universal-rules/*.md      →  <target>/.opencode/conductor/rules/*.md
+#   core/recipes/*.md (selected)   →  complete .opencode/conductor/recipes/*.md + compact registered pointers
 #   <semantic merge>               →  <target>/opencode.json instructions
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   adapters/opencode/*.js         →  <target>/.opencode/plugins/*.js
@@ -112,7 +114,7 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/opencode/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to install
+  --recipes=A,B,C       Exact recipe list (overrides onboarding; empty disables all)
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
                         docs only; no Reflector runtime) | strict (abort if .opencode/rules/
                         already has files/config) | recipes-only (ONLY the selected recipe .md
@@ -503,7 +505,7 @@ do_uninstall() {
 
   # Try to clean up empty .opencode/rules and .opencode dirs left behind.
   # (children before parents so nested empties collapse in one pass)
-  for d in .opencode/skills/coordinate-work .opencode/skills/propose-skill .opencode/skills/plan-change .opencode/skills/verify-change .opencode/skills/review-change .opencode/skills .opencode/commands .opencode/plugins .opencode/rules/recipes .opencode/rules .opencode/agents .opencode .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .opencode/skills/coordinate-work .opencode/skills/propose-skill .opencode/skills/plan-change .opencode/skills/verify-change .opencode/skills/review-change .opencode/skills .opencode/commands .opencode/plugins .opencode/rules/recipes .opencode/rules .opencode/agents .opencode/conductor/rules .opencode/conductor/recipes .opencode/conductor .opencode .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -607,16 +609,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
     echo "  Skipping universal-rules installation."
   fi
 
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, or leave blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
   else
-    echo "  No recipes selected."
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, or leave blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; else echo "  No recipes selected."; fi
   fi
 
   echo ""
@@ -624,7 +625,7 @@ elif [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "true" ]; then
   log "Adopter case detected — applying defaults (--no-prompt): rules=yes, recipes=${RECIPES:-(none)}"
 fi
 
-# ----- step 1: universal rules -> .opencode/rules/*.md ---------------------
+# ----- step 1: bounded kernel + complete on-demand references -------------
 
 conductor_assert_portable_skill_collisions "opencode" ".opencode/skills" || exit $?
 node "$CONDUCTOR_ROOT/bin/opencode-config.js" validate "$TARGET_ABS" || exit 2
@@ -637,43 +638,86 @@ UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-disciplin
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
 elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
-  log "Step 1/4: universal-rules → .opencode/rules/"
+  log "Step 1/4: bounded kernel + universal references → .opencode/"
   mkdir_if_real "$TARGET_ABS/.opencode/rules"
+  mkdir_if_real "$TARGET_ABS/.opencode/conductor/rules"
+
+  kernel="$TARGET_ABS/.opencode/rules/conductor-kernel.md"
+  if [ "$DRY_RUN" = "true" ]; then
+    log "would emit bounded runtime kernel $kernel"
+  else
+    backup_and_remember "$kernel"
+    {
+      conductor_render_runtime_kernel "OpenCode" ".opencode/conductor/rules" ".opencode/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES"
+      /bin/cat <<'EOF'
+
+## OpenCode native appendix
+
+Only this compact kernel is registered eagerly in `opencode.json`. Use the Read
+tool for the exact complete reference named by the kernel; do not pre-load every
+reference. Full/strict installs expose eight native agents and verified plugin
+guards. Provider fallback never changes the invariant Tier definitions.
+EOF
+    } > "$kernel"
+    record_emit ".opencode/rules/conductor-kernel.md" "core/runtime-kernel.md" "$MANIFEST_LAST_BACKUP"
+  fi
 
   for rule in $UNIVERSAL_RULES; do
     src="$CORE_ROOT/universal-rules/$rule.md"
-    dest="$TARGET_ABS/.opencode/rules/$rule.md"
+    dest="$TARGET_ABS/.opencode/conductor/rules/$rule.md"
     if [ ! -f "$src" ]; then
       echo "Warning: $src not found; skipping" >&2
       continue
     fi
-    backup_and_remember "$dest"
-    emit_rule "$src" "$dest"
-    record_emit ".opencode/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would emit complete rule reference $dest"
+    else
+      backup_and_remember "$dest"
+      /bin/cp "$src" "$dest"
+      record_emit ".opencode/conductor/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    conductor_retire_owned_path ".opencode/rules/$rule.md" "replaced by bounded kernel plus complete on-demand reference"
   done
 else
   log "Step 1/4: universal-rules — skipped (user opted out)"
 fi
 
-# ----- step 2: recipes (opt-in) -> .opencode/rules/recipes/*.md ------------
+# ----- step 2: recipe references + compact registered pointers -------------
 
-log "Step 2/4: recipes (opt-in) → .opencode/rules/recipes/"
+log "Step 2/4: recipes (opt-in) → complete references + compact pointers"
 INSTALLED_RECIPES=""
 if [ -n "$RECIPES" ]; then
   mkdir_if_real "$TARGET_ABS/.opencode/rules/recipes"
+  mkdir_if_real "$TARGET_ABS/.opencode/conductor/recipes"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
     [ -z "$r" ] && continue
     src="$CORE_ROOT/recipes/$r.md"
+    ref="$TARGET_ABS/.opencode/conductor/recipes/$r.md"
     dest="$TARGET_ABS/.opencode/rules/recipes/$r.md"
     if [ ! -f "$src" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
     fi
-    backup_and_remember "$dest"
-    emit_rule "$src" "$dest"
-    record_emit ".opencode/rules/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would emit complete recipe reference $ref"
+    else
+      backup_and_remember "$ref"
+      /bin/cp "$src" "$ref"
+      record_emit ".opencode/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+      if [ "$DRY_RUN" = "true" ]; then
+        log "would emit compact recipe pointer $dest"
+      else
+        backup_and_remember "$dest"
+        conductor_render_recipe_pointer_body "$src" ".opencode/conductor/recipes/$r.md" > "$dest"
+        record_emit ".opencode/rules/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+      fi
+    else
+      conductor_retire_owned_path ".opencode/rules/recipes/$r.md" "full-mode kernel recipe routing"
+    fi
     INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
   done
 else
@@ -752,6 +796,9 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
         record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
       done
+      d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"
@@ -773,7 +820,7 @@ case ",$RECIPES_FOR_RUNTIME," in
       tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
       case "$tier" in 1) model="$OPENCODE_TIER_1_MODEL" ;; 2) model="$OPENCODE_TIER_2_MODEL" ;; 3) model="$OPENCODE_TIER_3_MODEL" ;; esac
-      { printf -- '---\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmode: subagent\nmodel: %s\npermission:\n  edit: allow\n  bash: deny\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      { printf -- '---\ndescription: Reads session trajectories and emits typed lesson proposal data. Read-only; never applies.\nmode: subagent\nmodel: %s\npermission:\n  edit: deny\n  bash: deny\n  task: deny\n  webfetch: deny\n  websearch: deny\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
       record_emit ".opencode/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;
@@ -783,8 +830,6 @@ esac
 # only CONDUCTOR-owned globs and retain every unrelated user key/entry.
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   OPENCODE_CONFIG_MODE="recipes"
-elif [ -n "${INSTALLED_RECIPES// /}" ]; then
-  OPENCODE_CONFIG_MODE="all"
 else
   OPENCODE_CONFIG_MODE="baseline"
 fi
@@ -868,7 +913,7 @@ echo "  Mode: $MODE"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   echo "  Universal rules: 0 (à la carte)"
 else
-  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") (.opencode/rules/*.md via opencode.json instructions)"
+  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") byte-identical references under .opencode/conductor/rules/"
 fi
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""

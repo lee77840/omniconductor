@@ -111,7 +111,7 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/codex/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated recipes to reference from AGENTS.md and
+  --recipes=A,B,C       Exact recipes to reference from AGENTS.md and
                         install under .codex/conductor/recipes/
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
                         docs only) | strict (abort if AGENTS.md exists) | recipes-only
@@ -734,16 +734,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
     echo "  Skipping complete universal-rule references — AGENTS.md keeps the compact kernel only."
   fi
 
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, or leave blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
   else
-    echo "  No recipes selected."
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, or leave blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; else echo "  No recipes selected."; fi
   fi
 
   echo ""
@@ -786,7 +785,7 @@ emit_codex_reference() {
   fi
   /bin/mkdir -p "$(dirname "$dest")"
   backup_and_remember "$dest"
-  strip_frontmatter "$src" > "$dest"
+  /bin/cp "$src" "$dest"
   record_emit "$rel" "${src#"$CONDUCTOR_ROOT/"}" "$MANIFEST_LAST_BACKUP"
 }
 
@@ -828,37 +827,9 @@ fi
 
 # build_agents_md — writes the bounded always-loaded kernel to stdout.
 build_agents_md() {
+  conductor_render_runtime_kernel "Codex" ".codex/conductor/rules" ".codex/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES"
+  echo ""
   /bin/cat "$CONDUCTOR_ROOT/adapters/codex/AGENTS-kernel.md"
-
-  if [ "$WIZARD_APPLY_RULES" != "true" ]; then
-    /bin/cat <<'NORULES'
-
-## Detailed universal rules
-
-The installer was told not to emit the complete universal-rule references. The
-non-negotiable kernel above still applies, but `.codex/conductor/rules/*.md` is
-intentionally absent.
-NORULES
-  fi
-
-  if [ -n "$INSTALLED_RECIPES" ]; then
-    echo ""
-    echo "## Selected recipe routing"
-    echo ""
-    echo "Selected recipes are not automatically loaded. Read the matching complete"
-    echo "reference before work in that domain:"
-    echo ""
-    for r in $INSTALLED_RECIPES; do
-      echo "- \`$r\` → \`.codex/conductor/recipes/$r.md\`"
-    done
-  else
-    /bin/cat <<'NORECIPES'
-
-## Selected recipe routing
-
-No optional CONDUCTOR recipes were selected for this installation.
-NORECIPES
-  fi
 
   /bin/cat <<'TAIL'
 
@@ -1039,6 +1010,9 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
         record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
       done
+      d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"
@@ -1049,7 +1023,7 @@ case ",$RECIPES_FOR_RUNTIME," in
       backup_and_remember "$sk"
       { printf -- '---\nname: reflect\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only). Use when wrapping up work.\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$sk"
       record_emit ".agents/skills/reflect/SKILL.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
-      emit_codex_agent reflector "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies." workspace-write
+      emit_codex_agent reflector "Reads session trajectories and emits typed lesson proposal data. Read-only; never applies." read-only
     fi
     ;;
 esac

@@ -55,6 +55,15 @@ function containsExactString(value, expected) {
   return false;
 }
 
+function countExactString(value, expected) {
+  if (value === expected) return 1;
+  if (Array.isArray(value)) return value.reduce((total, item) => total + countExactString(item, expected), 0);
+  if (value && typeof value === 'object') {
+    return Object.values(value).reduce((total, item) => total + countExactString(item, expected), 0);
+  }
+  return 0;
+}
+
 function configFixture(adapter) {
   if (['claude', 'gemini', 'codex'].includes(adapter)) {
     return {
@@ -175,6 +184,137 @@ for (const adapter of ['cursor', 'copilot', 'gemini', 'codex', 'windsurf']) {
     assert.deepStrictEqual(files.sort(), ['.conductor/model-routing.json', rel].sort());
   });
 }
+
+test('claude provider-specific settings merge registers each portable hook once and restores exact bytes', () => {
+  const target = path.join(TMP, 'restore-claude-provider-specific');
+  const file = path.join(target, registry.adapters.claude.config_path);
+  const original = `${JSON.stringify(configFixture('claude'), null, 2)}\n`;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, original);
+
+  for (let pass = 0; pass < 2; pass += 1) {
+    const install = run(BASH, adapterInstallArgs('claude', target));
+    assert.strictEqual(install.status, 0, install.stderr || install.stdout);
+    const merged = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.deepStrictEqual(merged.customSetting, { keep: true });
+    assert.strictEqual(countExactString(merged, 'user-owned-hook'), 1);
+    for (const registration of registry.registrations) {
+      const provider = registration.targets.claude;
+      if (!provider) continue;
+      for (const hook of provider.group.hooks) {
+        assert.strictEqual(countExactString(merged, hook.command), 1,
+          `${registration.id} must be registered exactly once after pass ${pass + 1}`);
+      }
+    }
+  }
+
+  const uninstall = run(BASH, adapterInstallArgs('claude', target, true));
+  assert.strictEqual(uninstall.status, 0, uninstall.stderr || uninstall.stdout);
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), original);
+});
+
+test('claude invalid provider settings fail before hook scripts or manifests are emitted', () => {
+  const target = path.join(TMP, 'invalid-claude-provider-specific');
+  const file = path.join(target, registry.adapters.claude.config_path);
+  const original = '{"custom":"keep","enabledPlugins":[]}\n';
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, original);
+  const install = run(BASH, adapterInstallArgs('claude', target));
+  assert.strictEqual(install.status, 1, install.stderr || install.stdout);
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), original);
+  assert(!fs.existsSync(path.join(target, '.claude', 'hooks')));
+  assert(!fs.existsSync(path.join(target, '.conductor', 'manifests', 'claude.json')));
+});
+
+function openCodeGuardFixture(name, currentWork, staged) {
+  const target = path.join(TMP, name);
+  fs.mkdirSync(path.join(target, 'src'), { recursive: true });
+  fs.mkdirSync(path.join(target, 'tests'), { recursive: true });
+  fs.mkdirSync(path.join(target, 'docs'), { recursive: true });
+  const install = run(BASH, adapterInstallArgs('opencode', target));
+  assert.strictEqual(install.status, 0, install.stderr || install.stdout);
+  const plugin = path.join(target, '.opencode', 'plugins', 'conductor-guards.js');
+  assert(fs.existsSync(plugin), 'OpenCode native guard plugin was not emitted');
+  const moduleFile = path.join(target, 'conductor-guards.mjs');
+  fs.copyFileSync(plugin, moduleFile);
+
+  assert.strictEqual(run('git', ['init', '-q'], { cwd: target }).status, 0);
+  fs.writeFileSync(path.join(target, 'src', 'feature.js'), 'export const feature = true;\n');
+  fs.writeFileSync(path.join(target, 'tests', 'feature.test.js'), 'export const covered = true;\n');
+  fs.writeFileSync(path.join(target, 'docs', 'CURRENT_WORK.md'), `# Work\nStatus: ${currentWork}\n`);
+  assert.strictEqual(run('git', ['add', ...staged], { cwd: target }).status, 0);
+  return { target, moduleFile };
+}
+
+function executeOpenCodeGuard(fixture) {
+  const source = `
+    import { pathToFileURL } from 'node:url';
+    const plugin = await import(pathToFileURL(process.argv[1]).href);
+    const hooks = await plugin.ConductorGuards({ worktree: process.argv[2] });
+    try {
+      await hooks['tool.execute.before'](
+        { tool: 'bash' },
+        { args: { command: 'git commit -m hook-compiler-fixture' } },
+      );
+      process.stdout.write('allowed\\n');
+    } catch (error) {
+      process.stderr.write(String(error && error.message || error));
+      process.exitCode = 3;
+    }
+  `;
+  return run(process.execPath, ['--input-type=module', '-e', source, fixture.moduleFile, fixture.target]);
+}
+
+test('opencode CURRENT_WORK native guard blocks independently of test coverage', () => {
+  const fixture = openCodeGuardFixture(
+    'opencode-current-work-guard',
+    'IN_PROGRESS',
+    ['src/feature.js', 'tests/feature.test.js'],
+  );
+  const result = executeOpenCodeGuard(fixture);
+  assert.strictEqual(result.status, 3, result.stdout + result.stderr);
+  assert.match(result.stderr, /CURRENT_WORK/);
+  assert.doesNotMatch(result.stderr, /test evidence/);
+});
+
+test('opencode test-coverage native guard blocks independently and accepts complete evidence', () => {
+  const missing = openCodeGuardFixture(
+    'opencode-test-coverage-guard',
+    'COMPLETE',
+    ['src/feature.js'],
+  );
+  const blocked = executeOpenCodeGuard(missing);
+  assert.strictEqual(blocked.status, 3, blocked.stdout + blocked.stderr);
+  assert.match(blocked.stderr, /test evidence/);
+  assert.doesNotMatch(blocked.stderr, /CURRENT_WORK/);
+
+  const complete = openCodeGuardFixture(
+    'opencode-complete-guard-evidence',
+    'IN_PROGRESS',
+    ['src/feature.js', 'tests/feature.test.js', 'docs/CURRENT_WORK.md'],
+  );
+  const allowed = executeOpenCodeGuard(complete);
+  assert.strictEqual(allowed.status, 0, allowed.stdout + allowed.stderr);
+  assert.strictEqual(allowed.stdout.trim(), 'allowed');
+});
+
+test('opencode provider-specific plugin install/uninstall restores adopter bytes', () => {
+  const target = path.join(TMP, 'restore-opencode-provider-specific');
+  const file = path.join(target, registry.adapters.opencode.config_path);
+  const original = '// adopter-owned OpenCode plugin\nexport const AdopterPlugin = true\n';
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, original);
+  const install = run(BASH, [
+    'adapters/opencode/transform.sh', target, '--mode=full',
+    '--no-prompt', '--accept-model-defaults',
+  ]);
+  assert.strictEqual(install.status, 0, install.stderr || install.stdout);
+  assert.notStrictEqual(fs.readFileSync(file, 'utf8'), original);
+  assert.match(fs.readFileSync(file, 'utf8'), /ConductorGuards/);
+  const uninstall = run(BASH, adapterInstallArgs('opencode', target, true));
+  assert.strictEqual(uninstall.status, 0, uninstall.stderr || uninstall.stdout);
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), original);
+});
 
 test('native hook-directory user handlers survive install, reinstall, and uninstall', () => {
   const fixtures = {
@@ -322,9 +462,23 @@ esac
   writeExecutable(path.join(fakeBin, 'gh'), `#!/bin/sh
 printf '%s\\n' '[{"url":"https://example.invalid/pr/987654321","number":987654321}]'
 `);
+  // Resolve the fixture PATH inside Git Bash. Passing `${fakeBin}:...` from
+  // native Windows Node corrupts the drive-letter path and bypasses these
+  // deterministic git/gh fixtures, which makes the hook correctly fail open
+  // with empty stdout and leaves the test trying to parse an empty string.
+  const launcher = path.join(fixture, 'run-stop-fixture.sh');
+  writeExecutable(launcher, `#!/usr/bin/env bash
+set -eu
+FIXTURE_ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$FIXTURE_ROOT/fake-bin:$PATH"
+FLAG="/tmp/conductor-q2-flag-\${USER:-unknown}-987654321"
+case "\${CONDUCTOR_TEST_Q2_FLAG_ACTION:-}" in
+  reset) rm -f "$FLAG" ;;
+  cleanup) rm -f "$FLAG"; exit 0 ;;
+esac
+exec "$FIXTURE_ROOT/.fixture/hooks/stop-r6-review-check.sh"
+`);
   const user = `conductor-hook-test-${process.pid}`;
-  const flag = `/tmp/conductor-q2-flag-${user}-987654321`;
-  try { fs.unlinkSync(flag); } catch { /* absent */ }
   const expected = {
     claude: ['decision', 'block'],
     cursor: ['followup_message', null],
@@ -333,13 +487,12 @@ printf '%s\\n' '[{"url":"https://example.invalid/pr/987654321","number":98765432
     codex: ['decision', 'block'],
   };
   for (const [dialect, [key, value]] of Object.entries(expected)) {
-    try { fs.unlinkSync(flag); } catch { /* previous dialect */ }
-    const result = run(BASH, [script], {
+    const result = run(BASH, [launcher], {
       cwd: fixture,
       env: {
         CONDUCTOR_HOOK_DIALECT: dialect,
         CONDUCTOR_COOLDOWN_SECONDS: '0',
-        PATH: `${fakeBin}:${process.env.PATH}`,
+        CONDUCTOR_TEST_Q2_FLAG_ACTION: 'reset',
         USER: user,
       },
       input: dialect === 'cursor'
@@ -347,13 +500,32 @@ printf '%s\\n' '[{"url":"https://example.invalid/pr/987654321","number":98765432
         : JSON.stringify({ stopHookActive: false }),
     });
     assert.strictEqual(result.status, 0, `${dialect}: ${result.stderr}`);
+    assert(result.stdout.trim(),
+      `${dialect}: review-stop guard emitted no continuation JSON; stderr=${result.stderr.trim()}`);
     const output = JSON.parse(result.stdout);
     assert(Object.hasOwn(output, key), dialect);
     if (value !== null) assert.strictEqual(output[key], value, dialect);
     assert(/reviewed snapshot/.test(result.stdout), `${dialect}: missing snapshot reuse guidance`);
     assert(/unreviewed delta/.test(result.stdout), `${dialect}: missing delta-review guidance`);
+
+    const cooldown = run(BASH, [launcher], {
+      cwd: fixture,
+      env: {
+        CONDUCTOR_HOOK_DIALECT: dialect,
+        CONDUCTOR_COOLDOWN_SECONDS: '1800',
+        USER: user,
+      },
+      input: dialect === 'cursor'
+        ? JSON.stringify({ loop_count: 0, status: 'completed' })
+        : JSON.stringify({ stopHookActive: false }),
+    });
+    assert.strictEqual(cooldown.status, 0, `${dialect} cooldown: ${cooldown.stderr}`);
+    assert.strictEqual(cooldown.stdout, '', `${dialect}: cooldown must suppress continuation`);
   }
-  try { fs.unlinkSync(flag); } catch { /* cleanup best effort */ }
+  run(BASH, [launcher], {
+    cwd: fixture,
+    env: { CONDUCTOR_TEST_Q2_FLAG_ACTION: 'cleanup', USER: user },
+  });
 });
 
 try {

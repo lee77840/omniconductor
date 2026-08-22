@@ -19,7 +19,7 @@ Status legend: ✅ = automated (CI/validator) · 🧪 = needs a live session (th
 | Copilot | ✅ | 🧪 per-IDE — see docs/IDE-SMOKE-TESTING.md |
 | Gemini CLI | ✅ | 🧪 not yet run |
 | Codex | ✅ | ✅ **live-verified 2026-07-13** — codex-cli 0.144.0 native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand |
-| Windsurf | ✅ | 🧪 not yet run |
+| Windsurf | ✅ | ✅ **live-verified 2026-08-21** — devin 3000.4.25 (7e8e528a) Devin for Terminal headless probe listed 5/5 rules + read-CURRENT_WORK-first; Desktop UI smoke remains manual |
 | OpenCode | ✅ | ✅ **live-verified 2026-08-13** — 1.4.3 headless explicit-model probe listed 5/5 rules + read-CURRENT_WORK-first |
 <!-- /generated:live-verification-table -->
 
@@ -111,11 +111,11 @@ equivalent). A generic answer that ignores the installed file = FAIL (tool didn'
 |---|---|---|
 | Gemini CLI | `GEMINI.md` (project root) + `.gemini/styleguide.md` | Does Gemini cite GEMINI.md content? Does it apply the styleguide on a code task? |
 | Codex | bounded `AGENTS.md` kernel (project root) | Auto-probed locally by `tools/live-verify.sh` using `codex debug prompt-input`; requires the kernel end marker and rule routing |
-| Windsurf / Devin Desktop | `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/`) | Does Windsurf show the rules in its Rules panel? Does it follow them? |
-| Claude Code | `CLAUDE.md` + `.claude/rules/*.md` + agents/hooks | Rules panel + a Stop-hook fires on a stale-docs commit |
-| Cursor | `.cursor/rules/*.mdc` | Settings → Rules tab shows the 5 rules |
+| Windsurf / Devin Desktop | bounded `.windsurfrules` + `.devin/conductor/rules/*.md` | Rules panel shows the kernel; a matching task reads the routed complete reference |
+| Claude Code | bounded `CLAUDE.md` + `.claude/conductor/rules/*.md` + agents/hooks | Kernel/reference loading + a Stop-hook on stale docs |
+| Cursor | `.cursor/rules/conductor-kernel.mdc` + `.cursor/conductor/rules/*.md` | Rules tab shows kernel; matching task reads the exact reference |
 | Copilot | `.github/copilot-instructions.md` (or `.github/instructions/*`) | Per-IDE — see `docs/IDE-SMOKE-TESTING.md` |
-| OpenCode stable v1 | `opencode.json` `instructions` → `.opencode/rules/*.md` | `opencode debug config` proves discovery; `opencode run` must cite rules + CURRENT_WORK for live verification |
+| OpenCode stable v1 | `opencode.json` → `.opencode/rules/conductor-kernel.md` | `opencode debug config` proves discovery; `opencode run` must cite a routed complete rule + CURRENT_WORK |
 
 ### Recording results
 Record each tool's outcome in `docs/COMPATIBILITY-MATRIX.md` (a "Live-verified" column):

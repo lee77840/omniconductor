@@ -11,13 +11,13 @@ const COMMON = [
   '.conductor-manifest.json',
 ];
 const MANAGED = {
-  claude: ['CLAUDE.md', '.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/skills', '.claude/settings.json'],
-  cursor: ['.cursorrules', '.cursor/rules', '.cursor/agents', '.cursor/skills', '.cursor/hooks', '.cursor/hooks.json', '.agents/skills'],
-  copilot: ['.github/copilot-instructions.md', '.github/instructions', '.github/agents', '.github/hooks', '.github/prompts', '.agents/skills'],
-  gemini: ['GEMINI.md', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.gemini/settings.json', '.agents/skills'],
+  claude: ['CLAUDE.md', '.claude/rules', '.claude/conductor', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/skills', '.claude/settings.json'],
+  cursor: ['.cursorrules', '.cursor/rules', '.cursor/conductor', '.cursor/agents', '.cursor/skills', '.cursor/hooks', '.cursor/hooks.json', '.agents/skills'],
+  copilot: ['.github/copilot-instructions.md', '.github/instructions', '.github/conductor', '.github/agents', '.github/hooks', '.github/prompts', '.agents/skills'],
+  gemini: ['GEMINI.md', '.gemini/conductor', '.gemini/styleguide.md', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.gemini/settings.json', '.agents/skills'],
   codex: ['AGENTS.md', '.codex/conductor', '.codex/agents', '.codex/hooks', '.codex/hooks.json', '.codex/config.toml', '.agents/skills'],
-  windsurf: ['.windsurfrules', '.windsurf/workflows', '.windsurf/hooks', '.windsurf/hooks.json', '.devin/rules', '.agents/skills'],
-  opencode: ['opencode.json', 'opencode.jsonc', '.opencode/rules', '.opencode/agents', '.opencode/commands', '.opencode/plugins', '.opencode/skills'],
+  windsurf: ['.windsurfrules', '.windsurf/workflows', '.windsurf/hooks', '.windsurf/hooks.json', '.devin/rules', '.devin/conductor', '.agents/skills'],
+  opencode: ['opencode.json', 'opencode.jsonc', '.opencode/rules', '.opencode/conductor', '.opencode/agents', '.opencode/commands', '.opencode/plugins', '.opencode/skills'],
 };
 const COMMON_MANIFEST_FILES = new Set([
   'docs/CURRENT_WORK.md', 'docs/REMAINING_TASKS.md', 'docs/PLANS.md',
@@ -26,13 +26,13 @@ const COMMON_MANIFEST_FILES = new Set([
   '.conductor/project.json', '.conductor/trajectories/.gitignore',
 ]);
 const MANIFEST_DIRS = {
-  claude: ['.claude/rules', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/skills'],
-  cursor: ['.cursor/rules', '.cursor/agents', '.cursor/skills', '.cursor/hooks', '.agents/skills'],
-  copilot: ['.github/instructions', '.github/agents', '.github/hooks', '.github/prompts', '.agents/skills'],
-  gemini: ['.gemini/agents', '.gemini/commands', '.gemini/hooks', '.agents/skills'],
+  claude: ['.claude/rules', '.claude/conductor', '.claude/agents', '.claude/hooks', '.claude/commands', '.claude/skills'],
+  cursor: ['.cursor/rules', '.cursor/conductor', '.cursor/agents', '.cursor/skills', '.cursor/hooks', '.agents/skills'],
+  copilot: ['.github/instructions', '.github/conductor', '.github/agents', '.github/hooks', '.github/prompts', '.agents/skills'],
+  gemini: ['.gemini/conductor', '.gemini/agents', '.gemini/commands', '.gemini/hooks', '.agents/skills'],
   codex: ['.codex/conductor', '.codex/agents', '.codex/hooks', '.agents/skills'],
-  windsurf: ['.windsurf/workflows', '.windsurf/hooks', '.devin/rules', '.agents/skills'],
-  opencode: ['.opencode/rules', '.opencode/agents', '.opencode/commands', '.opencode/plugins', '.opencode/skills'],
+  windsurf: ['.windsurf/workflows', '.windsurf/hooks', '.devin/rules', '.devin/conductor', '.agents/skills'],
+  opencode: ['.opencode/rules', '.opencode/conductor', '.opencode/agents', '.opencode/commands', '.opencode/plugins', '.opencode/skills'],
 };
 
 function isInside(root, candidate) {

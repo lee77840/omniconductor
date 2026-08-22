@@ -20,7 +20,7 @@
 #
 # Output:
 #   - Total input tokens / output tokens / tool calls / dispatches
-#   - Cache hit rate (cache_read / (cache_read + uncached_input))
+#   - Cache-read token share (cache_read / (cache_read + cache_write + uncached_input))
 #   - Top 5 most expensive turns by output tokens
 #   - Optional CSV export
 
@@ -39,7 +39,7 @@ while [ $# -gt 0 ]; do
       /bin/cat <<EOF
 Usage: tools/measure-tokens.sh [--latest | --session=<path>] [--export-csv=<path>]
 
-Reports input/output tokens, cache hit rate, and tool-call counts from a Claude Code session JSONL.
+Reports input/output tokens, cache-read token share, and tool-call counts from a Claude Code session JSONL.
 
 Options:
   --latest               Use the most-recently-modified session under ~/.claude/projects/
@@ -141,8 +141,8 @@ with open(path, "r", errors="replace") as f:
                     if item.get("name") == "Agent":
                         dispatches += 1
 
-total_eff = total_input + total_cache_read
-hit_rate = (total_cache_read / total_eff * 100) if total_eff > 0 else 0.0
+total_eff = total_input + total_cache_read + total_cache_write
+cache_read_share = (total_cache_read / total_eff * 100) if total_eff > 0 else 0.0
 
 print("")
 print("===== CONDUCTOR token-measurement =====")
@@ -153,7 +153,7 @@ print(f"Input tokens (uncached)      : {total_input:,}")
 print(f"Output tokens                : {total_output:,}")
 print(f"Cache-read tokens            : {total_cache_read:,}")
 print(f"Cache-write tokens           : {total_cache_write:,}")
-print(f"Cache hit rate               : {hit_rate:.1f}%")
+print(f"Cache-read token share       : {cache_read_share:.1f}%")
 print(f"Tool calls (total)           : {tool_calls:,}")
 print(f"Sub-agent dispatches         : {dispatches:,}")
 
@@ -172,7 +172,8 @@ if export_csv:
         f.write(f"output_tokens,{total_output}\n")
         f.write(f"cache_read_tokens,{total_cache_read}\n")
         f.write(f"cache_write_tokens,{total_cache_write}\n")
-        f.write(f"cache_hit_rate_percent,{hit_rate:.1f}\n")
+        f.write(f"cache_read_share_percent,{cache_read_share:.1f}\n")
+        f.write(f"cache_hit_rate_percent,{cache_read_share:.1f}\n")
         f.write(f"tool_calls,{tool_calls}\n")
         f.write(f"dispatches,{dispatches}\n")
     print(f"\nWriting CSV: {export_csv}")

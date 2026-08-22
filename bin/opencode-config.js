@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const OWNED = [
+  '.opencode/rules/conductor-kernel.md',
   '.opencode/rules/*.md',
   '.opencode/rules/recipes/*.md',
 ];
@@ -67,8 +68,8 @@ function main(argv) {
     return;
   }
   const selected = mode === 'baseline' ? [OWNED[0]]
-    : mode === 'recipes' ? [OWNED[1]]
-      : mode === 'all' ? OWNED : [];
+    : mode === 'recipes' ? [OWNED[2]]
+      : mode === 'all' ? [OWNED[0], OWNED[2]] : [];
   const result = compose(absolute, selected);
   fs.writeFileSync(result.file, `${JSON.stringify(result.config, null, 2)}\n`, { mode: 0o644 });
 }

@@ -10,35 +10,34 @@ prefixes that repeat across turns. Cache write is 1.25× input cost (5-min cache
 the current [Anthropic pricing documentation](https://docs.anthropic.com/en/docs/about-claude/pricing)
 before using these multipliers for a billing forecast.
 
-For a typical CONDUCTOR-driven session:
-- 5 universal rule bundles (~6K tokens combined).
-- Project CLAUDE.md (~2K tokens).
-- Selected recipes (~1-3K tokens).
-- Project memory index (~1K tokens).
+Since v1.7, the typical automatic-default install keeps only about 1.7K-2.1K
+heuristic tokens always active per adapter in the macOS fixture. The five complete
+rules and selected recipes remain byte-identical references and enter context only
+when the bounded kernel routes the current activity to them. Project instructions,
+memory, history, and tool results remain adopter/provider inputs and are not counted
+as CONDUCTOR savings.
 
-Total cacheable prefix: ~10-12K tokens. Without caching, 10-12K input tokens are
-billed every turn. At the current 95% steady-state reuse SLA, the repeated prefix has
-an input-cost equivalent of roughly 1.45-1.74K tokens per turn (5% ordinary input +
-95% cache reads at 0.1x), excluding the one-time cache write.
+Caching still matters for the stable kernel and for complete references repeatedly
+read during one workstream, but cache-read tokens are a provider feature. CONDUCTOR
+reports cache-read share as a health metric and does not claim the provider's entire
+cache saving as its own.
 
 ## Recommended prefix order
 
 Order matters: Anthropic prefix-matches from the START of the prompt. Items that change less frequently must come first.
 
 ```
-[1. Universal rules]              ← changes rarely (one CONDUCTOR upgrade per quarter)
-   - .claude/rules/workflow.md
-   - .claude/rules/spec-as-you-go.md
-   - .claude/rules/quality-gates.md
-   - .claude/rules/operations.md
-   - .claude/rules/meta-discipline.md
+[1. Bounded runtime kernel]       ← changes rarely (one CONDUCTOR upgrade)
+   - CLAUDE.md
 
-[2. Project CLAUDE.md]            ← changes occasionally (project rule additions)
+[2. Activity-matched references] ← stable, read only when required
+   - .claude/conductor/rules/<matching-rule>.md
+   - .claude/conductor/recipes/<matching-recipe>.md
 
-[3. Selected recipes]             ← changes when adopter installs / removes recipe
-   - .claude/rules/<recipe>.md (per --recipes flag)
+[3. Compact native recipe pointer] ← selected recipe trigger, when its paths match
+   - .claude/rules/<recipe>.md
 
-[4. Project memory index]         ← changes weekly (new feedback / project entries)
+[4. Project memory index]         ← changes weekly, if the adopter uses one
 
 ══════ cache_control: {"type": "ephemeral"} ══════
 
@@ -61,7 +60,7 @@ client.messages.create(
         # cacheable section
         {
             "type": "text",
-            "text": load_universal_rules() + load_claude_md() + load_recipes() + load_memory_index(),
+            "text": load_kernel() + load_activity_matched_references() + load_memory_index(),
             "cache_control": {"type": "ephemeral"}
         }
     ],
@@ -83,7 +82,7 @@ The orchestrator's responsibility is to ASSEMBLE the cacheable prefix in stable 
 
 For CONDUCTOR's typical use (interactive dev session), 5-min default is correct. The break-even on the 1-hr cache requires 8+ turns within the hour.
 
-## Measuring cache hit rate
+## Measuring cache-read token share
 
 Use the bundled tool:
 
@@ -94,10 +93,15 @@ tools/measure-tokens.sh --latest
 Sample output:
 ```
 Cache-read tokens            : 9847
-Cache hit rate               : 67.3%
+Cache-write tokens           : 4512
+Input tokens (uncached)      : 127
+Cache-read token share       : 67.3%
 ```
 
-Target: ≥ 95% on a steady-state dev session (ADR-014 SLA). If the rate is lower:
+Canonical formula: `cache_read / (cache_read + cache_write + uncached_input)`.
+Target: ≥ 95% on a steady-state dev session (ADR-014 as corrected by ADR-076).
+Always retain the three raw values; the percentage alone is not attribution to
+CONDUCTOR because Claude supplies prompt caching independently. If the share is lower:
 
 - Verify the cache marker is at the right boundary.
 - Verify prefix order is stable (no per-turn re-ordering of CONDUCTOR rules).
@@ -112,10 +116,10 @@ node tools/audit-token-economy.js \
 ```
 
 It reports tool-result counts, visible CONDUCTOR truncation markers, candidate
-threshold reach and estimated elidable tokens, prompt-cache reuse, observed Git
+threshold reach and estimated elidable tokens, cache-read token share, observed Git
 branches, and sub-agent role counts. The threshold estimate is
 `ceil(serialized characters / 4)` and excludes marker/schema overhead, so use it to
-select a controlled comparison—not as a billing total. A high cache-reuse percentage
+select a controlled comparison—not as a billing total. A high cache-read share
 does not prove the output cap or low-cost role routing fired; inspect those rows
 separately and run `omniconductor doctor <project>` on the active branch.
 

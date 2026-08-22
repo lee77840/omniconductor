@@ -647,6 +647,139 @@ conductor_manifest_file_matches() {
     && [ "$(conductor_sha256_file "$file")" = "$expected_sha" ]
 }
 
+# Render the portable bounded kernel without importing complete references into
+# the always-loaded surface. Complete rule/recipe files are emitted separately by
+# each adapter. The selected recipe list contains only trusted core metadata and
+# exact reference paths; it is intentionally small enough to remain eager.
+conductor_render_runtime_kernel() {
+  local tool_name="$1" rule_root="$2" recipe_root="$3" rules_enabled="$4" recipes="$5"
+  local kernel="$CORE_ROOT/runtime-kernel.md" r src recipe_name applies_when
+  [ -f "$kernel" ] || {
+    echo "Error: portable runtime kernel missing: $kernel" >&2
+    return 1
+  }
+  TOOL_NAME="$tool_name" RULE_ROOT="$rule_root" RECIPE_ROOT="$recipe_root" \
+    /usr/bin/awk '
+      {
+        gsub(/\{\{TOOL_NAME\}\}/, ENVIRON["TOOL_NAME"])
+        gsub(/\{\{RULE_ROOT\}\}/, ENVIRON["RULE_ROOT"])
+        gsub(/\{\{RECIPE_ROOT\}\}/, ENVIRON["RECIPE_ROOT"])
+        if ($0 == "{{SELECTED_RECIPES_SECTION}}") next
+        print
+      }
+    ' "$kernel"
+
+  if [ "$rules_enabled" != "true" ]; then
+    /bin/cat <<EOF
+
+## Complete universal-rule references
+
+This installation intentionally omitted complete universal-rule references. The
+non-negotiable kernel remains active; do not claim that files under
+\`$rule_root/\` were loaded.
+EOF
+  fi
+
+  echo ""
+  echo "## Selected recipe routing"
+  echo ""
+  if [ -z "$recipes" ]; then
+    echo "No optional CONDUCTOR recipes were selected for this installation."
+    return 0
+  fi
+  echo "Read a matching complete recipe before acting in its domain:"
+  echo ""
+  _old_ifs="$IFS"; IFS=','
+  for r in $recipes; do
+    r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
+    [ -n "$r" ] || continue
+    src="$CORE_ROOT/recipes/$r.md"
+    [ -f "$src" ] || continue
+    recipe_name="$(/usr/bin/sed -n -E 's/^recipe_name:[[:space:]]*"?([^"].*[^" ]|[^" ])"?[[:space:]]*$/\1/p' "$src" | /usr/bin/head -n 1)"
+    applies_when="$(/usr/bin/sed -n -E 's/^applies_when:[[:space:]]*"?([^"].*[^" ]|[^" ])"?[[:space:]]*$/\1/p' "$src" | /usr/bin/head -n 1)"
+    [ -n "$recipe_name" ] || recipe_name="$r"
+    [ -n "$applies_when" ] || applies_when="when the selected recipe domain applies"
+    printf -- '- `%s` (%s): %s. Reference: `%s/%s.md`\n' "$r" "$recipe_name" "$applies_when" "$recipe_root" "$r"
+  done
+  IFS="$_old_ifs"
+}
+
+# Body for a small native path-triggered recipe pointer. The adapter supplies its
+# own frontmatter, preserving native path/glob scoping while the complete recipe
+# stays outside the eager instruction surface.
+conductor_render_recipe_pointer_body() {
+  local src="$1" reference="$2" recipe_id recipe_name applies_when
+  recipe_id="$(/usr/bin/sed -n -E 's/^recipe_id:[[:space:]]*([^[:space:]]+).*/\1/p' "$src" | /usr/bin/head -n 1)"
+  recipe_name="$(/usr/bin/sed -n -E 's/^recipe_name:[[:space:]]*"?([^"].*[^" ]|[^" ])"?[[:space:]]*$/\1/p' "$src" | /usr/bin/head -n 1)"
+  applies_when="$(/usr/bin/sed -n -E 's/^applies_when:[[:space:]]*"?([^"].*[^" ]|[^" ])"?[[:space:]]*$/\1/p' "$src" | /usr/bin/head -n 1)"
+  [ -n "$recipe_id" ] || recipe_id="$(basename "$src" .md)"
+  [ -n "$recipe_name" ] || recipe_name="$recipe_id"
+  [ -n "$applies_when" ] || applies_when="when this selected recipe domain applies"
+  /bin/cat <<EOF
+# CONDUCTOR recipe trigger — $recipe_name
+
+Applies when: $applies_when.
+
+Before acting in this domain, read \`$reference\`. Its complete content is the
+mandatory selected recipe. This pointer preserves native scoping without loading
+the full recipe into unrelated requests. If the reference is missing, report an
+incomplete CONDUCTOR installation instead of inventing the policy.
+EOF
+}
+
+# Canonical recipe activation globs. Adapters translate this CSV into their
+# native frontmatter; keeping the map here prevents Cursor/Claude/Copilot from
+# silently assigning different path scope to the same selected recipe.
+conductor_recipe_globs_csv() {
+  case "$1" in
+    monorepo)            printf '%s' 'apps/**,packages/**' ;;
+    web-mobile-parity)   printf '%s' 'apps/web/**,apps/mobile/**,packages/shared/**' ;;
+    i18n)                printf '%s' '**/i18n/**,**/translations.ts,**/locales/**' ;;
+    auto-mock-data)      printf '%s' '**/*.sql,**/migrations/**,**/seeds/**' ;;
+    coding-conventions)  printf '%s' '**/*.ts,**/*.tsx' ;;
+    database-discipline|database-change-assurance)
+                         printf '%s' '**/*.sql,**/migrations/**' ;;
+    design-system)       printf '%s' '**/*.tsx,**/*.css,**/*.scss' ;;
+    tdd|non-vacuous-testing)
+                         printf '%s' '**/*.test.*,**/*.spec.*,**/__tests__/**,**/e2e/**' ;;
+    visual-baseline-integrity)
+                         printf '%s' '**/screenshots/**,**/visual/**,**/*.spec.*' ;;
+    *)                   printf '%s' '**' ;;
+  esac
+}
+
+# Retire a path from a previous authoritative manifest only when CONDUCTOR still
+# owns the exact bytes. User-modified files are preserved and simply lose
+# CONDUCTOR ownership. A pre-CONDUCTOR backup is restored when one exists.
+conductor_retire_owned_path() {
+  local rel="$1" reason="$2" entry expected backup had_backup=false dest
+  entry="$(conductor_manifest_entry_for_path "$rel" 2>/dev/null || true)"
+  [ -n "$entry" ] || return 0
+  expected="$(conductor_manifest_field "$entry" sha256 2>/dev/null || true)"
+  backup="$(conductor_manifest_field "$entry" backup_path 2>/dev/null || true)"
+  case "$entry" in *'"had_backup": true'*) had_backup=true ;; esac
+  dest="$TARGET_ABS/$rel"
+
+  if [ -f "$dest" ] && ! conductor_manifest_file_matches "$dest" "$expected"; then
+    log "  preserving user-modified $rel while retiring $reason; ownership released"
+  elif [ "$had_backup" = "true" ] && [ -n "$backup" ] && [ -f "$TARGET_ABS/$backup" ]; then
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would restore $backup -> $rel while retiring $reason"
+    else
+      /bin/mv -f "$TARGET_ABS/$backup" "$dest"
+      log "  restored pre-CONDUCTOR $rel while retiring $reason"
+    fi
+  else
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would remove CONDUCTOR-owned $rel while retiring $reason"
+    else
+      /bin/rm -f "$dest"
+      log "  removed CONDUCTOR-owned $rel while retiring $reason"
+    fi
+  fi
+  conductor_manifest_stage_drop_path "$rel"
+}
+
 # Return the one-line block manifest entry matching a host relative path/name.
 conductor_manifest_block_entry() {
   local wanted_path="$1" wanted_name="$2" line found_path found_name

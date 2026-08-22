@@ -152,7 +152,11 @@ for tool in $TOOLS; do
       gemini)       run_with_timeout "$TIMEOUT_S" gemini -p "$PROBE" ;;
       cursor-agent) run_with_timeout "$TIMEOUT_S" cursor-agent -p "$PROBE" ;;
       copilot)      run_with_timeout "$TIMEOUT_S" copilot -p "$PROBE" ;;
-      devin)        run_with_timeout "$TIMEOUT_S" devin -p "$PROBE" ;;
+      # Devin print mode cannot display its workspace-trust prompt. This target
+      # is the throwaway directory created above by CONDUCTOR itself, so bypass
+      # trust for this one invocation only; never change the user's global
+      # workspace-trust setting.
+      devin)        run_with_timeout "$TIMEOUT_S" devin --respect-workspace-trust false -p "$PROBE" ;;
       opencode)
         if [ -n "${CONDUCTOR_OPENCODE_LIVE_MODEL:-}" ]; then
           run_with_timeout "$TIMEOUT_S" opencode run --model "$CONDUCTOR_OPENCODE_LIVE_MODEL" "$PROBE"
@@ -200,6 +204,8 @@ EOF_GRADE
     echo "PASS  $tool — live-verified $today ($cliver)"
     if [ "$tool" = "codex" ]; then
       verification_note="native prompt-input probe confirmed bounded AGENTS kernel is model-visible; full references remain on demand"
+    elif [ "$tool" = "windsurf" ]; then
+      verification_note="Devin for Terminal headless probe listed ${hits}/5 rules + read-CURRENT_WORK-first; Desktop UI smoke remains manual"
     else
       verification_note="headless probe listed ${hits}/5 rules + read-CURRENT_WORK-first"
     fi

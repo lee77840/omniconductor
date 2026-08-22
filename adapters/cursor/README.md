@@ -3,7 +3,8 @@
 Cursor is a strong CONDUCTOR target because:
 
 - It supports per-pattern rule scoping via `.cursor/rules/*.mdc` `globs:` front-matter — close to Claude's lazy rule loading.
-- Universal rules install as `alwaysApply: true` `.mdc` files (the modern always-loaded mechanism; the legacy `.cursorrules` single file is opt-in via `--legacy-cursorrules`).
+- One bounded kernel installs as `alwaysApply: true`; complete universal rules stay
+  byte-identical under `.cursor/conductor/rules/` and load through the kernel routing table.
 - Its Skills surface (`.cursor/skills/` — the 2.4+ successor to project commands) gives a native `/reflect` entry point: CONDUCTOR emits `.cursor/skills/reflect/SKILL.md` with `--recipes=self-improvement`.
 - Its rule UI surfaces which rules loaded for the current file, useful for debugging.
 
@@ -35,12 +36,11 @@ bypass.
 ├── .agents/skills/                            # plan-change, verify-change, review-change
 ├── .cursor/
 │   └── rules/
-│       ├── workflow.mdc                        # alwaysApply: true
-│       ├── spec-as-you-go.mdc                  # alwaysApply: true
-│       ├── quality-gates.mdc                   # alwaysApply: true
-│       ├── operations.mdc                      # alwaysApply: true
-│       ├── meta-discipline.mdc                 # alwaysApply: true
-│       └── <recipe>.mdc                        # per --recipes=, path-scoped via globs:
+│       ├── conductor-kernel.mdc                # bounded, alwaysApply: true
+│       └── <recipe>.mdc                        # compact path-scoped pointer
+│   └── conductor/
+│       ├── rules/*.md                          # complete byte-identical rules
+│       └── recipes/*.md                        # complete selected recipes
 └── docs/
     ├── CURRENT_WORK.md                         # (universal templates, identical to other adapters)
     ├── REMAINING_TASKS.md
@@ -58,12 +58,12 @@ documented `.agents/skills` alias. Recipes-only and Reflector-only do not.
 Selecting `self-improvement` emits the separate `propose-skill` procedure; its
 typed inbox never auto-applies a live skill.
 
-- `--legacy-cursorrules` additionally bundles everything into a flat `.cursorrules` (Cursor < 0.45).
+- `--legacy-cursorrules` additionally emits the bounded kernel into `.cursorrules`; it does not recreate the old eager full-policy bundle.
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config (`.cursor/hooks.json`), the `/reflect` Skill (`.cursor/skills/reflect/SKILL.md`), a reflector agent (`.cursor/agents/`), prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
 ## Native features supported (emitted today)
 
-- ✅ Always-loaded universal rules (`.mdc`, `alwaysApply: true`).
+- ✅ Bounded always-loaded kernel (`conductor-kernel.mdc`, `alwaysApply: true`).
 - ✅ Per-pattern rule scoping (`globs:` on recipe `.mdc`).
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
@@ -84,8 +84,8 @@ typed inbox never auto-applies a live skill.
 ## After install — first steps
 
 1. Open the target project in Cursor.
-2. Open the rule indicator (Cursor UI shows which rules loaded for the current file). Verify the universal rules appear.
-3. Skim the emitted `.cursor/rules/*.mdc` and adjust recipe `globs:` to your repo layout if needed.
+2. Open the rule indicator and verify `conductor-kernel.mdc` appears.
+3. Skim compact recipe pointers and their complete `.cursor/conductor/recipes/` references.
 4. Rename `docs/specs/_example.md` → `docs/specs/<your-area>.md` and start a real spec.
 5. Add `.memory/` to `.gitignore`. Create your first memory entry.
 6. Add your first entry to `docs/CURRENT_WORK.md`.

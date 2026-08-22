@@ -33,7 +33,9 @@ bypass.
 <target>/
 ├── .agents/skills/                            # plan-change, verify-change, review-change
 ├── .github/
-│   ├── copilot-instructions.md                 # 5 universal rules merged (repo-wide, default mode)
+│   ├── copilot-instructions.md                 # bounded kernel (repo-wide, default mode)
+│   ├── conductor/rules/*.md                    # complete on-demand rules
+│   ├── conductor/recipes/*.md                  # complete selected recipes
 │   └── instructions/
 │       └── <recipe>.instructions.md            # per --recipes=, applyTo: from source paths
 └── docs/
@@ -54,12 +56,14 @@ Reflector-only do not.
 Selecting `self-improvement` emits the separate `propose-skill` procedure; its
 typed inbox never auto-applies a live skill.
 
-- `--per-rule` splits the 5 universal rules into per-file `.github/instructions/<rule>.instructions.md` (`applyTo: '**'`) instead of the single merged file.
+- `--per-rule` moves the same bounded kernel from the root instruction file to
+  `.github/instructions/conductor-kernel.instructions.md`; complete rules remain
+  byte-identical under `.github/conductor/rules/`.
 - `--recipes=self-improvement` additionally emits the Reflector loop: session-end trajectory hook config, `/reflect` command, reflector agent, prune script, and the `.conductor/reflect/` weekly runner (ADR-032/033).
 
 ## Native features supported (emitted today)
 
-- ✅ Always-loaded baseline (`.github/copilot-instructions.md`).
+- ✅ Bounded always-loaded kernel (`.github/copilot-instructions.md` or its per-rule alternative).
 - ✅ Per-pattern rule scoping (`applyTo:` front-matter on recipe files).
 - ✅ Instructions IN the repo (collaborator-shared) — one install covers VS Code, Cursor (Copilot ext), Windsurf (Copilot adapter), JetBrains, Neovim.
 - ✅ All universal rule TEXT.

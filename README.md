@@ -19,7 +19,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 ## Why OMNICONDUCTOR stands out
 
-**7 adapters · 8 baseline roles · 5 universal rules · 17 opt-in recipes · 5 portable skills · 15 metadata gates**
+**7 adapters · 8 baseline roles · 5 universal rules · 17 policy-classified recipes · 5 portable skills · 15 metadata gates**
 
 OMNICONDUCTOR brings **AI agent governance**, **multi-agent orchestration**,
 cross-tool **hooks**, portable **Agent Skills**, **MCP security auditing**, saved
@@ -35,6 +35,7 @@ into one reversible installer.
 | **Evidence instead of “it should work”** | `eval coverage`, runtime contracts, doctor checks, M1–M15 metadata gates, generated docs, adversarial regressions, and opt-in live probes separate emitted, contract-tested, and live-verified claims. |
 | **Honest release evidence** | `evidence validate/check` preserves passed, failed, blocked, not-run, environment-limited, and verification-required outcomes instead of flattening every green-looking workflow into PASS. Strict DB, non-vacuous test, visual baseline, multi-surface, and release-provenance recipes use the same snapshot-bound contract. |
 | **Safe and reversible adoption** | Dry-run, strict conflict mode, SHA-256 ownership manifests, byte-preserving backup/restore, user-edit preservation, extension/MCP trust audit, and lossless uninstall make installation auditable. |
+| **Low-friction recipe onboarding** | Root-cause debugging and bounded agent loops are safe defaults. Project-shape rules are detected and recommended once. Data collection, generated data, Git strategy, and high-risk DB policy remain explicit consent. Updates preserve each adapter's current selection. |
 | **Built for parallel agent work** | Clone-local scope claims, exact-snapshot handoff, immutable release tombstones, multi-repo workspace diagnosis, and saved Tier routing reduce collisions without pretending to grant push or merge authority. |
 
 ```bash
@@ -45,7 +46,7 @@ npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-de
 The promise is not identical mechanics everywhere. It is **one portable discipline,
 compiled to the strongest verified native behavior each tool actually supports**.
 
-> **Status (v1.6.0 — 2026-08-13)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code + Codex are additionally live-verified** by the automated headless probe, while OpenCode's local runtime discovery is verified separately and its authenticated rule probe remains explicit. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
+> **Status (v1.7.0 — 2026-08-20)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
 >
 > **New in 1.6.0**: `--target=opencode` uses native v1 instructions, subagents, permissions, skills, commands, and a JavaScript commit-guard plugin without taking ownership of Codex's root `AGENTS.md`. Existing `opencode.json` is merged; JSONC is refused before writes; v2 beta and unverified review-stop/trajectory behavior are not overclaimed. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
@@ -135,10 +136,10 @@ OMNICONDUCTOR의 토큰 절약은 “짧게 답하라”는 한 줄 프롬프트
 |---|---|---|
 | **1. 불필요한 입력 예방** | Grep 우선, 200줄 초과 range read 원칙, Claude의 500줄 이상 무범위 Read 차단 | 전 도구 규칙 + Claude 네이티브 훅 |
 | **2. 도구 결과 상한** | 기본 8,000-token store-time cap | Claude·Codex 네이티브, Gemini shell-only, 나머지 명시적 N/A |
-| **3. 상시 컨텍스트 최소화** | 5개 universal rule, opt-in recipe, on-demand skill, adapter별 path scoping | 설치 구조로 적용, 도구별 lazy-load 차이 공개 |
+| **3. 상시 컨텍스트 최소화** | 7개 도구 bounded kernel + byte-identical on-demand rule/recipe references | 자동 기본 recipe 포함 약 1.7K~2.1K tokens 상시 활성(macOS fixture, `bytes/4`) |
 | **4. 캐시 친화적 순서** | 안정된 rules/project prefix와 자주 바뀌는 history/tool-result 분리 | Claude/Anthropic 가이드; SDK 자동 설정 아님 |
 | **5. 컨텍스트 수명 관리** | stale tool result를 먼저 제거하고 사용자 지시는 마지막까지 보존 | Claude context editing 가이드 + 전 도구 공통 규칙 |
-| **6. 측정과 회귀 진단** | cache reuse, tool calls, output tokens, cap marker, 역할 dispatch를 로컬 JSONL/CSV로 비교 | zero-telemetry 로컬 도구 |
+| **6. 측정과 회귀 진단** | cache-read share, 지침 footprint, 실제 elision marker, 역할 dispatch를 로컬에서 비교 | zero-telemetry 로컬 도구 |
 
 ```bash
 # 설치 상태: 실제 output-cap/hook/config가 활성화됐는지 확인
@@ -149,6 +150,15 @@ bash tools/measure-tokens.sh --latest
 
 # 여러 Claude JSONL 세션의 cap/cache/dispatch 감사
 node tools/audit-token-economy.js --sessions="<session-directory>"
+
+# 요청당 eager-context 회피량과 1000회 누적 추정
+npx omniconductor audit instructions . --target=codex --requests=1000
+
+# 개인별 로컬 보고서: Claude 세션에서 실제 elision + 모델 호출 수 기반 구조 추정
+npx omniconductor audit savings . --target=claude --sessions="<session-directory>" --subject="user-id"
+
+# 세션 형식을 지원하지 않는 도구는 사용자가 확인한 호출 수로 구조 추정만 수행
+npx omniconductor audit savings . --target=opencode --requests=1000 --subject="user-id"
 ```
 
 도구별 정확한 강제 범위, 설정값, 측정 해석, 오해하기 쉬운 한계는
@@ -169,12 +179,12 @@ cd ~/your-project
 
 # 3. dry-run 으로 미리보기
 bash ~/conductor/adapters/claude/transform.sh . \
-  --recipes=monorepo,coding-conventions \
+  --recipes=debugging,loop-engineering,monorepo,coding-conventions \
   --dry-run
 
 # 4. 실제 적용
 bash ~/conductor/adapters/claude/transform.sh . \
-  --recipes=monorepo,coding-conventions
+  --recipes=debugging,loop-engineering,monorepo,coding-conventions
 
 # 5. Claude Code 재시작 → /agents 로 8개 기본 역할 확인
 ```
@@ -200,14 +210,21 @@ npm 사용자에게 필요한 고정 경로가 아닙니다.
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions` · `eval coverage` · `evidence validate/check` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions/instructions` · `eval coverage` · `evidence validate/check` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
 - **Path B — 로컬 bash 래퍼**: OMNICONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: PowerShell/CMD에서 `npx`를 실행해도 되지만 **Git for Windows의 Git Bash가 설치되어 있어야** 합니다. 또는 Ubuntu/Debian WSL 안에서 Linux Node.js와 bash를 함께 사용하세요. [Cross-platform](#cross-platform-mac-and-windows) 참조.
 
-### Recipe 카탈로그 (17개, opt-in)
+### Recipe 카탈로그 (17개, 정책별 선택)
 
-5개 universal rule 은 항상 설치되고, recipe 는 프로젝트에 맞게 골라 담습니다 (`--recipes=`).
+5개 universal rule 원문은 항상 byte-identical reference로 설치되지만 매 요청에
+모두 로드되지는 않습니다. bounded kernel이 활동에 필요한 정확한 rule만 읽게 합니다.
+새 full/strict 설치는 안전하고 보편적인
+`debugging`, `loop-engineering`을 기본 적용하고, 프로젝트 구조로 확인되는 recipe는
+한 번만 묶어서 추천합니다. `self-improvement`, `auto-mock-data`,
+`branch-strategy`, `database-change-assurance`, `git-hygiene`는 명시적으로
+동의해야 합니다. 업데이트는 기존 선택을 그대로 보존하며,
+`--recipes=`는 자동/추천을 포함한 정확한 목록 override입니다 (`--recipes=`는 전부 끔).
 
 | Recipe | 설치 시점 |
 |---|---|
@@ -234,6 +251,8 @@ npm 사용자에게 필요한 고정 경로가 아닙니다.
 ```bash
 # 프로젝트의 provider extension/MCP 설정을 값 노출 없이 읽기 전용 감사
 npx omniconductor audit extensions . --target=all
+npx omniconductor audit instructions . --requests=1000
+npx omniconductor audit savings . --target=claude --sessions="<session-directory>"
 
 # 검증 결과 스키마 확인 / 모든 claim이 passed인지 gate
 npx omniconductor evidence validate verification-evidence.json
@@ -310,10 +329,10 @@ classification, and an unavailable exact model is never silently downgraded. See
 git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
 bash ~/conductor/adapters/claude/transform.sh . \
-  --recipes=monorepo,coding-conventions \
+  --recipes=debugging,loop-engineering,monorepo,coding-conventions \
   --dry-run                      # preview
 bash ~/conductor/adapters/claude/transform.sh . \
-  --recipes=monorepo,coding-conventions
+  --recipes=debugging,loop-engineering,monorepo,coding-conventions
 # Restart Claude Code → /agents → confirm 8 base roles loaded
 ```
 
@@ -363,7 +382,7 @@ install, update, checkout, or agent-execution path. See
 [`docs/PARALLEL-WORK.md`](./docs/PARALLEL-WORK.md) and
 [`docs/WORKSPACE-FEDERATION.md`](./docs/WORKSPACE-FEDERATION.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` preflights adapter dispatch, performs the one-time model setup, then runs the adapter scripts. `models configure/show`, `list`, `audit extensions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, diagnoses live/orphaned/incomplete routing locks in D15, and reports installer-platform support in D16.
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` preflights adapter dispatch, performs the one-time model setup, then runs the adapter scripts. `models configure/show`, `list`, `audit extensions/instructions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, diagnoses live/orphaned/incomplete routing locks in D15, and reports installer-platform support in D16.
 
 > **What you keep going Claude → other tools**: rule text, docs, workflow phases, the eight-role topology including Tier 3 utility, and the opt-in Reflector loop. Mechanical guard coverage is intentionally not claimed as identical: each adapter emits only contracts verified for that product.
 
@@ -379,7 +398,7 @@ No clone required. Published to npm as [`omniconductor`](https://www.npmjs.com/p
 
 ```bash
 # Install OMNICONDUCTOR's workflow into your project — for any of the 7 tools:
-npx omniconductor@latest init --target=opencode . --recipes=coding-conventions,tdd
+npx omniconductor@latest init --target=opencode . --recipes=debugging,loop-engineering,coding-conventions,tdd
 # targets: claude | cursor | copilot | gemini | codex | windsurf | opencode
 
 npx omniconductor list                                # list the 7 adapters
@@ -406,9 +425,9 @@ git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
 
 # Pick your tool:
-bash ~/conductor/adapters/claude/transform.sh   . --recipes=monorepo,coding-conventions
-bash ~/conductor/adapters/cursor/transform.sh   . --recipes=monorepo,coding-conventions
-bash ~/conductor/adapters/copilot/transform.sh  . --recipes=monorepo,coding-conventions
+bash ~/conductor/adapters/claude/transform.sh   . --recipes=debugging,loop-engineering,monorepo,coding-conventions
+bash ~/conductor/adapters/cursor/transform.sh   . --recipes=debugging,loop-engineering,monorepo,coding-conventions
+bash ~/conductor/adapters/copilot/transform.sh  . --recipes=debugging,loop-engineering,monorepo,coding-conventions
 ```
 
 #### Windows / Git Bash (recommended for Windows)
@@ -419,7 +438,7 @@ bash ~/conductor/adapters/copilot/transform.sh  . --recipes=monorepo,coding-conv
 git clone https://github.com/lee77840/omniconductor /c/conductor
 cd /c/Users/me/Projects/my-app
 
-bash /c/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
+bash /c/conductor/adapters/claude/transform.sh . --recipes=debugging,loop-engineering,monorepo,coding-conventions
 ```
 
 > Git Bash translates `C:\Users\me\foo` to `/c/Users/me/foo`. Use forward slashes in commands.
@@ -432,7 +451,7 @@ wsl --distribution Ubuntu-24.04
 # Inside WSL: use Linux Node.js + bash for the whole command.
 git clone https://github.com/lee77840/omniconductor ~/conductor
 cd ~/your-project
-bash ~/conductor/adapters/claude/transform.sh . --recipes=monorepo,coding-conventions
+bash ~/conductor/adapters/claude/transform.sh . --recipes=debugging,loop-engineering,monorepo,coding-conventions
 ```
 
 #### Windows / PowerShell or CMD launcher
@@ -459,7 +478,7 @@ All 7 tools have a working adapter (Path A/B), so this path is a fallback — fo
 |---|---|---|---|
 | **macOS** (zsh, bash) | ✅ Reference platform | zsh / bash | Native bash 3.2 works; bash 5.x via Homebrew also supported. |
 | **Linux** (Ubuntu, Debian, Fedora, Arch) | ✅ Supported | bash | Supported by the local validation suite and manual-only GitHub release workflows. |
-| **Windows Node.js + Git Bash** | ✅ Supported; OpenCode device rerun pending | PowerShell/CMD/Git Bash launcher → Git Bash adapter | The original six CLI/direct paths and CRLF hook payload were verified on a Windows adopter machine. v1.6 enumerates OpenCode in the local/Windows harness; its exact Windows device run remains separate evidence. |
+| **Windows Node.js + Git Bash** | ✅ Supported and adopter-verified | PowerShell/CMD/Git Bash launcher → Git Bash adapter | The complete v1.7 source suite passed on a Windows adopter machine across all seven CLI/direct adapter paths, including OpenCode, CRLF hook payloads, canonical 8.3 paths, and install/uninstall preservation. |
 | **WSL2 Ubuntu/Debian + Linux Node.js** | ✅ Supported | bash inside the named distro | Run the complete command inside WSL; do not mix Windows Node.js with WSL bash. |
 | **Windows Node.js → default WSL** | ❌ Unsupported | mixed runtime | The default may be `docker-desktop`; CONDUCTOR never auto-falls back to it. |
 | **Docker Desktop WSL distros** | ❌ Unsupported | infrastructure-only | `docker-desktop` and `docker-desktop-data` are not development environments. |
@@ -505,7 +524,15 @@ same ref and scope are cancelled automatically.
 
 ## Recipes catalog
 
-17 opt-in recipes layer project-specific discipline on top of the 5 universal rule bundles. Universal rules always install; recipes are pick-and-mix.
+17 recipes layer project-specific discipline on top of the 5 universal rule bundles.
+They are classified to avoid both silent high-impact behavior and a 17-question setup:
+
+- **Automatic safe defaults**: `debugging`, `loop-engineering` on fresh full/strict installs.
+- **Detected recommendations**: stack/project signals produce one grouped recommendation.
+- **Explicit consent**: `self-improvement`, `auto-mock-data`, `branch-strategy`,
+  `database-change-assurance`, and `git-hygiene` are never silently enabled.
+- **Updates**: preserve each installed adapter's current recipe list by default.
+- **Exact override**: `--recipes=A,B`; use `--recipes=` for none.
 
 | Recipe | Install when | Adds |
 |---|---|---|
@@ -523,7 +550,7 @@ same ref and scope are cancelled automatically.
 | `design-system` | Design-token system in use | Tokens over raw hex, component reuse, accessibility + spacing scale adherence |
 | `visual-baseline-integrity` | Screenshot/rendered-output comparison is a gate | Pinned render contract, reviewable expected/actual/diff, separate update/verify, honest flaky status |
 | `release-provenance` | Release includes third-party, regulated, or policy-bound material | Source/license/authority inventory and expiry-aware evidence; never claims legal certification |
-| `self-improvement` | Want periodic, human-approved review of your sessions | A **Reflector** reads available trajectories + git and **proposes** lessons to `docs/REFLECTION-PROPOSALS.md` (propose-only). All seven emit the review procedure; automatic trajectory capture remains tool-specific and OpenCode is manual. See ADR-030/032/033/072. |
+| `self-improvement` | Want periodic, human-approved review of your sessions (**explicit consent**) | A **Reflector** analyzes in a verified read-only provider mode and emits typed proposal data. A deterministic writer alone may append `docs/REFLECTION-PROPOSALS.md`; nothing auto-applies. Windsurf remains manual until a headless read-only CLI contract is verified. |
 | `git-hygiene` | Any git project — esp. multi-session/agent repos or protected branches | Shared-repo discipline (G1–G7) plus the seven-tool `coordinate-work` skill for clone-local scope claims and snapshot-bound handoff. Native reminders remain capability-specific. See ADR-037/045/064/072. |
 | `loop-engineering` | Any agentic loop (generate→verify→fix→re-verify, test-fix, multi-step) | Bounded, externally-verified loops (G1–G6): explicit done-criterion, iteration+token budget, require-progress, escalate-on-stall, **verify externally never by self-judgment**, oscillation guard. Claude and Codex add verified `PreToolUse` reminders in their own hook dialects; other adapters install the rule text. See ADR-038/045. |
 
@@ -553,7 +580,7 @@ Agent loops / iterative fix-verify?  YES → loop-engineering
 
 | Project type | Recipes |
 |---|---|
-| Greenfield experiment | None — universal-rules only |
+| Greenfield experiment | Automatic `debugging, loop-engineering` defaults only |
 | Solo SaaS, web, single locale | `coding-conventions` |
 | Web + mobile (single language) | `web-mobile-parity, coding-conventions` |
 | Multi-locale SaaS | `i18n, coding-conventions` |
@@ -574,11 +601,12 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 | Option | Description |
 |---|---|
 | `<target-project>` | Project directory to install into (required). `.` for current dir. |
-| `--recipes=A,B,C` | Comma-separated recipes from the 17 in `core/recipes/`. |
+| `--recipes=A,B,C` | Exact comma-separated recipe list. Overrides automatic/recommended selection; `--recipes=` disables every recipe. |
 | `--mode=<m>` | Install preset (v1.0, ADR-044): `full` (default) · `minimal` (rule text + docs only — no agents/hooks/Reflector runtime) · `strict` (abort with exit 3 instead of touching an existing baseline) · `recipes-only` (à la carte: ONLY selected recipes; Gemini appends a hash-tracked block, while Codex appends compact pointers to full `.codex/conductor/recipes/` references; uninstall is lossless) · `reflector-only` (the self-improvement loop standalone — least-conflicting when coexisting with Spec Kit / BMAD, which the installer detects and suggests, never auto-switches). |
+| `--conflict-policy=<p>` | First install into a project with unmanaged tool instructions: `replace` (timestamped backup + full/minimal install) · `recipes-only` (requires non-empty `--recipes=` and preserves the existing baseline) · `abort`. If neither this option nor an explicit `--mode=` is supplied, an interactive terminal asks; `--no-prompt` fails before every write. |
 | `--dry-run` | Preview only — no files written. |
-| `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if cache hit < 95%. |
-| `--no-prompt` | Skip interactive prompts. Reuses an existing saved model map; a first role-emitting install must also pass `--accept-model-defaults` or provide a reviewed config. |
+| `--measure-baseline` | Run `tools/measure-tokens.sh --latest` after install; save CSV; auto-show anti-patterns if canonical cache-read token share < 95%. |
+| `--no-prompt` | Skip prompts. Fresh full/strict installs use only safe automatic recipe defaults; updates preserve existing selections. A first role-emitting install must also pass `--accept-model-defaults` or provide a reviewed model config. |
 | `--accept-model-defaults` | Explicitly accept the recommended Tier mappings during an unconfigured non-interactive install. Required with `--no-prompt` when role-emitting output has no saved model routing yet. |
 | `--check-anti-patterns` | Print `core/anti-patterns/README.md` inline and pause 5 seconds. |
 | `--uninstall` (alias `--rollback`) | Manifest-based revert on all seven adapters (see [Update](#update--maintenance--uninstall)). |
@@ -588,6 +616,13 @@ Usage: bash adapters/<tool>/transform.sh <target-project> [options]
 **Recipe names** (17): `web-mobile-parity`, `i18n`, `monorepo`, `branch-strategy`, `auto-mock-data`, `coding-conventions`, `tdd`, `non-vacuous-testing`, `debugging`, `database-discipline`, `database-change-assurance`, `design-system`, `visual-baseline-integrity`, `release-provenance`, `self-improvement`, `git-hygiene`, `loop-engineering`.
 
 #### File overwrite behavior
+
+Before a first install, the CLI inventories unmanaged instruction surfaces for all
+selected adapters. An omitted mode is no longer treated as consent to replace them:
+interactive users choose preservation, backup-and-replace, or cancellation, while
+non-interactive installs must state `--mode=` or `--conflict-policy=` explicitly.
+CONDUCTOR does not claim to auto-merge arbitrary Markdown. Existing authoritative
+manifests identify ordinary updates and preserve the established update contract.
 
 | File | Already exists |
 |---|---|
@@ -634,13 +669,13 @@ them immediately before a necessary release as an optional extra check; no autom
 reactivation is scheduled. See
 [`docs/PUBLICATION-POLICY.md`](docs/PUBLICATION-POLICY.md).
 
-### Re-measure cache hit (1 week after install)
+### Re-measure token economy (1 week after install)
 
 ```bash
 bash ~/conductor/tools/measure-tokens.sh --latest
 ```
 
-Compare against the `.conductor/baseline-YYYYMMDD.csv` from `--measure-baseline` at install time. KPI target: cache hit rate ≥ 95% (ADR-014 SLA).
+Compare against the `.conductor/baseline-YYYYMMDD.csv` from `--measure-baseline` at install time. KPI target: canonical cache-read token share ≥ 95% (ADR-076 correction). Run `npx omniconductor audit instructions . --target=<tool> --requests=<representative-request-count>` separately to estimate bounded-kernel context savings without attributing provider caching to CONDUCTOR. For a privacy-preserving per-user export, use `audit savings`; it keeps observed output elision and estimated input-context avoidance separate and never uploads session contents.
 
 For the full mechanism-by-mechanism explanation—including which controls are native,
 rule-only, or provider guidance—see the
@@ -671,7 +706,7 @@ Behavior:
 
 ## Token measurement & KPI baseline
 
-`tools/measure-tokens.sh` parses Claude Code session JSONL files and reports cache hit rate, input/output token counts, and tool call totals.
+`tools/measure-tokens.sh` parses Claude Code session JSONL files and reports canonical cache-read token share, all three input-token components, output tokens, and tool call totals.
 
 ```bash
 brew install jq                              # macOS dependency
@@ -689,7 +724,8 @@ bash ~/conductor/tools/measure-tokens.sh --latest --export-csv=/tmp/after.csv
 |---|---|
 | Input tokens / task | -40% |
 | File Reads / task | -50% |
-| Cache hit rate | 100% baseline → ≥ 95% SLA (per ADR-014; the old ≥60% goal is retired — caching is on by default) |
+| Cache-read token share | ≥ 95%, canonical 3-term denominator (ADR-076; raw read/write/uncached retained) |
+| Always-active instructions | ≤ 12 KiB kernel and ≤ 16 KiB with always-active recipe pointers, all seven adapters |
 | Tool calls / task | -30% |
 
 > Zero telemetry — all results stay local. No external transmission.
@@ -711,7 +747,7 @@ fails closed and should be inspected at `.conductor/model-routing.lock`.
 
 ```bash
 chmod +x ~/conductor/adapters/<tool>/transform.sh
-bash ~/conductor/adapters/<tool>/transform.sh . --recipes=coding-conventions
+bash ~/conductor/adapters/<tool>/transform.sh . --recipes=debugging,loop-engineering,coding-conventions
 ```
 
 #### "CLAUDE.md / .cursorrules already exists"
@@ -797,7 +833,7 @@ fallback when a native equivalent is unavailable. See `core/memory-pattern/READM
 | **ADR-001** | 3-layer architecture (Universal / Adapter / Tool-native) | Why OMNICONDUCTOR is multi-tool from day 1 |
 | **ADR-004** | Historical no-fake-polyfill boundary; native role emission later superseded by ADR-045 | Honesty principle preserved |
 | **ADR-006** | Bilingual (한/영) rule support | OMNICONDUCTOR's korean-first roots |
-| **ADR-014** | Cache hit rate ≥ 95% SLA | The measurable success criterion |
+| **ADR-014 / ADR-076** | Cache-read token share ≥ 95%, one canonical formula | Provider cache health; not CONDUCTOR savings attribution |
 | **ADR-016** | Reference-adopter ↔ OMNICONDUCTOR bidirectional sync | Where production patterns come from |
 | **ADR-020** | `--uninstall` + manifest tracking | Why install is reversible |
 | **ADR-021** | Cursor adapter (`adapters/cursor/transform.sh`) | Adapter design for `.cursor/rules/*.mdc` |

@@ -42,6 +42,44 @@ baseline_for() {
   esac
 }
 
+legacy_rule_for() {
+  local tool="$1" rule="$2"
+  case "$tool" in
+    claude) echo ".claude/rules/$rule.md" ;;
+    cursor) echo ".cursor/rules/$rule.mdc" ;;
+    copilot) echo ".github/instructions/$rule.instructions.md" ;;
+    windsurf) echo ".devin/rules/$rule.md" ;;
+    opencode) echo ".opencode/rules/$rule.md" ;;
+    *) return 1 ;;
+  esac
+}
+
+add_baseline_sentinel() {
+  local project="$1" tool="$2" baseline="$3" sentinel="$4"
+  if [ "$tool" = "opencode" ]; then
+    node -e '
+      const fs=require("fs"), file=process.argv[1], value=process.argv[2];
+      const data=JSON.parse(fs.readFileSync(file, "utf8"));
+      data.userUpgradeSentinel=value;
+      fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`);
+    ' "$project/$baseline" "$sentinel"
+  else
+    printf '\n%s\n' "$sentinel" >> "$project/$baseline"
+  fi
+}
+
+baseline_has_sentinel() {
+  local project="$1" tool="$2" baseline="$3" sentinel="$4"
+  if [ "$tool" = "opencode" ]; then
+    node -e '
+      const data=require(process.argv[1]);
+      process.exit(data.userUpgradeSentinel === process.argv[2] ? 0 : 1);
+    ' "$project/$baseline" "$sentinel"
+  else
+    /usr/bin/grep -qF "$sentinel" "$project/$baseline"
+  fi
+}
+
 doctor_has_no_failures() {
   local cli="$1" project="$2" label="$3" report rc
   report="$BASE/doctor-$label.json"
@@ -84,6 +122,12 @@ if [ -n "$PREVIOUS_VERSION" ]; then
 else
   PREVIOUS_VERSION="$INSTALLED_PREVIOUS_VERSION"
 fi
+if node -e '
+  const [major,minor]=process.argv[1].replace(/^v/, "").split(".").map(Number);
+  process.exit(major>1 || (major===1 && minor>=6) ? 0 : 1);
+' "$PREVIOUS_VERSION"; then
+  PREVIOUS_TOOLS="$PREVIOUS_TOOLS opencode"
+fi
 PREVIOUS_INIT_MODEL_ARG=""
 if node -e '
   const [major,minor]=process.argv[1].replace(/^v/, "").split(".").map(Number);
@@ -104,7 +148,17 @@ for tool in $PREVIOUS_TOOLS; do
     || fail "$tool $PREVIOUS_VERSION fixture install"
   baseline="$(baseline_for "$tool")"
   sentinel="USER-UPGRADE-SENTINEL-$tool"
-  printf '\n%s\n' "$sentinel" >> "$project/$baseline"
+  add_baseline_sentinel "$project" "$tool" "$baseline" "$sentinel"
+
+  # v1.7 replaces eagerly loaded universal-rule copies with a bounded kernel
+  # and complete on-demand references. A byte-identical owned copy must retire,
+  # while a user-edited former copy must survive and leave manifest ownership.
+  if legacy_workflow="$(legacy_rule_for "$tool" workflow 2>/dev/null)" \
+      && legacy_operations="$(legacy_rule_for "$tool" operations 2>/dev/null)" \
+      && [ -f "$project/$legacy_workflow" ] \
+      && [ -f "$project/$legacy_operations" ]; then
+    printf '\nUSER-LEGACY-RULE-%s\n' "$tool" >> "$project/$legacy_workflow"
+  fi
 done
 
 # Also reproduce a project where all six adapters from the previous published
@@ -118,7 +172,7 @@ for tool in $PREVIOUS_TOOLS; do
     ${PREVIOUS_INIT_MODEL_ARG:+"$PREVIOUS_INIT_MODEL_ARG"} --recipes="$RECIPES" >/dev/null 2>&1 \
     || fail "multi-project $tool $PREVIOUS_VERSION fixture install"
 done
-ok "prepared published $PREVIOUS_VERSION single-tool and six-tool fixtures"
+ok "prepared published $PREVIOUS_VERSION single-tool and multi-tool fixtures"
 
 # Replace the consumer's installed npm dependency in place with the exact
 # candidate tarball. This is the real npm upgrade operation users perform.
@@ -134,11 +188,11 @@ ok "npm replaced $PREVIOUS_VERSION with $CURRENT_VERSION in place"
 # rewrite model state, or otherwise mutate the tree.
 BEFORE_DRY_RUN="$(tree_fingerprint "$MULTI")"
 "$CLI" init --target=all "$MULTI" --dry-run --no-prompt --accept-model-defaults \
-  --recipes="$RECIPES" >/dev/null 2>&1 || fail "six-tool previous-version project dry-run"
+  --recipes="$RECIPES" >/dev/null 2>&1 || fail "multi-tool previous-version project dry-run"
 AFTER_DRY_RUN="$(tree_fingerprint "$MULTI")"
 [ "$BEFORE_DRY_RUN" = "$AFTER_DRY_RUN" ] \
-  || fail "six-tool previous-version dry-run changed files or directories"
-ok "previous-version six-tool dry-run is byte- and path-zero-write"
+  || fail "multi-tool previous-version dry-run changed files or directories"
+ok "previous-version multi-tool dry-run is byte- and path-zero-write"
 
 for tool in $PREVIOUS_TOOLS; do
   project="$BASE/single-$tool"
@@ -155,11 +209,30 @@ for tool in $PREVIOUS_TOOLS; do
     if (!c.adapters || !c.adapters[process.argv[4]]) process.exit(1);
   ' "$project/.conductor/manifests/$tool.json" "$project/.conductor/model-routing.json" \
     "$CURRENT_VERSION" "$tool" || fail "$tool version/routing migration"
-  sentinel_is_backed_up "$project" "$sentinel" || fail "$tool user edit was not backed up"
+  if [ "$tool" = "opencode" ] || [ "$tool" = "cursor" ]; then
+    baseline_has_sentinel "$project" "$tool" "$baseline" "$sentinel" \
+      || fail "$tool in-place user setting was not preserved during upgrade"
+  else
+    sentinel_is_backed_up "$project" "$sentinel" || fail "$tool user edit was not backed up"
+  fi
+
+  if legacy_workflow="$(legacy_rule_for "$tool" workflow 2>/dev/null)" \
+      && legacy_operations="$(legacy_rule_for "$tool" operations 2>/dev/null)" \
+      && [ -f "$project/$legacy_workflow" ]; then
+    /usr/bin/grep -qF "USER-LEGACY-RULE-$tool" "$project/$legacy_workflow" \
+      || fail "$tool customized legacy eager rule was not preserved"
+    [ ! -e "$project/$legacy_operations" ] \
+      || fail "$tool checksum-owned legacy eager rule was not retired"
+    node -e '
+      const manifest=require(process.argv[1]);
+      process.exit((manifest.emitted_files || []).some((entry) => entry.path === process.argv[2]) ? 1 : 0);
+    ' "$project/.conductor/manifests/$tool.json" "$legacy_workflow" \
+      || fail "$tool retained ownership of a customized legacy eager rule"
+  fi
 
   "$CLI" init --target="$tool" "$project" --uninstall >/dev/null 2>&1 \
     || fail "$tool post-upgrade uninstall"
-  /usr/bin/grep -qF "$sentinel" "$project/$baseline" \
+  baseline_has_sentinel "$project" "$tool" "$baseline" "$sentinel" \
     || fail "$tool uninstall did not restore the pre-upgrade user edit"
   [ "$(/bin/cat "$project/KEEP.txt")" = "KEEP-$tool" ] || fail "$tool user sentinel changed"
   [ -s "$project/.conductor/model-routing.json" ] || fail "$tool model choices were not retained"
@@ -167,36 +240,37 @@ for tool in $PREVIOUS_TOOLS; do
   ok "$tool $PREVIOUS_VERSION → $CURRENT_VERSION upgrade, validation, doctor, and rollback"
 done
 
-# OpenCode is new in 1.6.0, so the previous package cannot create its fixture.
-# Exercise its packaged fresh-install/doctor/uninstall lifecycle alongside the
-# six real upgrades instead of fabricating a predecessor it never had.
-project="$BASE/single-opencode"
-mkdir -p "$project"
-printf 'KEEP-opencode\n' > "$project/KEEP.txt"
-"$CLI" init --target=opencode "$project" --no-prompt --accept-model-defaults \
-  --recipes="$RECIPES" >/dev/null 2>&1 || fail "opencode fresh install"
-bash "$PKG/tools/validate-adapter-output.sh" "$project" opencode >/dev/null 2>&1 \
-  || fail "opencode fresh output validation"
-doctor_has_no_failures "$CLI" "$project" "single-opencode"
-"$CLI" init --target=opencode "$project" --uninstall >/dev/null 2>&1 \
-  || fail "opencode fresh uninstall"
-[ "$(/bin/cat "$project/KEEP.txt")" = "KEEP-opencode" ] || fail "opencode user sentinel changed"
-ok "opencode fresh packaged install, validation, doctor, and rollback"
+# OpenCode first shipped in v1.6.0. For older baselines, exercise its packaged
+# fresh lifecycle; for v1.6+ it has already run through the real upgrade loop.
+if ! echo " $PREVIOUS_TOOLS " | /usr/bin/grep -qF ' opencode '; then
+  project="$BASE/single-opencode"
+  mkdir -p "$project"
+  printf 'KEEP-opencode\n' > "$project/KEEP.txt"
+  "$CLI" init --target=opencode "$project" --no-prompt --accept-model-defaults \
+    --recipes="$RECIPES" >/dev/null 2>&1 || fail "opencode fresh install"
+  bash "$PKG/tools/validate-adapter-output.sh" "$project" opencode >/dev/null 2>&1 \
+    || fail "opencode fresh output validation"
+  doctor_has_no_failures "$CLI" "$project" "single-opencode"
+  "$CLI" init --target=opencode "$project" --uninstall >/dev/null 2>&1 \
+    || fail "opencode fresh uninstall"
+  [ "$(/bin/cat "$project/KEEP.txt")" = "KEEP-opencode" ] || fail "opencode user sentinel changed"
+  ok "opencode fresh packaged install, validation, doctor, and rollback"
+fi
 
 "$CLI" init --target=all "$MULTI" --no-prompt --accept-model-defaults \
-  --recipes="$RECIPES" >/dev/null 2>&1 || fail "six-tool legacy project upgrade"
+  --recipes="$RECIPES" >/dev/null 2>&1 || fail "multi-tool legacy project upgrade"
 for tool in $TOOLS; do
   bash "$PKG/tools/validate-adapter-output.sh" "$MULTI" "$tool" >/dev/null 2>&1 \
-    || fail "six-tool upgraded $tool output validation"
+    || fail "multi-tool upgraded $tool output validation"
 done
 doctor_has_no_failures "$CLI" "$MULTI" "multi"
 [ "$(find "$MULTI/.conductor/manifests" -type f -name '*.json' | /usr/bin/wc -l | /usr/bin/tr -d ' ')" -eq 7 ] \
   || fail "seven-tool upgrade did not create seven authoritative manifests"
 node -e 'const c=require(process.argv[1]); if (Object.keys(c.adapters || {}).length !== 7) process.exit(1)' \
   "$MULTI/.conductor/model-routing.json" || fail "seven-tool routing migration"
-"$CLI" init --target=all "$MULTI" --uninstall >/dev/null 2>&1 || fail "six-tool post-upgrade uninstall"
-[ "$(/bin/cat "$MULTI/KEEP.txt")" = "KEEP-MULTI" ] || fail "six-tool user sentinel changed"
-[ -s "$MULTI/.conductor/model-routing.json" ] || fail "six-tool model choices were not retained"
-ok "previous-version six-tool project expands to seven and uninstalls without losing user data"
+"$CLI" init --target=all "$MULTI" --uninstall >/dev/null 2>&1 || fail "multi-tool post-upgrade uninstall"
+[ "$(/bin/cat "$MULTI/KEEP.txt")" = "KEEP-MULTI" ] || fail "multi-tool user sentinel changed"
+[ -s "$MULTI/.conductor/model-routing.json" ] || fail "multi-tool model choices were not retained"
+ok "previous-version multi-tool project converges on seven and uninstalls without losing user data"
 
 echo "npm upgrade suite: PASS ($BASE)"

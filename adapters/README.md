@@ -94,14 +94,14 @@ The Layer-1 universal-rules use `applies_to:` front-matter for routing hints. Ea
 | `applies_to: ["**/*.ts", "**/*.tsx"]` (Claude) | `paths:\n  - "**/*.ts"\n  - "**/*.tsx"` |
 | (Cursor) | `globs:\n  - "**/*.ts"\n  - "**/*.tsx"` |
 | (Copilot) | `applyTo: '**/*.ts,**/*.tsx'` |
-| (Gemini / Codex) | (bundled — no per-pattern routing) |
-| (Windsurf) | (bundled into `.devin/rules/`; legacy `.windsurf/rules/` still read) |
-| (OpenCode v1) | Markdown body under `.opencode/rules/`; `opencode.json` owns instruction globs |
+| (Gemini / Codex) | Bounded root kernel + explicit Read of complete references |
+| (Windsurf) | Bounded `.windsurfrules` + explicit Read; `.devin/rules/` pointer only in à-la-carte modes |
+| (OpenCode v1) | Bounded registered kernel + explicit Read; compact recipe glob only in à-la-carte modes |
 
 | `core/` front-matter | Adapter behavior |
 |---|---|
-| `always_loaded: true` | Merge content into the always-loaded baseline (`CLAUDE.md`, `.cursor/rules/*.mdc` `alwaysApply: true`, `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md`, `.windsurfrules`, or OpenCode `instructions`) |
-| `always_loaded: false` (or absent) | Emit as a separate rule file with appropriate per-pattern scoping |
+| `always_loaded: true` | Keep the non-negotiable summary in the bounded kernel and emit complete text as an on-demand reference |
+| `always_loaded: false` (or absent) | Emit a complete reference plus compact provider-native pointer only where verified scoping exists |
 
 ## Adapter-specific extensions
 

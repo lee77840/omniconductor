@@ -36,20 +36,28 @@ run_adapter() {
 FAIL=0
 ok()   { echo "OK   [$TOOL] $1"; }
 bad()  { echo "FAIL [$TOOL] $1"; FAIL=1; }
+skip() { echo "SKIP [$TOOL] $1"; }
+
+# Some checks stand up a fake provider CLI on PATH. Windows only executes files
+# carrying a PATHEXT extension, so a POSIX stub is never found there and the
+# behaviour under test never runs. Those blocks are skipped out loud rather than
+# reported as passing.
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  MINGW*|MSYS*|CYGWIN*) IS_WINDOWS_SHELL=true ;;
+  *)                    IS_WINDOWS_SHELL=false ;;
+esac
 have() { [ -e "$1" ]; }
 
 # Per-tool file map
 case "$TOOL" in
-  claude)   BASELINE="CLAUDE.md";                       RULE="" ;;
-  cursor)   BASELINE=".cursor/rules/workflow.mdc";      RULE=".cursor/rules/workflow.mdc" ;;
-  copilot)  BASELINE=".github/copilot-instructions.md"; RULE=".github/copilot-instructions.md" ;;
-  gemini)   BASELINE="GEMINI.md";                       RULE="GEMINI.md" ;;
-  codex)    BASELINE="AGENTS.md";                       RULE="AGENTS.md" ;;
-  windsurf) BASELINE=".windsurfrules";                  RULE=".devin/rules/workflow.md" ;;
-  opencode) BASELINE="opencode.json";                  RULE=".opencode/rules/workflow.md" ;;
+  claude)   BASELINE="CLAUDE.md"; RULE=".claude/conductor/rules/workflow.md"; REF_ROOT=".claude/conductor" ;;
+  cursor)   BASELINE=".cursor/rules/conductor-kernel.mdc"; RULE=".cursor/conductor/rules/workflow.md"; REF_ROOT=".cursor/conductor" ;;
+  copilot)  BASELINE=".github/copilot-instructions.md"; RULE=".github/copilot-instructions.md"; REF_ROOT=".github/conductor" ;;
+  gemini)   BASELINE="GEMINI.md"; RULE="GEMINI.md"; REF_ROOT=".gemini/conductor" ;;
+  codex)    BASELINE="AGENTS.md"; RULE="AGENTS.md"; REF_ROOT=".codex/conductor" ;;
+  windsurf) BASELINE=".windsurfrules"; RULE=".devin/conductor/rules/workflow.md"; REF_ROOT=".devin/conductor" ;;
+  opencode) BASELINE="opencode.json"; RULE=".opencode/conductor/rules/workflow.md"; REF_ROOT=".opencode/conductor" ;;
 esac
-# claude special-case: universal rule location
-[ "$TOOL" = "claude" ] && RULE=".claude/rules/workflow.md"
 if [ "$TOOL" = "claude" ]; then
   SKILL_ROOT=".claude/skills"
 elif [ "$TOOL" = "opencode" ]; then
@@ -105,7 +113,9 @@ if [ "$TOOL" = "claude" ]; then
       const custom=s.hooks.PreToolUse.some(g=>g.hooks?.some(x=>x.command==="custom-hook"));
       process.exit(s.customSetting==="preserve-me" && custom && s.enabledPlugins?.["hookify@claude-plugins-official"]===true && h.missingCoreHooks(process.argv[1]).length===0 ? 0 : 1)
     ' "$d/.claude/settings.json" "$(pwd)/bin/claude-hookify.js" \
-    && bash tools/validate-adapter-output.sh "$d" claude >/dev/null 2>&1; then
+    && bash tools/validate-adapter-output.sh "$d" claude >/dev/null 2>&1 \
+    && [ ! -e "$d/.claude/hooks/stop-trajectory-log.sh" ] \
+    && ! /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.claude/settings.json"; then
     ok "full: semantically enables Hookify without losing existing settings"
   else bad "full Hookify settings merge"; fi
   run_adapter "$d" --uninstall >/dev/null 2>&1
@@ -113,6 +123,28 @@ if [ "$TOOL" = "claude" ]; then
   [ "$before" = "$after" ] \
     && ok "full: uninstall restores the exact pre-Hookify settings" \
     || bad "full Hookify settings merge was not losslessly reversible"
+
+  d="$BASE/full-trajectory-optout"; mkdir -p "$d"
+  if run_adapter "$d" --no-prompt --recipes=self-improvement >/dev/null 2>&1 \
+    && [ -x "$d/.claude/hooks/stop-trajectory-log.sh" ] \
+    && /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.claude/settings.json" \
+    && run_adapter "$d" --no-prompt --recipes= >/dev/null 2>&1 \
+    && [ ! -e "$d/.claude/hooks/stop-trajectory-log.sh" ] \
+    && ! /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.claude/settings.json" \
+    && ! /usr/bin/grep -q '"self-improvement"' "$d/.conductor/manifests/claude.json" \
+    && bash tools/validate-adapter-output.sh "$d" claude >/dev/null 2>&1; then
+    ok "full: disabling self-improvement retires only its owned trajectory runtime"
+  else bad "full self-improvement trajectory opt-out"; fi
+
+  d="$BASE/full-trajectory-user-edit"; mkdir -p "$d"
+  run_adapter "$d" --no-prompt --recipes=self-improvement >/dev/null 2>&1
+  printf '\n# adopter customization\n' >> "$d/.claude/hooks/stop-trajectory-log.sh"
+  if run_adapter "$d" --no-prompt --recipes= >/dev/null 2>&1 \
+    && /usr/bin/grep -q 'adopter customization' "$d/.claude/hooks/stop-trajectory-log.sh" \
+    && /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.claude/settings.json" \
+    && ! /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.conductor/manifests/claude.json"; then
+    ok "full: disabling self-improvement preserves adopter-modified trajectory runtime"
+  else bad "full self-improvement modified-hook preservation"; fi
 
   d="$BASE/full-hookify-disabled-rule"; mkdir -p "$d"
   run_adapter "$d" --no-prompt >/dev/null 2>&1
@@ -138,6 +170,9 @@ if [ "$TOOL" = "claude" ]; then
     ok "full: explicit Hookify opt-out is preserved and validator/doctor report degraded enforcement"
   else bad "full Hookify explicit opt-out handling"; fi
 
+  if [ "$IS_WINDOWS_SHELL" = "true" ]; then
+    skip "full Hookify live-scope/summary doctor diagnostics (needs a PATH-executable provider stub)"
+  else
   d="$BASE/full-hookify-doctor-scope"; mkdir -p "$d/fake-bin"
   run_adapter "$d" --no-prompt >/dev/null 2>&1
   printf '%s\n' '#!/bin/sh' \
@@ -158,6 +193,7 @@ if [ "$TOOL" = "claude" ]; then
   '; then
     ok "full: doctor rejects mismatched plugin projectPath and keeps the D5 checked-count summary"
   else bad "full Hookify live-scope/summary doctor diagnostics"; fi
+  fi
 
   d="$BASE/full-hookify-invalid"; mkdir -p "$d/.claude"
   printf '{"enabledPlugins":[]}\n' > "$d/.claude/settings.json"
@@ -224,11 +260,9 @@ run_adapter "$d" --no-prompt --recipes=tdd >/dev/null 2>&1
 run_adapter "$d" --uninstall >/dev/null 2>&1
 empty_dirs_clean=true
 [ ! -d "$d/.conductor/manifests" ] || empty_dirs_clean=false
-if [ "$TOOL" = "codex" ]; then
-  [ ! -d "$d/.codex/conductor/rules" ] || empty_dirs_clean=false
-  [ ! -d "$d/.codex/conductor/recipes" ] || empty_dirs_clean=false
-  [ ! -d "$d/.codex/conductor" ] || empty_dirs_clean=false
-fi
+[ ! -d "$d/$REF_ROOT/rules" ] || empty_dirs_clean=false
+[ ! -d "$d/$REF_ROOT/recipes" ] || empty_dirs_clean=false
+[ ! -d "$d/$REF_ROOT" ] || empty_dirs_clean=false
 $empty_dirs_clean \
   && ok "full: uninstall prunes empty managed directories" \
   || bad "full uninstall left empty managed directories"
@@ -237,22 +271,18 @@ $empty_dirs_clean \
 # adopter files in every newly-pruned directory survive with exact bytes.
 d="$BASE/uninstall-user-dirs"; mkdir -p "$d/.conductor/manifests"
 printf 'USER-MANIFEST-DIR-%s\n' "$TOOL" > "$d/.conductor/manifests/user.keep"
-if [ "$TOOL" = "codex" ]; then
-  mkdir -p "$d/.codex/conductor/rules" "$d/.codex/conductor/recipes"
-  printf 'USER-CODEX-RULES\n' > "$d/.codex/conductor/rules/user.keep"
-  printf 'USER-CODEX-RECIPES\n' > "$d/.codex/conductor/recipes/user.keep"
-fi
+mkdir -p "$d/$REF_ROOT/rules" "$d/$REF_ROOT/recipes"
+printf 'USER-REFERENCE-RULES-%s\n' "$TOOL" > "$d/$REF_ROOT/rules/user.keep"
+printf 'USER-REFERENCE-RECIPES-%s\n' "$TOOL" > "$d/$REF_ROOT/recipes/user.keep"
 run_adapter "$d" --no-prompt --recipes=tdd >/dev/null 2>&1
 run_adapter "$d" --uninstall >/dev/null 2>&1
 user_dirs_safe=true
 [ "$(/bin/cat "$d/.conductor/manifests/user.keep" 2>/dev/null)" = "USER-MANIFEST-DIR-$TOOL" ] \
   || user_dirs_safe=false
-if [ "$TOOL" = "codex" ]; then
-  [ "$(/bin/cat "$d/.codex/conductor/rules/user.keep" 2>/dev/null)" = "USER-CODEX-RULES" ] \
-    || user_dirs_safe=false
-  [ "$(/bin/cat "$d/.codex/conductor/recipes/user.keep" 2>/dev/null)" = "USER-CODEX-RECIPES" ] \
-    || user_dirs_safe=false
-fi
+[ "$(/bin/cat "$d/$REF_ROOT/rules/user.keep" 2>/dev/null)" = "USER-REFERENCE-RULES-$TOOL" ] \
+  || user_dirs_safe=false
+[ "$(/bin/cat "$d/$REF_ROOT/recipes/user.keep" 2>/dev/null)" = "USER-REFERENCE-RECIPES-$TOOL" ] \
+  || user_dirs_safe=false
 $user_dirs_safe \
   && ok "full: uninstall preserves adopter files in managed directory roots" \
   || bad "full uninstall removed adopter directory content"
@@ -266,6 +296,11 @@ if $minimal_install_ok && have "$d/$RULE" && have "$d/docs/CURRENT_WORK.md" \
   && portable_skills_present "$d"; then
   ok "minimal: rule text + docs, no Reflector runtime"
 else bad "minimal mode"; fi
+if $minimal_install_ok && bash tools/validate-adapter-output.sh "$d" "$TOOL" >/dev/null 2>&1; then
+  ok "minimal: generic validator honors manifest mode"
+else
+  bad "minimal generic validator rejected supported output"
+fi
 if [ "$TOOL" = "claude" ]; then
   { $minimal_install_ok && [ ! -d "$d/.claude/agents" ] && [ ! -d "$d/.claude/hooks" ] \
     && have "$d/CLAUDE.md" && ! /usr/bin/grep -q '{{CLAUDE_TIER_' "$d/CLAUDE.md"; } \
@@ -374,6 +409,7 @@ $okay && ok "recipes-only: uninstall lossless" || bad "recipes-only uninstall"
 d="$BASE/reflonly"; mkdir -p "$d"
 run_adapter "$d" --mode=reflector-only >/dev/null 2>&1
 okay=true
+[ -s "$d/.conductor/reflect/reflection-proposals.js" ] || okay=false
 if [ "$TOOL" = "claude" ]; then
   # Claude's trajectory logger is the Stop hook, not the portable stdin logger.
   [ -x "$d/.claude/hooks/stop-trajectory-log.sh" ] || okay=false
@@ -393,6 +429,11 @@ case "$TOOL" in
   opencode) { have "$d/.opencode/rules/recipes/self-improvement.md" && have "$d/.opencode/commands/reflect.md" && have "$d/.opencode/agents/reflector.md" && [ ! -f "$d/.opencode/rules/workflow.md" ]; } || okay=false ;;
 esac
 $okay && ok "reflector-only: loop artifacts only" || bad "reflector-only emission"
+if bash tools/validate-adapter-output.sh "$d" "$TOOL" >/dev/null 2>&1; then
+  ok "reflector-only: generic validator honors manifest mode"
+else
+  bad "reflector-only generic validator rejected supported output"
+fi
 run_adapter "$d" --uninstall >/dev/null 2>&1
 if [ ! -d "$d/.conductor" ] || [ -z "$(find "$d/.conductor" -type f ! -path "$d/.conductor/model-routing.json" -print -quit 2>/dev/null)" ]; then
   ok "reflector-only: uninstall clean"
@@ -436,7 +477,7 @@ if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   if [ "$TOOL" = "codex" ]; then
     /usr/bin/sed -i.bak 's/`tdd`/`tdd-CUSTOMIZED`/' "$d/$BASELINE"
   else
-    /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE"
+    /usr/bin/sed -i.bak 's/CONDUCTOR recipe trigger — Test-Driven Development/CONDUCTOR recipe trigger — Test-Driven Development (CUSTOMIZED)/' "$d/$BASELINE"
   fi
   rm -f "$d/$BASELINE.bak"
   before="$(/usr/bin/cksum < "$d/$BASELINE")"
@@ -474,7 +515,7 @@ if [ "$TOOL" = "gemini" ] || [ "$TOOL" = "codex" ]; then
   if [ "$TOOL" = "codex" ]; then
     /usr/bin/sed -i.bak 's/`tdd`/`tdd-CUSTOMIZED`/' "$d/$BASELINE"
   else
-    /usr/bin/sed -i.bak 's/## Recipe — tdd/## Recipe — tdd (CUSTOMIZED)/' "$d/$BASELINE"
+    /usr/bin/sed -i.bak 's/CONDUCTOR recipe trigger — Test-Driven Development/CONDUCTOR recipe trigger — Test-Driven Development (CUSTOMIZED)/' "$d/$BASELINE"
   fi
   rm -f "$d/$BASELINE.bak"
   run_adapter "$d" --uninstall >/dev/null 2>&1

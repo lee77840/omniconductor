@@ -9,15 +9,15 @@ must_do:
   - learn from BOTH successful and failed trajectories; when a failure and a later success address the same task, distil the delta between them
   - emit each lesson as an ADD, UPDATE, or STALE delta (never prose paragraphs, never a rewritten file)
   - cite provenance for every lesson (a session id, a commit ref, or a retro line) — a lesson with no citation is dropped
-  - append proposals to docs/REFLECTION-PROPOSALS.md and stop
+  - emit the typed proposal envelope from the reflect brief to stdout and stop
 must_not_do:
   - apply any change (no edits to rules, memory files, or code)
   - propose a lesson that is not grounded in a cited trajectory
   - rewrite an entire memory or rule file
   - exceed the weekly rule-file-edit budget (see anti-patterns/frequent-rule-file-edit.md — more than 3 rule-file commits/week is itself a smell)
   - read whole large transcripts without ranges; summarize each session first (map), then synthesize (reduce)
-output_format: "appended entries in docs/REFLECTION-PROPOSALS.md, each: { op: ADD|UPDATE|STALE, target, lesson (one line), why, how-to-apply, provenance }"
-stop_condition: "proposals appended to docs/REFLECTION-PROPOSALS.md; awaiting human GO. The reflector never proceeds to apply."
+output_format: "one typed JSON envelope on stdout; the trusted CONDUCTOR writer validates and appends it"
+stop_condition: "proposal envelope emitted; awaiting deterministic import and human GO. The reflector never writes or applies."
 ---
 
 # Reflector
@@ -48,17 +48,10 @@ The reflector is CONDUCTOR's self-improvement actor. It reads what actually happ
 2. git history — universal.
 3. Retro artifact (`docs/CURRENT_WORK.md`, `docs/sessions/*`) — fallback.
 
-## Output — append to `docs/REFLECTION-PROPOSALS.md`
+## Output — emit data for the trusted proposal writer
 
-Each proposal is one delta. Use this exact shape (see `core/memory-pattern/README.md` for the target lesson file format):
-
-```markdown
-- **[ADD]** target: `feedback_lesson-<slug>.md`
-  - lesson: <one line>
-  - why: <one line>
-  - how-to-apply: <one line>
-  - provenance: <session-id | commit | retro-line>
-```
+Each proposal is one delta inside the typed envelope defined in
+`core/reflector/reflect-brief.md`. The model never edits the proposal file.
 
 `UPDATE` names an existing lesson slug and states the reinforcement/refinement; `STALE` names a lesson slug and states why it is superseded.
 
@@ -69,4 +62,6 @@ Each proposal is one delta. Use this exact shape (see `core/memory-pattern/READM
 
 ## Stop condition
 
-The reflector is done when every candidate lesson is written as a delta in `docs/REFLECTION-PROPOSALS.md` with provenance, and nothing has been applied.
+The reflector is done when every candidate lesson is emitted in the typed
+envelope with provenance. The deterministic writer owns the only permitted
+workspace write; nothing has been applied.

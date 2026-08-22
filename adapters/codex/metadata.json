@@ -6,6 +6,7 @@
   "outputs": [
     { "path": "AGENTS.md", "kind": "always_loaded", "validated": true },
     { "path": ".codex/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".codex/conductor/recipes", "kind": "recipe_references", "validated": true },
     { "path": ".codex/agents", "kind": "agents", "validated": true },
     { "path": ".codex/hooks", "kind": "hooks", "validated": true },
     { "path": ".codex/hooks.json", "kind": "config", "validated": true },
@@ -13,6 +14,7 @@
     { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
+  "instruction_loading": { "strategy": "bounded-kernel+complete-references", "eager": ["AGENTS.md"], "reference_roots": [".codex/conductor/rules", ".codex/conductor/recipes"], "recipe_pointer_root": null, "native_scoping": "explicit-read" },
   "reflector_outputs": [
     { "path": ".codex/hooks.json", "note": "Stop trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }

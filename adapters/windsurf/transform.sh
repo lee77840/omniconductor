@@ -19,16 +19,17 @@
 #   bash adapters/windsurf/transform.sh . --uninstall --force      # bypass safety checks
 #
 # Layer 2 transformation (per ADR-004 honesty + ADR-021):
-#   core/universal-rules/*.md      →  <target>/.devin/rules/*.md     (front-matter stripped; preferred over legacy .windsurf/rules/)
-#   <synthesized>                  →  <target>/.windsurfrules        (always-loaded baseline)
-#   core/recipes/*.md (selected)   →  <target>/.devin/rules/*.md     (front-matter stripped)
+#   core/runtime-kernel.md         →  <target>/.windsurfrules        (bounded always-loaded contract)
+#   core/universal-rules/*.md      →  <target>/.devin/conductor/rules/*.md (byte-identical references)
+#   core/recipes/*.md (selected)   →  complete .devin/conductor/recipes/*.md + compact .devin/rules/*.md pointers
 #   core/docs-templates/*.md       →  <target>/docs/*.md             (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   core/hooks/*.sh.template       →  Windsurf-verified lifecycle/recipe subset only; Claude/Codex have additional verified guards
 #   core/roles/*.md                →  <target>/.windsurf/workflows/*.md (native invocable role workflows)
 #   adapters/claude/hookify-...    →  SKIPPED (Claude-only plugin)
 #
-# This adapter emits no per-pattern glob scoping (all files in .devin/rules/ load
-# together). Windsurf has no verified project-local custom-agent profile contract,
+# This adapter emits no per-pattern glob scoping. Only compact selected-recipe
+# pointers live in .devin/rules/ and load together; complete references stay out
+# of that eager surface. Windsurf has no verified project-local custom-agent profile contract,
 # so CONDUCTOR emits native, manually invocable role workflows instead. It emits the Reflector hook when
 # --recipes=self-improvement (ADR-032); unverified guard ports are not emitted
 # (ADR-034) and are noted in .windsurfrules.
@@ -108,7 +109,7 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/windsurf/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to install
+  --recipes=A,B,C       Exact recipe list (overrides onboarding; empty disables all)
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
                         docs only; no Reflector runtime) | strict (abort if .windsurfrules or
                         .devin/rules/ already exists) | recipes-only (ONLY the selected recipe
@@ -477,7 +478,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty Conductor-emitted dirs left behind.
-  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .windsurf/rules .windsurf/workflows .windsurf/hooks .windsurf .devin/rules .devin/conductor/rules .devin/conductor/recipes .devin/conductor .devin .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -575,16 +576,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
     echo "  Skipping universal-rules installation."
   fi
 
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, or leave blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
   else
-    echo "  No recipes selected."
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, or leave blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; else echo "  No recipes selected."; fi
   fi
 
   echo ""
@@ -618,151 +618,101 @@ elif [ "$DRY_RUN" = "true" ]; then
   log "would write $WINDSURFRULES_DEST (orchestrator intro + ABSOLUTE rules summary + pointers)"
 else
   backup_and_remember "$WINDSURFRULES_DEST"
-  /bin/cat > "$WINDSURFRULES_DEST" <<'EOF'
-# Project Orchestrator Manual (installed by CONDUCTOR)
-# CONDUCTOR 가 설치한 프로젝트 오케스트레이터 매뉴얼
+  {
+    conductor_render_runtime_kernel "Windsurf / Devin Desktop" ".devin/conductor/rules" ".devin/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES"
+    /bin/cat <<'EOF'
 
-> This file is the always-loaded baseline for Windsurf. It loads on every session.
-> 이 파일은 Windsurf 의 항상-로드 베이스라인입니다. 매 세션마다 자동 로드됩니다.
+## Windsurf / Devin native appendix
 
-## Role / 역할
-
-You are the orchestrator: plan first, act deliberately, verify before declaring done.
-당신은 오케스트레이터입니다: 먼저 계획하고, 신중하게 실행하고, 완료 선언 전에 검증하세요.
-
-CONDUCTOR installs eight native role workflows under `.windsurf/workflows/`.
-Invoke the appropriate workflow before planning, implementation, or review so
-planner, builder, reviewer, and code-reviewer responsibilities remain separate.
-CONDUCTOR 는 `.windsurf/workflows/` 아래에 8개 역할 워크플로를 설치합니다.
-계획·구현·리뷰 전에 해당 워크플로를 호출해 책임을 분리하세요.
-
-## ABSOLUTE rules / 절대 규칙 (read before every change)
-
-These are the universal floor. The full text loads from `.devin/rules/`.
-이것들이 보편 규칙의 최소선입니다. 전체 본문은 `.devin/rules/` 에서 로드됩니다.
-
-| Rule | Summary |
-|---|---|
-| `workflow.md` | Plan-first, docs-first, 7-step process, process-over-speed, never-skip ABSOLUTE rules |
-| `spec-as-you-go.md` | Update the spec in the SAME turn as the code edit; keep docs synced in real time |
-| `quality-gates.md` | Pre-commit + pre-merge review, test coverage sync, verify-after-changes |
-| `operations.md` | Session continuity, delete completed tasks, keep dev/prod in sync |
-| `meta-discipline.md` | Originality, ambiguity AMB-1..7 triggers, token economy, model routing |
-
-If you catch yourself about to break one, STOP and fix course. Silent recovery is
-worse than explicit acknowledgment.
-하나라도 어기려는 자신을 발견하면 멈추고 바로잡으세요. 조용한 무마는 명시적 인정보다 나쁩니다.
-
-## Ambiguity policy / 모호성 정책
-
-Default: ACT-WITH-DECLARATION — proceed with the best-guess interpretation and
-surface the assumption at the top of your response.
-기본값: 선언과 함께 실행 — 최선의 해석으로 진행하되 가정을 응답 상단에 명시하세요.
-
-Override to ASK (multiple-choice) when AMB-1..7 fires: deictic reference,
-unspecified scope, external-system invocation, protected-branch merge, design
-decisions, dependency add, or user-manual-action required. Full catalog:
-`.devin/rules/meta-discipline.md`.
-
-## Session startup / 세션 시작
-
-Read `docs/CURRENT_WORK.md` FIRST every session before touching code.
-매 세션마다 코드를 건드리기 전에 `docs/CURRENT_WORK.md` 를 먼저 읽으세요.
-
-Lazy-load on demand: `docs/specs/<area>.md` when touching that area's code;
-`docs/PLANS.md` / `docs/TASKS.md` for planning context.
-
-## Canonical artifact paths / 정본 문서 경로
-
-| Artifact | Path |
-|---|---|
-| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
-| Long-lived domain spec | `docs/specs/<area>.md` |
-| Architecture / ADR | `docs/architecture/README.md` / `docs/architecture/NNNN-<topic>.md` |
-| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
-
-Existing files and plugin folders are not policy. These paths win unless
-`docs/INDEX.md` explicitly declares a project override; an unresolved conflict
-requires STOP + ASK before writing.
-
-## Additional rules / 추가 규칙
-
-Additional rules load from `.devin/rules/` (preferred; legacy `.windsurf/rules/`
-is still read) — all files in that directory load together (Windsurf has no
-per-pattern glob scoping). Selected recipes are emitted there too.
-추가 규칙은 `.devin/rules/` 에서 로드됩니다 (선호 경로; 레거시 `.windsurf/rules/` 도 계속
-읽힘) — 해당 디렉터리의 모든 파일이 함께 로드됩니다 (Windsurf 는 패턴별 glob 스코핑이
-없음). 선택한 recipe 도 이곳에 생성됩니다.
-
-## Not enforced on Windsurf / Windsurf 에서 미강제
-
-CONDUCTOR emits verified Windsurf surfaces only: rules, role workflows, and the
-optional Reflector lifecycle hook. The following remain explicit obligations
-because this adapter has no verified native guard contract for them:
-
-- Spec-as-you-go same-turn update — CONDUCTOR emits no Stop hook here yet to block stale docs.
-- Two-stage code review (pre-commit / pre-merge) — pair with a git pre-commit hook for mechanical enforcement.
-- Model routing — the saved CONDUCTOR requirement is **Adaptive** for all three immutable Tiers. Select Adaptive in Cascade before starting work. Windsurf exposes no project workflow model field or selector-state API, so this is advisory-session rather than falsely reported as enforced.
+Full/strict installs expose eight role workflows under `.windsurf/workflows/`.
+The adapter has no verified per-pattern rule loader, so complete references are
+read explicitly only when the kernel routing table applies. Spec-as-you-go and
+two-stage review remain rule obligations where no verified native continuation
+contract exists. The saved model requirement is Adaptive for all three invariant
+Tiers; the provider exposes no project workflow field or selector-state API.
 EOF
-  record_emit ".windsurfrules" "<synthesized>" "$MANIFEST_LAST_BACKUP"
+  } > "$WINDSURFRULES_DEST"
+  record_emit ".windsurfrules" "core/runtime-kernel.md" "$MANIFEST_LAST_BACKUP"
   log "  wrote $WINDSURFRULES_DEST"
 fi
 
 fi
 
-# ----- step 2: universal rules -> .devin/rules/*.md ----------------------
+# ----- step 2: complete universal references (not eagerly loaded) --------
 
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 2/4: universal-rules — skipped (--mode=$MODE is à la carte)"
 elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
-  log "Step 2/4: universal-rules → .devin/rules/ (preferred; legacy .windsurf/rules/ still read)"
-  mkdir_if_real "$TARGET_ABS/.devin/rules"
+  log "Step 2/4: universal-rules → .devin/conductor/rules/ (complete on-demand references)"
+  mkdir_if_real "$TARGET_ABS/.devin/conductor/rules"
 
   for rule in $UNIVERSAL_RULES; do
     src="$CORE_ROOT/universal-rules/$rule.md"
-    dest="$TARGET_ABS/.devin/rules/$rule.md"
+    dest="$TARGET_ABS/.devin/conductor/rules/$rule.md"
     if [ ! -f "$src" ]; then
       echo "Warning: $src not found; skipping" >&2
       continue
     fi
     if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ] \
-      && [ -z "$(conductor_manifest_entry_for_path ".devin/rules/$rule.md" 2>/dev/null || true)" ]; then
+      && [ -z "$(conductor_manifest_entry_for_path ".devin/conductor/rules/$rule.md" 2>/dev/null || true)" ]; then
       log "  $dest is user-owned — SKIP (exists)"
       continue
     fi
-    backup_and_remember "$dest"
-    emit_rule "$src" "$dest"
-    record_emit ".devin/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would emit complete rule reference $dest"
+    else
+      backup_and_remember "$dest"
+      /bin/cp "$src" "$dest"
+      record_emit ".devin/conductor/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    fi
+    conductor_retire_owned_path ".devin/rules/$rule.md" "replaced by bounded kernel plus complete on-demand reference"
   done
 else
   log "Step 2/4: universal-rules — skipped (user opted out)"
 fi
 
-# ----- step 3: recipes (opt-in) -> .devin/rules/*.md ---------------------
+# ----- step 3: recipes -> complete references + compact native pointers ---
 
-log "Step 3/4: recipes (opt-in) → .devin/rules/ (preferred; legacy .windsurf/rules/ still read)"
+log "Step 3/4: recipes (opt-in) → .devin/conductor/recipes/ + compact .devin/rules/ pointers"
 INSTALLED_RECIPES=""
 if [ -n "$RECIPES" ]; then
   mkdir_if_real "$TARGET_ABS/.devin/rules"
+  mkdir_if_real "$TARGET_ABS/.devin/conductor/recipes"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
     [ -z "$r" ] && continue
     src="$CORE_ROOT/recipes/$r.md"
+    ref="$TARGET_ABS/.devin/conductor/recipes/$r.md"
     dest="$TARGET_ABS/.devin/rules/$r.md"
     if [ ! -f "$src" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
     fi
-    if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ] \
-      && [ -z "$(conductor_manifest_entry_for_path ".devin/rules/$r.md" 2>/dev/null || true)" ]; then
-      log "  $dest is user-owned — SKIP (exists)"
-      INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
-      continue
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would emit complete recipe reference $ref"
+    else
+      backup_and_remember "$ref"
+      /bin/cp "$src" "$ref"
+      record_emit ".devin/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     fi
-    backup_and_remember "$dest"
-    emit_rule "$src" "$dest"
-    record_emit ".devin/rules/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+    if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
+      if [ -f "$dest" ] && [ "$DRY_RUN" = "false" ] \
+        && [ -z "$(conductor_manifest_entry_for_path ".devin/rules/$r.md" 2>/dev/null || true)" ]; then
+        log "  $dest is user-owned — SKIP (exists)"
+        INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
+        continue
+      fi
+      if [ "$DRY_RUN" = "true" ]; then
+        log "would emit compact recipe pointer $dest"
+      else
+        backup_and_remember "$dest"
+        conductor_render_recipe_pointer_body "$src" ".devin/conductor/recipes/$r.md" > "$dest"
+        record_emit ".devin/rules/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+      fi
+    else
+      conductor_retire_owned_path ".devin/rules/$r.md" "full-mode kernel recipe routing"
+    fi
     INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
   done
 else
@@ -821,6 +771,9 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
         record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
       done
+      d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"
@@ -915,7 +868,7 @@ if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   echo "  Universal rules: 0 (à la carte — no .windsurfrules baseline)"
 else
   echo "  Always-loaded baseline: .windsurfrules"
-  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") (.devin/rules/*.md, front-matter stripped)"
+  echo "  Universal rules: $(find "$CORE_ROOT/universal-rules" -maxdepth 1 -name "*.md" ! -name "README.md" 2>/dev/null | wc -l | tr -d " ") byte-identical references under .devin/conductor/rules/"
 fi
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"
 echo ""
@@ -926,7 +879,7 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
 else
   echo "  - Role entry points: omitted by --mode=$MODE."
 fi
-echo "  - Per-pattern glob scoping: all .devin/rules/*.md load together."
+echo "  - Per-pattern glob scoping: unavailable; compact .devin/rules recipe pointers load together."
 echo "  - Hookify rule templates: Claude-only plugin."
 echo ""
 echo " Activation: reopen the project in Windsurf so .windsurfrules + .devin/rules/ reload."

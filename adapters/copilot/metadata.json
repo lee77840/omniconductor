@@ -4,14 +4,17 @@
   "display_name": "Copilot",
   "tier": "T2",
   "outputs": [
-    { "path": ".github/copilot-instructions.md", "kind": "always_loaded", "validated": true },
-    { "path": ".github/instructions", "kind": "rules", "validated": true },
+    { "path": ".github/copilot-instructions.md", "kind": "bounded_kernel", "validated": true },
+    { "path": ".github/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".github/conductor/recipes", "kind": "recipe_references", "validated": true },
+    { "path": ".github/instructions", "kind": "bounded_kernel_and_recipe_pointers", "validated": true },
     { "path": ".github/agents", "kind": "agents", "validated": true },
     { "path": ".github/hooks", "kind": "hooks", "validated": true },
     { "path": ".github/hooks/conductor-reflect.json", "kind": "config", "validated": true },
     { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
+  "instruction_loading": { "strategy": "bounded-kernel+complete-references", "eager": [".github/copilot-instructions.md"], "eager_alternatives": [[".github/copilot-instructions.md"], [".github/instructions/conductor-kernel.instructions.md"]], "reference_roots": [".github/conductor/rules", ".github/conductor/recipes"], "recipe_pointer_root": ".github/instructions", "native_scoping": "applyTo" },
   "reflector_outputs": [
     { "path": ".github/hooks/conductor-reflect.json", "note": "session-end trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
@@ -29,7 +32,7 @@
       "skills": "yes"
     },
     "conductor_emitted": {
-      "rules": "full",
+      "rules": "bounded-kernel+full-references",
       "guard_hooks": "commit-soft-warn+review-stop-native",
       "reflector_loop": "recipe",
       "role_agents": "full",

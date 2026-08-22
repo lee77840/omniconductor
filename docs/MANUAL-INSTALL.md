@@ -61,12 +61,15 @@ Each tool consumes a different syntax. When you copy a rule file into a tool-nat
 
 | Conductor field | Claude Code | Cursor (`.mdc`) | Copilot (`.instructions.md`) | Gemini / Codex / Windsurf | OpenCode v1 |
 |---|---|---|---|---|---|
-| `applies_to: ["a", "b"]` | `paths: ["a", "b"]` | `globs: a, b` (CSV) | `applyTo: 'a, b'` (CSV string) | (drop — single bundled file) | Strip frontmatter; list path/glob in `opencode.json` `instructions` |
-| `always_loaded: true` | drop `paths:` (auto-loads) | `alwaysApply: true` | `applyTo: '**'` | (drop — file always loads) | Include in `instructions` |
+| `applies_to: ["a", "b"]` | Compact pointer `paths:` | Compact pointer `globs:` | Compact pointer `applyTo:` | Use explicit Read routing | Register only a compact pointer in à-la-carte mode |
+| `always_loaded: true` | Keep summary in bounded kernel; full text under `conductor/rules/` | Same | Same | Same | Same |
 | `always_loaded: false` | `paths: [...]` required | `alwaysApply: false` + `globs:` | `applyTo: '<csv>'` | not representable | Use a narrower instruction glob |
 | `tier: T1/T2/T3` | (informational) | (informational) | (informational) | (informational) | (informational) |
 
-> Conductor's universal rules (`meta-discipline`, `operations`, `quality-gates`, `spec-as-you-go`, `workflow`) are all `always_loaded: true` — make sure the tool-specific equivalent is set. Skipping this is the most common manual-install mistake.
+> Since v1.7, do **not** copy all five complete universal rules into the eager
+> surface. Keep the bounded kernel always active and store complete byte-identical
+> references under the adapter's `conductor/rules/` directory. The guided installer
+> is strongly preferred because it renders routing, checks budgets, and owns rollback.
 
 ---
 
@@ -114,20 +117,19 @@ not create CONDUCTOR manifest ownership.
 ```bash
 cd <target>
 
-# 1. Create Cursor rule directory
-mkdir -p .cursor/rules
-
-# 2. Copy each universal rule with .mdc extension
+# 1. Copy complete rules outside the eager surface
+mkdir -p .cursor/rules .cursor/conductor/rules
 for f in ~/conductor/core/universal-rules/*.md; do
   base=$(basename "$f" .md)
-  cp "$f" ".cursor/rules/${base}.mdc"
+  [ "$base" = README ] || cp "$f" ".cursor/conductor/rules/${base}.md"
 done
 
-# 3. Append always-loaded rules to .cursorrules baseline
-#    (all 5 universal rules are always-loaded; bundle them for older Cursor versions)
-cat ~/conductor/core/universal-rules/meta-discipline.md \
-    ~/conductor/core/universal-rules/spec-as-you-go.md \
-    > .cursorrules
+# 2. Render only the bounded kernel as always-active
+CORE_ROOT="$HOME/conductor/core"
+. "$HOME/conductor/tools/manifest-safety.sh"
+{ printf '%s\n' '---' 'alwaysApply: true' '---' ''; \
+  conductor_render_runtime_kernel "Cursor" ".cursor/conductor/rules" ".cursor/conductor/recipes" true ""; \
+} > .cursor/rules/conductor-kernel.mdc
 
 # 4. Copy doc templates (skip if you already have docs/CURRENT_WORK.md etc.)
 mkdir -p docs/specs docs/plans docs/architecture docs/research
@@ -212,19 +214,19 @@ GitHub Copilot supports custom instructions via `.github/instructions/*.instruct
 ```bash
 cd <target>
 
-# 1. Create instructions directory
-mkdir -p .github/instructions
-
-# 2. Copy + rename to .instructions.md
+# 1. Copy complete rules outside the eager surface
+mkdir -p .github/instructions .github/conductor/rules
 for f in ~/conductor/core/universal-rules/*.md; do
   base=$(basename "$f" .md)
-  cp "$f" ".github/instructions/${base}.instructions.md"
+  [ "$base" = README ] || cp "$f" ".github/conductor/rules/${base}.md"
 done
 
-# 3. Build always-loaded baseline (all 5 universal rules)
-cat ~/conductor/core/universal-rules/meta-discipline.md \
-    ~/conductor/core/universal-rules/spec-as-you-go.md \
-    > .github/instructions/all.instructions.md
+# 2. Render only the bounded kernel as repo-wide instructions
+CORE_ROOT="$HOME/conductor/core"
+. "$HOME/conductor/tools/manifest-safety.sh"
+{ printf '%s\n' '---' "applyTo: '**'" '---' ''; \
+  conductor_render_runtime_kernel "GitHub Copilot" ".github/conductor/rules" ".github/conductor/recipes" true ""; \
+} > .github/instructions/conductor-kernel.instructions.md
 ```
 
 ### Windows / Git Bash
@@ -276,20 +278,23 @@ rm -rf .github/instructions
 
 > **An adapter now exists** — prefer `bash adapters/gemini/transform.sh <target>`; the manual steps below are a fallback.
 
-Gemini CLI uses a single `GEMINI.md` file (or `~/.gemini/instructions.md` for global). No frontmatter, no globs — everything is one bundle, always loaded.
+Gemini CLI uses `GEMINI.md` as its eager project surface. Keep that file bounded and
+place complete rules under `.gemini/conductor/rules/` for explicit Read routing.
 
 ### Mac / Linux / Windows-WSL2
 
 ```bash
 cd <target>
 
-# Concatenate all universal rules into GEMINI.md
-cat ~/conductor/core/universal-rules/*.md > GEMINI.md
+# Complete on-demand rules
+mkdir -p .gemini/conductor/rules
+cp ~/conductor/core/universal-rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md \
+  .gemini/conductor/rules/
 
-# Optional: add recipes
-cat ~/conductor/core/recipes/coding-conventions.md \
-    ~/conductor/core/recipes/monorepo.md \
-    >> GEMINI.md
+# Bounded eager kernel
+CORE_ROOT="$HOME/conductor/core"
+. "$HOME/conductor/tools/manifest-safety.sh"
+conductor_render_runtime_kernel "Gemini CLI" ".gemini/conductor/rules" ".gemini/conductor/recipes" true "" > GEMINI.md
 
 # Doc templates (same as Cursor section)
 mkdir -p docs/specs docs/plans docs/architecture docs/research
@@ -300,13 +305,8 @@ mkdir -p docs/specs docs/plans docs/architecture docs/research
 
 ### Windows / Git Bash
 
-Same. Or use PowerShell `Get-Content`:
-
-```powershell
-Get-ChildItem C:\conductor\core\universal-rules\*.md |
-  Get-Content |
-  Set-Content GEMINI.md
-```
+Run the same commands in Git Bash. Native PowerShell users should use the guided
+`npx` installer; concatenating the complete rules recreates the eager-token problem.
 
 ### Frontmatter rewrite
 
@@ -320,7 +320,8 @@ Get-ChildItem C:\conductor\core\universal-rules\*.md |
 
 ### Limitations
 
-- No lazy load — every rule is loaded every turn (token cost higher than Claude/Cursor/Copilot).
+- Gemini has no verified automatic per-pattern loader in this contract; the kernel
+  explicitly routes the agent to the exact complete reference when an activity applies.
 - Manual install ships rule text only — no hook configs or agents (the tool supports hooks/sub-agents natively, ADR-031; the bash adapter emits the opt-in Reflector hook, broader emission is Phase 2 — ADR-034).
 
 ### Uninstall
@@ -342,11 +343,15 @@ Codex CLI reads `AGENTS.md` (and historically `.codex/codex.md` — both support
 ```bash
 cd <target>
 
-# Concatenate universal rules
-cat ~/conductor/core/universal-rules/*.md > AGENTS.md
+# Complete on-demand rules
+mkdir -p .codex/conductor/rules
+cp ~/conductor/core/universal-rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md \
+  .codex/conductor/rules/
 
-# Recipes (optional)
-cat ~/conductor/core/recipes/coding-conventions.md >> AGENTS.md
+# Bounded eager kernel
+CORE_ROOT="$HOME/conductor/core"
+. "$HOME/conductor/tools/manifest-safety.sh"
+conductor_render_runtime_kernel "Codex" ".codex/conductor/rules" ".codex/conductor/recipes" true "" > AGENTS.md
 
 # Doc templates (same pattern as Gemini)
 mkdir -p docs/specs docs/plans docs/architecture docs/research
@@ -369,7 +374,7 @@ None — Codex ignores YAML frontmatter. Optional cleanup: strip `---...---` blo
 
 ### Limitations
 
-- Single bundled file, no per-pattern routing.
+- Bounded root kernel with explicit Read routing to complete references.
 - Manual install ships rule text only — no hook configs or agents (the tool supports hooks/sub-agents natively, ADR-031; the bash adapter emits the opt-in Reflector hook, broader emission is Phase 2 — ADR-034).
 
 ### Uninstall
@@ -391,21 +396,13 @@ Windsurf reads `.windsurfrules` (always-loaded) plus `.codeium/instructions/*.md
 ```bash
 cd <target>
 
-# Always-loaded baseline (all 5 universal rules)
-cat ~/conductor/core/universal-rules/meta-discipline.md \
-    ~/conductor/core/universal-rules/operations.md \
-    ~/conductor/core/universal-rules/quality-gates.md \
-    ~/conductor/core/universal-rules/spec-as-you-go.md \
-    ~/conductor/core/universal-rules/workflow.md \
-    > .windsurfrules
-
-# Directory-scoped (best effort — verify your Windsurf version supports this)
-mkdir -p .codeium/instructions
-for f in ~/conductor/core/universal-rules/operations.md \
-         ~/conductor/core/universal-rules/quality-gates.md \
-         ~/conductor/core/universal-rules/meta-discipline.md; do
-  cp "$f" ".codeium/instructions/$(basename "$f")"
-done
+# Complete on-demand rules plus bounded eager kernel
+mkdir -p .devin/conductor/rules
+cp ~/conductor/core/universal-rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md \
+  .devin/conductor/rules/
+CORE_ROOT="$HOME/conductor/core"
+. "$HOME/conductor/tools/manifest-safety.sh"
+conductor_render_runtime_kernel "Devin Desktop" ".devin/conductor/rules" ".devin/conductor/recipes" true "" > .windsurfrules
 ```
 
 ### Windows / Git Bash
@@ -431,7 +428,7 @@ Windsurf rule format is **NOT VERIFIED for v0.2** — check the Windsurf docs fo
 
 ```bash
 rm -f .windsurfrules
-rm -rf .codeium/instructions
+rm -rf .devin/conductor
 ```
 
 ---
@@ -443,12 +440,15 @@ permissions and guards, and records reversible ownership. For a rule-only manual
 
 ```bash
 cd <target>
-mkdir -p .opencode/rules
+mkdir -p .opencode/rules .opencode/conductor/rules
 for f in ~/conductor/core/universal-rules/*.md; do
   [ "$(basename "$f")" = "README.md" ] && continue
-  awk 'BEGIN{body=0} /^---$/{n++; if(n==2){body=1; next}} body' "$f" \
-    > ".opencode/rules/$(basename "$f")"
+  cp "$f" ".opencode/conductor/rules/$(basename "$f")"
 done
+CORE_ROOT="$HOME/conductor/core"
+. "$HOME/conductor/tools/manifest-safety.sh"
+conductor_render_runtime_kernel "OpenCode" ".opencode/conductor/rules" ".opencode/conductor/recipes" true "" \
+  > .opencode/rules/conductor-kernel.md
 ```
 
 Then merge this entry into the existing regular `opencode.json` object without
@@ -457,7 +457,7 @@ removing unrelated keys:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": [".opencode/rules/*.md"]
+  "instructions": [".opencode/rules/conductor-kernel.md"]
 }
 ```
 

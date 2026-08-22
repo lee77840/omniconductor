@@ -17,6 +17,22 @@ function test(name, fn) {
 }
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-extension-trust-'));
+// Windows `fs.rmSync(target, { force: true })` does not remove a dangling
+// symlink, and a later writeFileSync then follows the surviving link instead of
+// replacing it. The path stays a symlink, the audit correctly reports
+// SYMLINK_SKIPPED rather than reading a literal secret, and the assertion that
+// expects a HIGH finding fails on a product that behaved exactly right.
+// unlinkSync removes the link itself on every platform.
+function removeEntry(target) {
+  try {
+    fs.unlinkSync(target);
+    return;
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+  }
+  try { fs.rmSync(target, { force: true, recursive: true }); } catch { /* already absent */ }
+}
+
 try {
   test('all seven metadata contracts validate', () => {
     for (const tool of trust.TOOLS) {
@@ -64,7 +80,7 @@ try {
   test('symlinked configuration is not followed', () => {
     const outside = path.join(os.tmpdir(), `conductor-secret-${process.pid}.json`);
     fs.writeFileSync(outside, JSON.stringify({ token: 'must-not-be-read' }));
-    fs.rmSync(path.join(sandbox, '.mcp.json'), { force: true });
+    removeEntry(path.join(sandbox, '.mcp.json'));
     fs.symlinkSync(outside, path.join(sandbox, '.mcp.json'));
     const report = trust.audit(sandbox, ['claude']);
     assert(report.adapters[0].findings.some((item) => item.code === 'SYMLINK_SKIPPED'));
@@ -91,7 +107,7 @@ try {
   });
 
   test('CLI JSON is machine-readable and exits non-zero on HIGH findings', () => {
-    fs.rmSync(path.join(sandbox, '.mcp.json'), { force: true });
+    removeEntry(path.join(sandbox, '.mcp.json'));
     fs.writeFileSync(path.join(sandbox, '.mcp.json'), '{"token":"literal"}\n');
     const result = spawnSync(process.execPath, [
       path.join(ROOT, 'bin', 'omniconductor.js'), 'audit', 'extensions', sandbox, '--target=claude', '--json',

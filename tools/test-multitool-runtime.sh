@@ -200,7 +200,7 @@ for f in workflow spec-as-you-go quality-gates operations meta-discipline; do
 done
 if [ "$codex_kernel_bytes" -le 24576 ] \
   && /usr/bin/grep -qF 'CONDUCTOR_KERNEL_END' "$TARGET/AGENTS.md" \
-  && /usr/bin/grep -qF 'one or two files uses `helper`' "$TARGET/AGENTS.md" \
+  && /usr/bin/grep -qF 'one or two files uses' "$TARGET/.codex/conductor/rules/workflow.md" \
   && /usr/bin/grep -qF 'Exact reviewed snapshot, unchanged base' "$TARGET/.codex/conductor/rules/quality-gates.md" \
   && /usr/bin/grep -qF 'Final stable snapshot' "$TARGET/.codex/conductor/rules/quality-gates.md" \
   && $codex_refs \
@@ -295,7 +295,7 @@ fi
 if bash adapters/codex/transform.sh "$TARGET" --uninstall >/dev/null 2>&1 \
   && [ "$(manifest_count "$TARGET")" -eq 6 ] \
   && [ "$(projection_count "$TARGET")" -eq 6 ] \
-  && [ -s "$TARGET/.claude/rules/workflow.md" ] \
+  && [ -s "$TARGET/.claude/conductor/rules/workflow.md" ] \
   && [ -s "$TARGET/.agents/skills/plan-change/SKILL.md" ] \
   && [ -s "$TARGET/docs/CURRENT_WORK.md" ]; then
   ok "uninstalling one adapter preserves the other six, shared skills, and shared docs"

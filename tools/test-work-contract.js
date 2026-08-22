@@ -39,6 +39,40 @@ function createRepo(name) {
 function owner(tool, session) { return { tool, session }; }
 
 try {
+  test('a repository without commits fails cleanly and explains the required recovery', () => {
+    const repo = path.join(sandbox, 'no-commits');
+    fs.mkdirSync(repo, { recursive: true });
+    git(repo, ['init', '-q']);
+    let result = spawnSync(process.execPath, [
+      'bin/omniconductor.js', 'work', 'claim', 'first-task', repo,
+      '--tool=codex', '--session=empty-repo', '--scope=.', '--json',
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 2, result.stdout);
+    assert.match(result.stderr, /repository has no commits yet; make an initial commit before claiming work/);
+    assert.strictEqual(fs.existsSync(path.join(repo, '.git', 'conductor')), false, 'failed claim left work-contract state');
+
+    fs.writeFileSync(path.join(repo, 'README.md'), 'initial\n');
+    git(repo, ['add', 'README.md']);
+    git(repo, ['-c', 'user.name=CONDUCTOR Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'initial']);
+    result = spawnSync(process.execPath, [
+      'bin/omniconductor.js', 'work', 'claim', 'first-task', repo,
+      '--tool=codex', '--session=empty-repo', '--scope=.', '--json',
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(JSON.parse(result.stdout).record.task_id, 'first-task');
+  });
+
+  test('invalid claim input fails before creating work-contract state', () => {
+    const repo = createRepo('invalid-claim-input');
+    const result = spawnSync(process.execPath, [
+      'bin/omniconductor.js', 'work', 'claim', 'INVALID!', repo,
+      '--tool=codex', '--session=invalid-input', '--scope=.', '--json',
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 2, result.stdout);
+    assert.match(result.stderr, /task id must match/);
+    assert.strictEqual(fs.existsSync(path.join(repo, '.git', 'conductor')), false, 'invalid claim left work-contract state');
+  });
+
   test('claim is Git-common-dir local, idempotent, bounded, and does not dirty the worktree', () => {
     const repo = createRepo('claim');
     const first = work.claim(repo, 'task-a', { ...owner('codex', 'session-1'), scopes: ['src'] });

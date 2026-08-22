@@ -499,7 +499,7 @@ function run(targetDir, opts) {
         }
         const allowed = new Set(['name', 'description', 'model', 'model_reasoning_effort', 'sandbox_mode']);
         if ([...fields.keys()].some((k) => !allowed.has(k))) invalidToml = true;
-        const expectedSandbox = ['planner', 'reviewer', 'code-reviewer'].includes(role) ? 'read-only' : 'workspace-write';
+        const expectedSandbox = ['planner', 'reviewer', 'code-reviewer', 'reflector'].includes(role) ? 'read-only' : 'workspace-write';
         if (fields.get('name') !== role || !fields.get('description')
             || !['low', 'medium', 'high'].includes(fields.get('model_reasoning_effort'))
             || fields.get('sandbox_mode') !== expectedSandbox
@@ -544,10 +544,12 @@ function run(targetDir, opts) {
     if (fs.existsSync(agentsPath)) {
       const agents = fs.readFileSync(agentsPath, 'utf8');
       const bytes = Buffer.byteLength(agents, 'utf8');
-      if (bytes > 32768) {
+      if (bytes > 12288) {
         hookProblems++;
-        add('D5', 'FAIL', `AGENTS.md is ${bytes} bytes and exceeds Codex's default 32768-byte project-instruction budget; trailing rules may be truncated`);
-      } else if (!agents.includes('CONDUCTOR_KERNEL_END')) {
+        add('D5', 'FAIL', `AGENTS.md is ${bytes} bytes and exceeds CONDUCTOR's 12288-byte bounded-kernel budget`);
+      } else if (!agents.includes('CONDUCTOR_KERNEL_END')
+        || !agents.includes('## Universal-rule loading table')
+        || !agents.includes('## Token and context discipline')) {
         hookProblems++;
         add('D5', 'FAIL', 'AGENTS.md is not the bounded CONDUCTOR kernel — reinstall the Codex adapter to prevent silent instruction truncation');
       }
@@ -640,7 +642,7 @@ function run(targetDir, opts) {
       } catch { active = false; }
     } else if (adapter === 'codex') {
       try {
-        active = /^tool_output_token_limit\s*=\s*[^\s#]+/m.test(
+        active = /^tool_output_token_limit\s*=\s*[1-9][\d_]*(?:\s*(?:#.*)?)?$/m.test(
           fs.readFileSync(path.join(targetAbs, '.codex', 'config.toml'), 'utf8'));
       } catch { active = false; }
     } else if (adapter === 'gemini') {
@@ -660,30 +662,15 @@ function run(targetDir, opts) {
     }
   }
 
-  // Codex tool_output_token_limit recognition (AC1). Codex silently ignores unknown TOML keys,
-  // and exposes no `codex config get`/echo subcommand to confirm a key was recognized (verified:
-  // `codex doctor --json`'s config.load check reports a fixed detail set — model/provider/mcp/log
-  // dir — never arbitrary config keys). CONDUCTOR also has no independently-verified Codex release
-  // floor for this key's introduction, so a present CLI can only ever fail to positively confirm
-  // it, never confirm it. Per AC1 ("warns when the version is below the floor or the echo is
-  // unavailable — never asserts recognition it cannot observe"): an ABSENT/unrunnable `codex` CLI
-  // means recognition can't be observed in EITHER direction, so that case stays an informational
-  // OK (not a WARN) — the alternative would flip every CLI-less install from green to WARN on
-  // every run. A PRESENT-but-unconfirming CLI gets exactly one scoped WARN.
+  // `tool_output_token_limit` is a documented Codex configuration key. D5
+  // verifies the project value structurally; it does not manufacture a CLI echo
+  // requirement that the official contract does not provide.
   const codexCapPath = manifest.emitted_files.find((ef) => ef && ef._adapter === 'codex' && ef.path === '.codex/config.toml');
   if (codexCapPath) {
     const cfgAbs = path.join(targetAbs, '.codex', 'config.toml');
-    let hasLimitKey = false;
-    try { hasLimitKey = /^tool_output_token_limit\s*=/m.test(fs.readFileSync(cfgAbs, 'utf8')); } catch { /* D3 already reports missing */ }
-    if (hasLimitKey) {
-      const codexVersion = spawnSync('codex', ['--version'], { encoding: 'utf8', timeout: 5000 });
-      if (codexVersion.error || codexVersion.status !== 0) {
-        add('D5', 'OK', 'Codex CLI unavailable — tool_output_token_limit recognition is unverifiable here (config-only emission; no live echo to confirm either way)');
-      } else {
-        const raw = String(codexVersion.stdout || '').trim();
-        add('D5', 'WARN', `Codex CLI ${raw || '(detected)'} is present but exposes no config echo to confirm 'tool_output_token_limit' recognition — verify against the Codex config-reference (silently-ignored unknown keys are possible)`);
-      }
-    }
+    let documentedLimit = false;
+    try { documentedLimit = /^tool_output_token_limit\s*=\s*[1-9][\d_]*(?:\s*(?:#.*)?)?$/m.test(fs.readFileSync(cfgAbs, 'utf8')); } catch { /* D3 already reports missing */ }
+    if (documentedLimit) add('D5', 'OK', 'Codex tool_output_token_limit uses the documented native config key with a positive token budget');
   }
 
   if (hookProblems === 0) add('D5', 'OK', `hook/config surfaces structurally sane (${hookChecked} .json/.sh file(s) checked)`);

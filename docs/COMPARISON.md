@@ -7,7 +7,7 @@ Honest comparison of CONDUCTOR against the major existing options. Updated 2026-
 | | GSD (`get-shit-done`) | SpecKit | BMAD | Cursor Rules | Plain CLAUDE.md | **CONDUCTOR** |
 |---|---|---|---|---|---|---|
 | **Multi-tool target** | 14+ runtimes | A few | A few | Cursor only | Claude Code only | 7 working adapters (Claude / Cursor / Copilot / Gemini / Codex / Windsurf / OpenCode v1) — npm-published (`npx omniconductor`) |
-| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 8 roles) + 17 opt-in recipes + verified hook set |
+| **Setup weight** | Heavy (60+ skills) | Heavy (phases, ceremonies) | Heavy (sprint-style) | Light (rules only) | Trivial | Light kernel (5 universal rules + 8 roles) + 17 policy-classified recipes + verified hook set |
 | **Sub-agent orchestration** | Yes | Yes | Yes | No | Manual | Yes — six native profile formats plus Windsurf role workflows |
 | **Spec-as-you-go enforcement** | Soft (encouraged) | Yes (gates) | Yes (artifacts) | No | No | ABSOLUTE everywhere; verified Stop guard on Claude/Codex, installed completion checklist elsewhere |
 | **Two-stage code review** | Yes | Yes | Yes | No | No | Eight-role topology on all seven; mechanical guards follow verified native contracts |
@@ -47,7 +47,7 @@ You only use Claude Code, want zero framework, and prefer to extend incrementall
 
 CONDUCTOR is NOT just a tool that translates rules between formats. It is opinionated content + workflow + memory pattern that happens to be portable.
 
-If you only want format conversion, you can write a 50-line script that reads `*.md` and re-emits them with different front-matter. CONDUCTOR's universal rules (operations / quality-gates / meta-discipline / spec-as-you-go / workflow) plus the 17 opt-in recipes are the value; the multi-tool transform is the delivery vehicle.
+If you only want format conversion, you can write a 50-line script that reads `*.md` and re-emits them with different front-matter. CONDUCTOR's universal rules (operations / quality-gates / meta-discipline / spec-as-you-go / workflow) plus the 17 policy-classified recipes are the value; the multi-tool transform is the delivery vehicle.
 
 ## Honest weaknesses of CONDUCTOR
 
@@ -66,7 +66,7 @@ If you only want format conversion, you can write a 50-line script that reads `*
 - **Honesty over feature inflation.** ADR-004 says we will NOT fake-polyfill sub-agents anywhere; ADR-031 documents per-tool capability vs what CONDUCTOR actually emits. Other multi-tool projects gloss over this.
 - **Bilingual moat.** Korean solo-dev community is meaningful and underserved.
 - **Apache 2.0, no telemetry, no paid tier — fully open and commercial-friendly.** Only the **CONDUCTOR** name is reserved (trademark), so nobody can pass off a modified copy as the original. Same permissive footing as MIT competitors, with brand protection (ADR-029).
-- **Small, opinionated kernel.** 5 universal rules (plus 17 strictly opt-in recipes and 11 hook templates) vs GSD's 60 skills. If our rules are wrong for you, you'll know quickly and can move on. No 6-month sunk cost.
+- **Small, opinionated kernel.** 5 universal rules plus 17 recipes classified as safe defaults, detected recommendations, or explicit consent—rather than 17 prompts—vs GSD's 60 skills. If our rules are wrong for you, use an exact `--recipes=` override or move on. No 6-month sunk cost.
 
 ## Verdict
 
@@ -114,7 +114,7 @@ Keep Superpowers in charge of workflow. Cherry-pick CONDUCTOR recipes that don't
 
 ```bash
 # Install only recipes (no universal-rules, no roles, no hooks):
-bash adapters/claude/transform.sh <target> --recipes=monorepo,i18n,coding-conventions --no-prompt
+bash adapters/claude/transform.sh <target> --recipes=debugging,loop-engineering,monorepo,i18n,coding-conventions --no-prompt
 # Then manually delete the universal-rules and agent files emitted by transform.sh:
 rm <target>/.claude/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md
 rm <target>/.claude/agents/*.md

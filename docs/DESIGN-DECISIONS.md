@@ -307,7 +307,7 @@ the original six-role/six-recipe decision.
 
 ## ADR-014 — Cache hit rate ≥ 95% as Conductor SLA
 
-**Status**: Proposed (2026-05-07).
+**Status**: Superseded in metric definition by ADR-076 (original decision 2026-05-07).
 
 **Context**: P1.5 baseline measurement of the reference project (8 sessions, 37,763 turns) recorded 100% cache hit rate. Claude Code's built-in prompt caching is fully active by default — the pre-measurement assumption of "~0% cache hit" was incorrect. However, the 100% figure is specific to a mature project with a well-established CLAUDE.md prefix. New users applying Conductor for the first time may unknowingly introduce anti-patterns (large non-cacheable injections, per-turn prefix variation) that drop cache hit rate significantly.
 
@@ -321,6 +321,10 @@ the original six-role/six-recipe decision.
 - P1.6 anti-pattern catalog and P1.7 stop hook are prerequisite deliverables for this ADR to be enforced.
 - New-user onboarding must include a first-session measurement step (see ADR-015).
 - Non-Claude adapters are exempt — prompt caching is a Claude-only capability; `docs/COMPATIBILITY-MATRIX.md` marks it as such.
+
+> **2026-08-20 correction:** the historical reporter formulas diverged and the
+> 100% baseline excluded cache-write tokens. ADR-076 keeps the 95% health floor
+> but renames and defines it as cache-read token share with a three-term denominator.
 
 **Alternatives considered**:
 - *Target 100%.* Rejected — 100% is achievable only in steady-state sessions; cold starts are inherently below 100%.
@@ -1244,9 +1248,9 @@ never receives Claude's unsupported `permissionDecision: ask` contract.
 
 **Context**: CI proves adapters *emit* correct files; it cannot prove a tool *loads* them (needs an authenticated CLI + a model). That gap was closed manually once (Codex, 2026-06-28) and recorded by hand in three places — which then drifted (the audit's finding). The manual procedure and probe prompt already existed in `docs/ADAPTER-LIVE-VERIFICATION.md`; the headless invocation matrix already existed in `core/reflector/run-weekly.sh` (ADR-033).
 
-**Decision**: `tools/live-verify.sh` automates the procedure per tool: throwaway temp install → headless probe (`claude -p` / Codex local `debug prompt-input` / `gemini -p` / `cursor-agent -p` / `copilot -p` / `devin -p`, portable watchdog timeout) → **deterministic grade** (answer must name ≥3 of the 5 universal rules AND mention CURRENT_WORK — no LLM judge) → on PASS, write `live_verification {status, date, cli, note}` into the tool's `metadata.json` and re-run the ADR-042 generator so every doc updates in one motion. CLIs not on PATH are **SKIPped honestly** (never a fake ✅ — Windsurf/Devin likely stays manual). A freshness guard WARNs when a verified date is >90 days old. **Local-first**: CI can't hold six authenticated model CLIs; the script is the recorded, repeatable procedure. ADR-054 adds `--runtime-only` for zero-network, zero-auth, read-only contract inspection and `--check-only` for a live probe that does not record metadata or regenerate docs.
+**Decision**: `tools/live-verify.sh` automates the procedure per tool: throwaway temp install → headless probe (`claude -p` / Codex local `debug prompt-input` / `gemini -p` / `cursor-agent -p` / `copilot -p` / `devin -p`, portable watchdog timeout) → **deterministic grade** (answer must name ≥3 of the 5 universal rules AND mention CURRENT_WORK — no LLM judge) → on PASS, write `live_verification {status, date, cli, note}` into the tool's `metadata.json` and re-run the ADR-042 generator so every doc updates in one motion. CLIs not on PATH are **SKIPped honestly** (never a fake ✅ — Windsurf/Devin likely stays manual). A freshness guard WARNs when a verified date is >90 days old. **Local-first**: CI can't hold six authenticated model CLIs; the script is the recorded, repeatable procedure. ADR-054 adds `--runtime-only` for zero-network, zero-auth, read-only contract inspection and `--check-only` for a live probe that does not record metadata or regenerate docs. Devin's current non-interactive mode cannot show its workspace-trust prompt, so the verifier passes `--respect-workspace-trust false` only while running inside the throwaway directory it just created; it never changes the user's global trust configuration.
 
-**Consequences**: First run live-verified **Claude Code (5/5 rules + CURRENT_WORK, Claude Code 2.1.205)** and re-verified **Codex (4/5 + CURRENT_WORK, codex-cli 0.144.0)** on 2026-07-09 — both recorded through the metadata → generator pipeline, zero hand-edited docs. Cursor/Copilot/Gemini/Windsurf remain live-pending until their CLIs are available here.
+**Consequences**: First run live-verified **Claude Code (5/5 rules + CURRENT_WORK, Claude Code 2.1.205)** and re-verified **Codex (4/5 + CURRENT_WORK, codex-cli 0.144.0)** on 2026-07-09 — both recorded through the metadata → generator pipeline, zero hand-edited docs. A 2026-08-21 authenticated Devin for Terminal probe subsequently loaded all 5 rule names plus `CURRENT_WORK`; this does not replace the separate Devin Desktop UI smoke. Cursor, Copilot, and Gemini remain live-pending until their CLIs and required authentication are available.
 
 **Alternatives considered**:
 - *LLM-judge grading.* Rejected — ADR-038's own research (verify hierarchy: rules/tests > LLM-judge); substring grading over a fixed rule-name set is deterministic and sufficient.
@@ -2498,6 +2502,16 @@ when it was absent. A zero exit from those fail-open hooks was therefore vacuous
    Windows, adapter/multi-tool, or full validation, and a newer identical ref/scope
    run cancels its predecessor. Local release verification remains the default gate;
    remote infrastructure is reserved for a capability that cannot be proved locally.
+7. Runtime-version fixtures use the host PATH delimiter and the launch format users
+   actually receive: extensionless executables on POSIX and npm-style `.cmd` shims on
+   Windows. Windows probes resolve only `.com`, `.exe`, `.bat`, and `.cmd` candidates
+   from the allowlisted PATH, preserving the distinction between absent and broken
+   CLIs. A resolved batch shim may use the command processor, but only after the
+   runtime schema restricts both the bare command name and every argument to a
+   non-shell-metacharacter form. Probe environments remain allowlisted, and generic
+   `shell: true` execution is prohibited. Batch execution uses the documented
+   cmd.exe `/d /s /c` outer/inner quote contract with verbatim Windows arguments so
+   libuv cannot reinterpret the command-processor payload as C-runtime argv.
 
 **Consequences**: Windows PowerShell becomes a valid launcher for both installation
 and the complete repository regression. Full JSON-dependent hook behavior additionally
@@ -2539,3 +2553,156 @@ plugin API and is explicitly incompatible with v1 plugins.
 skills, reversible ownership, and saved Tier routing through native v1 surfaces.
 Codex/OpenCode can coexist without path ownership conflict. Live rule consumption and
 Windows OpenCode execution are reported separately from local emission evidence.
+
+## ADR-073 — Recipe onboarding is policy-classified, centralized, and update-preserving
+
+**Status**: Accepted (2026-08-13)
+
+**Context**: The original all-opt-in recipe contract avoided surprising adopters, but
+fresh installs did not explain recipes at all and existing adapter wizards exposed a
+flat 17-name prompt. Asking every feature separately creates setup fatigue; enabling
+permission-, data-, Git-, or database-impacting behavior silently is worse. Updates
+also need to distinguish preserving an existing decision from onboarding a new one.
+
+**Decision**:
+
+1. Classify recipes as automatic safe defaults, detected recommendations, or explicit
+   consent. `debugging` and `loop-engineering` are the only automatic defaults because
+   they bound reasoning/iteration without granting file, data, network, scheduler,
+   Git, or database authority.
+2. Detect stack/project signals with bounded local inspection and present matching
+   recommendations once as a group. Never infer consent for trajectory collection,
+   generated seed data, branch strategy, strict high-risk database gates, or strong
+   repository-operation policy.
+3. Resolve recipes once in the Node CLI before model-routing or adapter writes,
+   including `--target=all`; adapter-local adoption questions may not ask for them
+   again.
+4. Preserve each adapter's current manifest selection on update. `--no-prompt` never
+   adds a newly explicit-consent capability. An explicit `--recipes=A,B` is an exact
+   override, and `--recipes=` means none.
+5. Keep recipes-only and reflector-only modes explicitly controlled by their existing
+   contracts. The immutable Tier definitions and seven-adapter equality remain
+   unchanged.
+
+**Consequences**: New users receive CONDUCTOR's strongest low-risk disciplines without
+17 prompts, while project-shaped and polarizing behavior stays visible and
+controllable. Existing users do not acquire new policy during an ordinary update.
+
+## ADR-074 — Reflector models are read-only analyzers behind a trusted proposal writer
+
+**Status**: Accepted (2026-08-13)
+
+**Context**: The propose-only Reflector prompt forbade code/rule/memory edits, but its
+weekly runner granted broad workspace writes so the model could append one Markdown
+file. Cursor's native reflector was read-only, creating the opposite contradiction:
+the persona required an append it could not perform. Prompt-only restraint is not a
+filesystem boundary.
+
+**Decision**:
+
+1. The Reflector emits one bounded schema-v1 JSON envelope on stdout. It never writes
+   proposals, skills, rules, memory, configuration, or code.
+2. Run Claude, Codex, Gemini CLI, Cursor CLI, Copilot CLI, and OpenCode through their
+   verified native read-only/deny-write contracts. If a headless read-only contract is
+   not verified (currently Devin/Windsurf automation), fail closed and retain the
+   manual workflow floor.
+3. A deterministic Node writer is the only process allowed to append
+   `docs/REFLECTION-PROPOSALS.md`. It fixes the target path and validates schema,
+   operation, slug, provenance, size, symlink/hardlink safety, and duplicates before
+   an atomic write.
+4. Snapshot Git-visible worktree state before and after the analyzer; any drift
+   blocks import. Human acceptance still does not apply a memory/rule/skill change.
+5. Emit the same writer with the self-improvement runtime on all seven adapters and
+   regression-test positive, negative, injection, link, idempotency, provider-flag,
+   and worktree-drift paths.
+
+**Consequences**: “Propose-only” is now a technical write boundary, not only an
+instruction. Provider differences remain honest, and the one mutable artifact is
+deterministic, reviewable, and separately authorized.
+
+## ADR-075 — First-install instruction conflicts require an explicit adoption policy
+
+**Status**: Accepted (2026-08-20)
+
+**Context**: The historical default for an omitted `--mode` was `full`. On a fresh
+project this is convenient, and on a manifest-owned update it is reversible. On an
+established project without a CONDUCTOR manifest, however, several adapters can back
+up and replace always-loaded Markdown instruction surfaces. A backup protects bytes
+but does not preserve the active project contract. JSON and hook registries have
+verified structural mergers; arbitrary Markdown does not.
+
+**Decision**:
+
+1. Before recipe selection, model routing, locking, backup, or adapter output, scan
+   the selected adapters' known instruction/runtime surfaces. Ignore verified
+   structurally merged configuration and adapters with authoritative manifests.
+2. If unmanaged surfaces exist and neither `--mode=` nor `--conflict-policy=` is
+   explicit, require an interactive decision. The safe choice preserves the current
+   baseline and installs a non-empty exact recipe list through `recipes-only`; the
+   other choices are timestamped backup-and-replace or cancellation.
+3. A non-interactive implicit-full install fails before every project write. Scripts
+   state intent with an explicit mode or `--conflict-policy=replace|recipes-only|abort`.
+4. `--dry-run` remains byte-free and may preview the candidate replacement, but it
+   reports that a real install needs an explicit policy.
+5. Do not advertise a general Markdown merge or universal "adoption mode" until each
+   provider has a verified native include/block contract. Existing reversible
+   ownership, update selection preservation, Tier definitions, and seven-adapter
+   equality remain unchanged.
+
+**Consequences**: Existing projects cannot lose active instructions merely because an
+operator omitted a flag. Automation remains compatible when it already supplies an
+explicit mode, users can choose low-conflict recipes-only adoption, and conflict
+handling is centralized instead of seven divergent adapter prompts.
+
+## ADR-076 — Bound always-loaded instructions and separate savings attribution from provider caching
+
+**Status**: Accepted (2026-08-20)
+
+**Context**: Empty explicit-recipe installs placed about 14K–16K heuristic tokens in
+the always-loaded surface of Claude, Cursor, Copilot, Gemini, Windsurf, and OpenCode;
+fresh automatic defaults raised several to 17K–19K. Codex alone used a bounded
+kernel. Meanwhile three cache reporters used two different denominators, the matrix
+still described output-cap reach as 3/6 after OpenCode became adapter seven, and
+doctor warned that an officially documented Codex config key might be unknown.
+
+**Decision**:
+
+1. Compile one portable bounded runtime kernel to all seven adapters. Keep the ten
+   non-negotiable execution rules, canonical paths, workflow/Tier/role discipline,
+   activity-to-reference routing, and selected-recipe routing always available.
+2. Install all five universal rules and selected recipes as byte-identical complete
+   references outside the eager surface. Use verified native path scoping only for
+   compact recipe pointers; otherwise route through an explicit Read. Do not claim a
+   provider lazy-loader where none is verified.
+3. Enforce a 12 KiB kernel budget and a 16 KiB always-active budget. A read-only
+   `omniconductor audit instructions` command verifies budgets and reference
+   integrity, reports the active footprint, and optionally multiplies a `bytes/4`
+   context estimate by a user-provided request count. It labels the comparison as
+   eager-policy counterfactual, not billing or monetary savings.
+4. Define the cache health metric exactly once as
+   `cache_read / (cache_read + cache_write + uncached_input)`. Call it
+   **cache-read token share**, retain all raw components, and use the same formula in
+   the session auditor, measurement CSV, and Stop hook. Keep the old environment and
+   CSV key only as compatibility aliases with the corrected value.
+5. Attribute only directly observed output savings: sum explicit `tokens elided`
+   markers as a lower bound. A local-only `audit savings` report may pair that lower
+   bound with one selected adapter's structural estimate and an optional pseudonymous
+   subject, but it must omit session content, keep evidence classes separate, and
+   emit no grand total. Do not attribute Claude's provider-managed caching to
+   CONDUCTOR or translate context estimates to money without provider/billing proof.
+6. Treat Codex `tool_output_token_limit` as the official positive-integer config key
+   documented by OpenAI. Validate its shape and effective presence without inventing
+   a config-echo requirement. Derive the current output-cap reach as 3/7 in tests.
+
+**Consequences**: With the two automatic recipes installed, the macOS seven-adapter
+fixture now holds about 1.7K–2.1K heuristic always-active tokens per adapter while
+retaining about 70KB of byte-identical policy references. Representative model
+evaluations remain necessary: smaller prompts are a structural result, not proof of
+equal task quality or a guaranteed bill reduction. Updates retire only checksum-owned
+legacy eager files; adopter-modified files and original backups remain protected.
+
+**First-party basis**: Claude Code memory/rules documentation recommends concise
+`CLAUDE.md` and path-scoped rules; OpenCode rules documentation recommends need-to-know
+Read references instead of preloading; the OpenAI Codex configuration reference
+documents `tool_output_token_limit`; OpenAI model guidance reports directional token
+reductions from lean coding-agent prompts but requires workload-specific evaluation.

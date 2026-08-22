@@ -10,7 +10,9 @@ linked_rules:
 
 # Recipe — Systematic Debugging
 
-> Opt-in recipe. Install on any project where bugs are a reality (i.e., all of them). Especially valuable on codebases where time pressure makes guess-and-check feel faster — it isn't.
+> Automatic safe default on fresh full/strict installs. It changes investigation
+> discipline but grants no new file, data, network, scheduler, or Git authority.
+> Use an exact `--recipes=` override if a project deliberately excludes it.
 
 ## When to Apply
 

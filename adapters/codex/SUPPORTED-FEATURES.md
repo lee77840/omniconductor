@@ -9,7 +9,7 @@ Detailed matrix of which CONDUCTOR features Codex supports.
 | **Always-loaded project rules** | ✅ Native | `AGENTS.md` | Bounded kernel auto-loaded on session start. |
 | **Shell task execution** | ✅ Strength | Codex's primary capability | One-shot shell scripting is Codex's best use case. |
 | **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Local prompt-input verification does not require authentication or a network model call. |
-| **Per-pattern rule scoping** | ❌ | — | All rules always-loaded. |
+| **Per-pattern rule scoping** | ❌ | explicit Read routing | Only the bounded kernel is always loaded; complete references are on demand. |
 | **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.codex/agents/*.toml` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
 | **Hooks (Stop etc.)** | ✅ Emitted subset | `.codex/hooks.json` + `.codex/hooks/*.sh` | Commit/current-work/test, session/spec, pre-merge review, and recipe-gated guards. |
 | **Per-task model routing** | ✅ Configured native (2026) | Saved model + `model_reasoning_effort` | Recommended Sol/Terra/Luna; Tier 1/2/3 independently maps to high/medium/low. |
@@ -23,7 +23,7 @@ Detailed matrix of which CONDUCTOR features Codex supports.
 | **Spec-as-you-go ABSOLUTE enforcement** | ✅ Guard + rule | Codex Stop hook | Guardrail, not a complete security boundary. |
 | **Two-stage code review enforcement** | ✅ Guard + role | reviewer + code-reviewer + Stop review check | |
 | **Multi-step orchestration** | ✅ Native roles | `.codex/agents/*.toml` | Eight profiles use the saved project Tier mapping. |
-| **Tool-output cap (store-time)** | ✅ Native config | `.codex/config.toml` `tool_output_token_limit = 8000` (Codex's own tokenizer) | Baked value, not the shared hook — `CONDUCTOR_OUTPUT_CAP_TOKENS`/`CONDUCTOR_SKIP_OUTPUT_CAP` do NOT apply to Codex. Only-if-absent; a pre-existing file is preserved, and `doctor` now fails the effective-activation check until the key is added or the current adapter is re-run. Codex exposes no config echo, so recognition can never be positively confirmed. See ADR-051/058. |
+| **Tool-output cap (store-time)** | ✅ Native config | `.codex/config.toml` `tool_output_token_limit = 8000` (Codex's own tokenizer) | Officially documented config key. Baked value, not the shared hook — `CONDUCTOR_OUTPUT_CAP_TOKENS`/`CONDUCTOR_SKIP_OUTPUT_CAP` do NOT apply to Codex. Only-if-absent; a pre-existing file is preserved, and `doctor` fails the effective-activation check until a positive numeric value exists. See ADR-051/058/076. |
 
 ## Universal-rule → Codex runtime translation
 

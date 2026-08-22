@@ -6,8 +6,8 @@ API receives a separate adapter contract.
 
 | Feature | Status | CONDUCTOR mechanism / boundary |
 |---|---|---|
-| Always-loaded project rules | Native, emitted | `opencode.json` `instructions` points to `.opencode/rules/*.md`. CONDUCTOR does not own root `AGENTS.md`. |
-| Selected recipes | Native, opt-in | A second instruction glob loads `.opencode/rules/recipes/*.md`. |
+| Always-loaded project rules | Native, emitted | `opencode.json` registers only `.opencode/rules/conductor-kernel.md`. Complete rules remain under `.opencode/conductor/rules/` for explicit Read routing. CONDUCTOR does not own root `AGENTS.md`. |
+| Selected recipes | Native, opt-in | Full installs route from the bounded kernel to `.opencode/conductor/recipes/`; recipes-only modes register compact `.opencode/rules/recipes/*.md` pointers. |
 | Named subagents | Native, emitted | Eight `.opencode/agents/*.md` profiles use `mode: subagent` and saved `provider/model` Tier translations. |
 | Read-only review roles | Native, emitted | `planner`, `reviewer`, and `code-reviewer` deny `edit` and `bash` through current `permission` frontmatter. |
 | Agent Skills | Native, emitted | `.opencode/skills/*/SKILL.md`; automatic discovery and explicit invocation follow OpenCode's skill contract. |
@@ -33,7 +33,7 @@ foreign manifest paths fail closed through the shared path/manifest policy.
 
 OpenCode can natively read a root `AGENTS.md`, but this adapter never creates or owns
 it. When Codex is also installed, OpenCode may observe both Codex's same-origin root
-instructions and its own `.opencode/rules` globs. The ownership ledger remains
+instructions and its own bounded `.opencode/rules/conductor-kernel.md`. The ownership ledger remains
 conflict-free and uninstall stays adapter-scoped.
 
 ## Native guard concurrency caveat

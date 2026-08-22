@@ -22,7 +22,7 @@ Token Economy 기능은 모두 같은 강도로 동작하지 않는다.
 | 분류 | 의미 | 대표 기능 |
 |---|---|---|
 | **자동 강제** | 설치된 native config 또는 hook이 실제 호출을 제한 | Claude large-read guard, Claude/Codex/Gemini output cap |
-| **구조적 절약** | 설치물이 상시 컨텍스트를 작게 유지하도록 구성 | 5 universal rules, opt-in recipes, on-demand skills, bounded Codex kernel |
+| **구조적 절약** | 설치물이 상시 컨텍스트를 작게 유지하도록 구성 | 7개 도구 bounded kernel, byte-identical on-demand rule/recipe references, on-demand skills |
 | **운영 규칙** | 모든 adapter에 같은 원칙을 배포하지만 도구가 기계적으로 강제하지 않을 수 있음 | Grep first, range read, bounded dispatch, output brevity |
 | **측정·진단** | 자동 절약 여부를 로컬 증거로 확인 | `doctor`, `measure-tokens.sh`, `audit-token-economy.js` |
 | **공급자 가이드** | 사용자가 provider/API 기능을 구성할 때 적용 | Claude prompt caching, context editing |
@@ -90,15 +90,21 @@ hook/config가 활성화됐는지를 확인한다.
 
 Token Economy는 실행 중 자르는 기능만이 아니라 설치 구조에서 시작한다.
 
-- **5개 universal rule**만 공통 바닥으로 유지한다.
+- 7개 도구 모두 **약 1,700~2,100-token bounded kernel**만 항상 활성화한다
+  (기본 recipe 2개를 포함한 2026-08-20 macOS fixture, `bytes/4` 휴리스틱).
+- 5개 universal rule 원문은 adapter별 `conductor/rules/` 아래에 **바이트 그대로**
+  보존하고, 커널의 activity table이 요구할 때 정확한 파일만 읽는다.
 - **17개 recipe**는 프로젝트가 선택한 항목만 설치한다.
 - `plan-change`, `verify-change`, `review-change` 등 **portable skill은 on demand**로
   읽는다.
 - `propose-skill`, `coordinate-work`는 관련 recipe를 설치했을 때만 활성화한다.
 - `minimal`은 agents/hooks/Reflector runtime을 제외한다.
 - `recipes-only`는 선택한 recipe만 설치한다.
-- Codex는 bounded `AGENTS.md` kernel과 상세 `.codex/conductor/` reference를
-  분리한다.
+- Claude/Cursor/Copilot은 검증된 `paths`/`globs`/`applyTo`에 작은 recipe
+  pointer만 두고 전체 recipe는 별도 reference로 유지한다.
+- Gemini/Codex는 bounded root kernel에서 명시적 Read 경로로 라우팅한다.
+- Windsurf/OpenCode는 검증된 상시 surface에 작은 kernel/pointer만 등록하고
+  전체 원문은 등록하지 않는다.
 - Cursor의 `.mdc` glob, Copilot의 `applyTo:`처럼 검증된 scoping이 있으면 관련
   파일을 만질 때만 규칙을 적용한다.
 - OpenCode는 `opencode.json`의 `instructions` globs로 `.opencode/rules`와 선택
@@ -114,15 +120,16 @@ deferred tool loading을 우선한다.
 반복되는 지침은 다음처럼 안정된 순서로 둔다.
 
 ```text
-1. Universal rules        ┐
-2. Project instructions   ├─ stable/cacheable prefix
-3. Selected recipes       │
-4. Memory index           ┘
+1. Bounded runtime kernel ┐
+2. Project instructions  ├─ stable/cacheable prefix
+3. Recipe routing index  │
+4. Memory index          ┘
 ---------------- cache boundary ----------------
-5. CURRENT_WORK / recent history / tool results / new user message
+5. Matching full reference / CURRENT_WORK / history / tool results / new message
 ```
 
-현재 KPI SLA는 steady-state cache reuse **95% 이상**이다. 캐시는 컨텍스트 자체를
+현재 KPI는 **cache-read token share 95% 이상**이다. 공식은 모든 reporter에서
+`cache_read / (cache_read + cache_write + uncached_input)`로 동일하다. 캐시는 컨텍스트 자체를
 삭제하지 않지만 반복 prefix의 처리 비용과 지연을 크게 줄인다.
 
 주의할 점:
@@ -185,7 +192,7 @@ bash tools/measure-tokens.sh --latest --export-csv=/tmp/after.csv
 Claude Code JSONL에서 다음을 읽는다.
 
 - input/output tokens
-- cache hit/reuse
+- cache-read token share와 read/write/uncached 원시값
 - tool-call 수
 - CSV baseline 대비 변화
 
@@ -202,7 +209,7 @@ node tools/audit-token-economy.js \
 - threshold별 초과 tool result 수
 - 예상 제거 가능 tokens
 - 실제 CONDUCTOR truncation marker 수
-- prompt-cache reuse
+- cache-read token share (동일한 3항 분모)
 - branch와 sub-agent role 분포
 - cap이 설치되지 않았거나 저비용 역할이 전혀 사용되지 않은 징후
 
@@ -210,6 +217,43 @@ node tools/audit-token-economy.js \
 수치가 아니다. threshold 선택과 controlled comparison을 위한 방향성 증거다.
 
 모든 측정은 로컬 파일만 읽으며 telemetry를 전송하지 않는다.
+
+### 사용자별 절감 추정
+
+```bash
+# 현재 설치의 특정 도구 요청당 eager-context 회피량
+npx omniconductor audit instructions . --target=claude
+
+# 대표 기간에 요청 1000회가 있었다면 누적 context-token 추정도 표시
+npx omniconductor audit instructions . --target=claude --requests=1000
+
+# Claude: 개인 로컬 세션에서 실제 output elision과 호출 수 기반 구조 추정을 함께 보고
+npx omniconductor audit savings . \
+  --target=claude \
+  --sessions="<Claude JSONL 파일 또는 디렉터리>" \
+  --subject="익명 사용자 ID"
+
+# 그 밖의 도구: 확인한 요청 수로 구조 추정만 보고
+npx omniconductor audit savings . --target=codex --requests=1000 --subject="익명 사용자 ID"
+```
+
+이 값은 **같은 전체 정책을 매 요청 eager-load한 반사실적 기준**과 현재 bounded
+kernel을 비교한 `bytes/4` 컨텍스트 추정치다. 공급자 청구 토큰이나 비용 절감액이
+아니다. Claude 세션의 실제 output-cap 절감은 `audit-token-economy.js`가 marker에
+기록된 `tokens elided`만 합산해 별도의 관측 하한으로 보여준다.
+
+`audit savings`는 사용자 한 명이 자신의 로컬 기록에서 직접 실행하는 zero-telemetry
+보고서다. 세션 원문·프롬프트·도구 결과를 출력하거나 전송하지 않으며, `--subject`는
+사용자가 직접 넣는 선택적 표시값이다. 보고서는 다음을 의도적으로 분리한다.
+
+- **관측 하한:** Claude truncation marker에 명시된 실제 `tokens elided` 합계
+- **구조 추정:** 해당 어댑터의 bounded kernel과 동일 정책 eager-load 반사실의 차이
+- **건강 지표:** cache-read token share — 공급자 캐시이므로 절감량에 귀속하지 않음
+
+서로 증거 강도가 다른 입력·출력 숫자를 합친 `total savings`는 만들지 않는다. Claude
+외 도구는 현재 호환되는 개인 세션 로그 파서가 없으므로 `--requests` 기반 구조 추정만
+제공한다. `--json`을 붙이면 사용자가 직접 조직 내부 집계에 제출할 수 있지만,
+CONDUCTOR 자체는 중앙 수집·사용자 추적을 하지 않는다.
 
 ## 8. 권장 확인 순서
 
@@ -219,6 +263,10 @@ npx omniconductor init --target=all . --dry-run --no-prompt --accept-model-defau
 
 # 2. 실제 설치 후 native cap/hook/config 확인
 npx omniconductor doctor .
+
+# 2-1. 상시 지침 크기·원문 무결성·사용자별 절감 추정
+npx omniconductor audit instructions . --target=claude --requests=1000
+npx omniconductor audit savings . --target=claude --sessions="<session-directory>"
 
 # 3. 한 세션 baseline 저장
 npx omniconductor init --target=claude . --measure-baseline

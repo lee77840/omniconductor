@@ -20,16 +20,16 @@
 #   bash adapters/gemini/transform.sh . --uninstall --force      # bypass safety checks
 #
 # Layer 2 transformation (per ADR-004 honesty + ADR-021):
-#   core/universal-rules/*.md      →  <target>/GEMINI.md          (all 5 bundled, single always-loaded file)
-#   core/workflow/PHASES.md        →  <target>/GEMINI.md          (compressed workflow section)
-#   core/recipes/*.md (selected)   →  <target>/GEMINI.md          (## Recipe — <name> sections; Gemini is single-file)
+#   core/runtime-kernel.md         →  <target>/GEMINI.md          (bounded always-loaded kernel)
+#   core/universal-rules/*.md      →  <target>/.gemini/conductor/rules/*.md
+#   core/recipes/*.md (selected)   →  <target>/.gemini/conductor/recipes/*.md
 #   core/recipes/coding-conventions →  <target>/.gemini/styleguide.md  (Gemini style-guide convention; opt-in)
 #   core/docs-templates/*.md       →  <target>/docs/*.md          (CURRENT_WORK, REMAINING_TASKS, etc.)
 #   core/hooks/*.sh.template       →  Gemini-verified lifecycle/recipe subset only; Claude/Codex have additional verified guards
 #   core/roles/*.md                →  <target>/.gemini/agents/*.md (native roles; saved Tier model — ADR-049)
 #
 # Gemini reality (per adapters/gemini/SUPPORTED-FEATURES.md):
-#   - Single always-loaded rule file (GEMINI.md). No per-pattern rule scoping.
+#   - Single bounded always-loaded kernel (GEMINI.md). Complete references use explicit Read routing.
 #   - Gemini CLI supports sub-agents / hooks / per-call model routing natively
 #     (ADR-031); this adapter emits native role profiles in full/strict mode. CONDUCTOR
 #     emits the Reflector hook when --recipes=self-improvement (ADR-032); other
@@ -111,15 +111,15 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/gemini/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to install (appended into GEMINI.md)
+  --recipes=A,B,C       Exact recipe list (compact routing in GEMINI.md; complete references separate)
   --mode=<m>            Install preset (ADR-044). One of:
                           full           (default) everything this adapter emits today
                           minimal        discipline text + session continuity only
                                          (GEMINI.md + docs/; no styleguide, no Reflector runtime)
                           strict         full, but ABORT (exit 3) if GEMINI.md already exists
                                          (never overwrites a baseline, even with backup)
-                          recipes-only   ONLY the selected recipes, appended to GEMINI.md as a
-                                         marked block (requires --recipes=; block-aware uninstall)
+                          recipes-only   compact selected-recipe routing appended to GEMINI.md;
+                                         complete references stay outside eager context
                           reflector-only the self-improvement loop standalone (recipe text as a
                                          marked block + Reflector runtime; least-conflicting with
                                          other frameworks like Spec Kit / BMAD)
@@ -134,7 +134,7 @@ Options:
 Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering
 
 Gemini single-file model:
-  - All 5 universal rules + selected recipes are bundled into one always-loaded GEMINI.md.
+  - GEMINI.md stays bounded; all 5 universal rules and selected recipes are complete on-demand references.
   - There is NO per-pattern rule scoping (Gemini loads the whole file every session).
   - The 'coding-conventions' recipe ALSO produces .gemini/styleguide.md (Gemini's
     native style-guide convention).
@@ -635,7 +635,7 @@ do_uninstall() {
   conductor_manifest_refresh_projection
 
   # Try to clean up empty dirs left behind (children before parents).
-  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .gemini/commands .gemini/agents .gemini/hooks .conductor/reflect .conductor/manifests .conductor .gemini docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .gemini/commands .gemini/agents .gemini/hooks .gemini/conductor/rules .gemini/conductor/recipes .gemini/conductor .conductor/reflect .conductor/manifests .conductor .gemini docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -741,16 +741,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
     echo "  Skipping universal-rules installation."
   fi
 
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, or leave blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
   else
-    echo "  No recipes selected."
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, or leave blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; else echo "  No recipes selected."; fi
   fi
 
   echo ""
@@ -800,6 +799,7 @@ log "Step 1/3: GEMINI.md bundle → $GEMINI_DEST"
 if [ -f "$GEMINI_DEST" ] && [ "$DRY_RUN" = "false" ]; then
   backup_and_remember "$GEMINI_DEST"
 fi
+GEMINI_BASELINE_BACKUP="$MANIFEST_LAST_BACKUP"
 
 if [ "$DRY_RUN" = "true" ]; then
   log "would synthesize $GEMINI_DEST (bilingual header + ABSOLUTE rules summary + 5 universal rules + workflow + memory note)"
@@ -810,109 +810,20 @@ if [ "$DRY_RUN" = "true" ]; then
     log "  would append recipe sections for: $RECIPES"
   fi
 else
-  # --- Header (synthesized inline; bilingual 한/영) ---
-  /bin/cat > "$GEMINI_DEST" <<'HEADER_EOF'
-# CONDUCTOR — Orchestrator Manual (Gemini CLI)
-
-> Installed by CONDUCTOR (Gemini adapter). Gemini CLI auto-loads this file every session.
-> Replace `{{PROJECT_NAME}}` below with your project name.
-
-## You are the orchestrator / 당신은 오케스트레이터입니다
-
-**EN** — You are the lead orchestrator for **{{PROJECT_NAME}}**. You translate the
-user's intent into a disciplined Plan → Architecture → Tasks → Implementation →
-Review → Spec workflow. The universal rules below are your operating floor; every
-turn inherits them. Gemini CLI supports sub-agents and hooks natively (ADR-031).
-CONDUCTOR emits eight native role profiles in `.gemini/agents/` for full/strict
-installs. Rules without a verified native hook remain explicit workflow obligations.
-
-**KO** — 당신은 **{{PROJECT_NAME}}** 의 리드 오케스트레이터입니다. 사용자의 의도를
-Plan → Architecture → Tasks → Implementation → Review → Spec 워크플로로 옮깁니다.
-아래 universal rule 은 모든 턴이 상속하는 기본 규칙입니다. full/strict 설치는
-`.gemini/agents/` 에 8개 네이티브 역할을 생성합니다. 검증된 Gemini 훅이 없는 규칙은
-명시적인 워크플로 의무로 준수해야 합니다.
-
-> **Note (Gemini)**: Claude Code enforces parts of these rules with PreToolUse / Stop
-> hooks and sub-agent dispatch. Gemini CLI has those surfaces natively too (ADR-031),
-> CONDUCTOR emits native agent profiles, but it never translates a Claude-only hook
-> contract by name. Where no verified Gemini hook exists, follow the rule explicitly.
-
-## ABSOLUTE rules (summary) / 절대 규칙 요약
-
-These are ABSOLUTE — no user shortcut ("just do it", "skip", "fast") waives them.
-The full text is in the universal-rule sections that follow.
-
-1. **Plan-first / docs-first** — Plan → Architecture → Tasks → Implementation, in order.
-   Ad-hoc work is logged in `docs/CURRENT_WORK.md` BEFORE implementation. (Workflow)
-2. **Spec-as-you-go** — a source edit and its spec/doc update happen in the SAME turn,
-   never batched for later. (Spec-as-you-go)
-3. **Quality gates** — pre-commit + pre-merge review, test-coverage sync, and
-   verify-after-changes (evidence before any "done" claim). (Quality Gates)
-4. **Operations hygiene** — read `docs/CURRENT_WORK.md` first every session; delete
-   completed tasks from active lists; keep dev/prod in parity. (Operations)
-5. **Meta-discipline** — framework originality, ambiguity handling (ASK on the AMB
-   triggers), token economy, model-tier classification, flat-with-leader topology.
-   (Meta-Discipline)
-
-> **Process over speed**: if a rule marked ABSOLUTE was skipped mid-turn, STOP, surface
-> the violation in your next message, repair it, then continue. Silent recovery is worse
-> than the original skip.
-
----
-
-HEADER_EOF
-
-  # --- Universal rules (each as "## <title>" + body sans frontmatter) ---
+  mkdir_if_real "$TARGET_ABS/.gemini/conductor/rules"
   if [ "$WIZARD_APPLY_RULES" = "true" ]; then
     for rule in $UNIVERSAL_RULES; do
       src="$CORE_ROOT/universal-rules/$rule.md"
-      if [ ! -f "$src" ]; then
-        echo "Warning: $src not found; skipping" >&2
-        continue
-      fi
-      title="$(derive_title "$src")"
-      {
-        echo "## $title"
-        echo ""
-        emit_rule_body "$src"
-        echo ""
-        echo "---"
-        echo ""
-      } >> "$GEMINI_DEST"
+      [ -f "$src" ] || { echo "Warning: $src not found; skipping" >&2; continue; }
+      dest="$TARGET_ABS/.gemini/conductor/rules/$rule.md"
+      backup_and_remember "$dest"
+      /bin/cp "$src" "$dest"
+      record_emit ".gemini/conductor/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
     done
   else
     log "  universal-rules — skipped (user opted out)"
   fi
-
-  # --- Compressed workflow section from core/workflow/PHASES.md ---
-  PHASES_SRC="$CORE_ROOT/workflow/PHASES.md"
-  if [ -f "$PHASES_SRC" ]; then
-    {
-      echo "## Workflow phases (compressed)"
-      echo ""
-      echo "> Full reference: CONDUCTOR's core/workflow/PHASES.md. Compressed here for the"
-      echo "> single-file Gemini bundle. Phases scale with scope (see the table at the end)."
-      echo ""
-      # Compress: keep numbered phase headers + their Trigger/Owner/Inputs/Outputs
-      # lines and the scaling table; drop the "How to read this file" template
-      # preamble and the per-phase "P1 fill" scaffolding.
-      /usr/bin/awk '
-        /^## [0-9]+\. /{inphase=1; print "### " substr($0,4); next}
-        inphase==1 && /^\*\*Trigger\*\*/{print; next}
-        inphase==1 && /^\*\*Owner\*\*/{print; next}
-        inphase==1 && /^\*\*Inputs\*\*/{print; next}
-        inphase==1 && /^\*\*Outputs\*\*/{print; next}
-        /^## Phase scaling reminder/{inphase=0; intable=1; print "### Phase scaling"; next}
-        /^## Tool-agnostic enforcement reminder/{intable=0; next}
-        intable==1{print; next}
-      ' "$PHASES_SRC"
-      echo ""
-      echo "---"
-      echo ""
-    } >> "$GEMINI_DEST"
-  fi
-
-  # --- Recipe sections (Gemini is single-file: append into GEMINI.md) ---
+  mkdir_if_real "$TARGET_ABS/.gemini/conductor/recipes"
   if [ -n "$RECIPES" ]; then
     IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
     for r in "${RECIPE_LIST[@]}"; do
@@ -923,70 +834,30 @@ HEADER_EOF
         echo "Warning: recipe '$r' not found at $src; skipping" >&2
         continue
       fi
-      {
-        echo "## Recipe — $r"
-        echo ""
-        echo "> Opt-in recipe (installed via --recipes=$r). Gemini has no per-file rule"
-        echo "> scoping, so this is always-loaded alongside the universal rules."
-        echo ""
-        emit_rule_body "$src"
-        echo ""
-        echo "---"
-        echo ""
-      } >> "$GEMINI_DEST"
+      dest="$TARGET_ABS/.gemini/conductor/recipes/$r.md"
+      backup_and_remember "$dest"
+      /bin/cp "$src" "$dest"
+      record_emit ".gemini/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
       INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
     done
   fi
+  {
+    conductor_render_runtime_kernel "Gemini CLI" ".gemini/conductor/rules" ".gemini/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES"
+    /bin/cat <<'GEMINI_APPENDIX'
 
-  # --- Docs pointer + memory note (footer) ---
-  /bin/cat >> "$GEMINI_DEST" <<'FOOTER_EOF'
-## First read every session / 매 세션 첫 작업
+## Gemini CLI native appendix
 
-**Read `docs/CURRENT_WORK.md` first every session.** It is the single source of
-"what is happening right now" — current state, immediate next action, in-progress
-items, blockers. Without it you risk duplicating finished work or pushing
-conflicting changes. (See the Operations rule above.)
-
-## Canonical artifact paths
-
-| Artifact | Path |
-|---|---|
-| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
-| Long-lived domain spec | `docs/specs/<area>.md` |
-| Architecture / ADR | `docs/architecture/README.md` / `docs/architecture/NNNN-<topic>.md` |
-| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
-
-Existing files and plugin folders are not policy. These paths win unless
-`docs/INDEX.md` explicitly declares a project override; an unresolved conflict
-requires STOP + ASK before writing.
-
-## Memory (.memory/) — DIY on Gemini / 메모리 설정
-
-Gemini CLI has no built-in memory directory. CONDUCTOR's 4-type memory pattern
-(user / feedback / project / reference) still applies — just host it yourself:
-
-1. Create a `.memory/` directory at the project root.
-2. Add `.memory/` to `.gitignore` so personal entries don't leak into the repo.
-3. Keep a `.memory/MEMORY.md` index (≤ 200 lines) and `*.md` entries per type.
-4. Gemini won't auto-load it — paste the relevant `.memory/*.md` entry into your
-   prompt (or @-mention the file) when it's relevant to the task.
-
-Save: a user's role/preferences, corrections + validated approaches, ongoing
-project goals/deadlines (use absolute dates), and pointers to external systems.
-Do NOT save code patterns, file paths, git history, or anything already in the
-rules above — verify before recommending from memory ("memory says X" ≠ "X is true now").
-FOOTER_EOF
+Gemini has no verified per-pattern rule loader in this adapter contract. Do not
+eagerly import every reference into `GEMINI.md`; use the Read tool for the exact
+rule or selected recipe named above. Full/strict installs expose eight native
+roles under `.gemini/agents/`. Hook configuration uses only verified Gemini event
+and decision schemas; unsupported Claude-only behavior remains an explicit rule.
+GEMINI_APPENDIX
+  } > "$GEMINI_DEST"
 
   log "  wrote $GEMINI_DEST ($(/usr/bin/wc -l < "$GEMINI_DEST" | /usr/bin/tr -d ' ') lines)"
-
-  # Gemini context-limit advisory (per transform-spec.md edge case).
-  _gemini_lines="$(/usr/bin/wc -l < "$GEMINI_DEST" | /usr/bin/tr -d ' ')"
-  if [ "$_gemini_lines" -gt 2000 ]; then
-    log "  NOTE: GEMINI.md is large ($_gemini_lines lines). Most Gemini Pro models have a"
-    log "        large context window, but if you hit a limit, trim recipes or move detail to docs/."
-  fi
 fi
-record_emit "GEMINI.md" "<synthesized:5-universal-rules+workflow>" "$MANIFEST_LAST_BACKUP"
+record_emit "GEMINI.md" "core/runtime-kernel.md" "$GEMINI_BASELINE_BACKUP"
 
 else
   # ----- à-la-carte modes: marked block appended to GEMINI.md (ADR-044) ------
@@ -1000,7 +871,8 @@ else
       echo "# CONDUCTOR — à la carte (--mode=$MODE)"
       echo ""
       echo "> Installed by CONDUCTOR WITHOUT the universal-rule bundle. This is a managed"
-      echo "> block: --uninstall strips it when unmodified. Full workflow: --mode=full."
+      echo "> block: --uninstall strips it when unmodified. Complete recipe text is"
+      echo "> stored outside the eager GEMINI.md surface and read only when applicable."
       echo ""
       IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
       for r in "${RECIPE_LIST[@]}"; do
@@ -1011,9 +883,12 @@ else
           echo "Warning: recipe '$r' not found at $src; skipping" >&2
           continue
         fi
-        echo "## Recipe — $r"
-        echo ""
-        emit_rule_body "$src"
+        /bin/mkdir -p "$TARGET_ABS/.gemini/conductor/recipes"
+        ref="$TARGET_ABS/.gemini/conductor/recipes/$r.md"
+        backup_and_remember "$ref"
+        /bin/cp "$src" "$ref"
+        record_emit ".gemini/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
+        conductor_render_recipe_pointer_body "$src" ".gemini/conductor/recipes/$r.md"
         echo ""
         INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
       done
@@ -1163,6 +1038,9 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
         record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
       done
+      d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"
@@ -1260,7 +1138,7 @@ echo "  Mode: $MODE"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   echo "  GEMINI.md: marked à-la-carte block appended (no universal-rule bundle)"
 else
-  echo "  GEMINI.md: 1 bundled file (5 universal rules + workflow, always-loaded)"
+  echo "  GEMINI.md: bounded kernel + complete on-demand rule/recipe references"
 fi
 echo "  Style guide: $([ "$WANT_STYLEGUIDE" = "true" ] && echo ".gemini/styleguide.md emitted" || echo "(not emitted — select coding-conventions)")"
 echo "  Recipes installed:${INSTALLED_RECIPES:- (none)}"

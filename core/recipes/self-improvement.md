@@ -21,12 +21,17 @@ Observe → Reflect → Propose → (human GO) → Apply
 - **Observe** — each adapter's verified lifecycle hook logs a trajectory pointer;
   git history and `docs/CURRENT_WORK.md` are always-available fallbacks.
 - **Reflect** — the `reflector` role reads the period's trajectories (success AND failure) and distils atomic lessons.
-- **Propose** — lesson deltas still go to `docs/REFLECTION-PROPOSALS.md`. A repeated reusable procedure may instead be submitted through the typed `.conductor/skill-proposals/` inbox with `omniconductor skills propose`. Both paths are proposal-only; nothing is written to live memory, rules, or skills.
+- **Propose** — the model emits typed data under a native read-only contract.
+  A deterministic writer validates it and may append only
+  `docs/REFLECTION-PROPOSALS.md`. Reusable procedures may separately enter the
+  typed skill-proposal inbox. Both paths remain proposal-only.
 - **Apply** — a human reviews the proposals like a diff and accepts/edits/rejects. On acceptance, the lesson becomes a `feedback_lesson-*.md` memory entry (see `core/memory-pattern/README.md`).
 
 ## Safety contract (read first)
 
-- **Propose-only.** The reflector must never edit rules, memory, or code. Applying is a human decision.
+- **Propose-only with a write boundary.** The model receives no workspace-write
+  permission. Only `reflection-proposals.js` may append the fixed proposal path
+  after schema, path, link, and provenance validation. Applying is separate.
 - **Grounded-or-dropped.** Every proposed lesson cites a trajectory; un-cited lessons are discarded.
 - **Delta, never rewrite.** Lessons are atomic items merged/pruned by a deterministic script, never by rewriting a whole file. This prevents "context collapse" (accumulated detail eroded by repeated full rewrites).
 - **Skill proposals are typed and repeated.** A skill candidate needs at least two cited occurrences, ordered procedure steps, and a human `accept` or `reject` decision. Acceptance records intent only; promotion into a live skill is a separate reviewed change.

@@ -35,7 +35,7 @@ function fixture() {
 `);
   write(path.join(root, 'README.md'), `# Example
 
-**3 opt-in recipes**
+**3 policy-classified recipes**
 
 ## Recipes catalog
 
@@ -47,7 +47,7 @@ function fixture() {
 
 #### Decision tree
 
-Recipes from the 3 in core.
+3 recipes layer project-specific discipline.
 
 **Recipe names** (3): \`alpha\`, \`beta\`, \`gamma\`.
 
@@ -101,8 +101,8 @@ fs.rmSync(root, { recursive: true, force: true });
 // assertion this silently dropped the guard and the gate still reported OK.
 root = fixture();
 readmePath = path.join(root, 'README.md');
-write(readmePath, fs.readFileSync(readmePath, 'utf8').replace('**3 opt-in recipes**', '**three opt-in recipes**'));
-assert.match(errorsFor(root), /opt-in recipe count guard matched no living document/);
+write(readmePath, fs.readFileSync(readmePath, 'utf8').replace('**3 policy-classified recipes**', '**three policy-classified recipes**'));
+assert.match(errorsFor(root), /classified recipe count guard matched no living document/);
 fs.rmSync(root, { recursive: true, force: true });
 
 // A second stack-specific recipe must move the derived stack-agnostic total
@@ -111,8 +111,8 @@ root = fixture();
 write(path.join(root, 'core', 'recipes', 'delta.md'), '---\nstack_specific: true\n---\n\n# delta\n');
 readmePath = path.join(root, 'README.md');
 write(readmePath, fs.readFileSync(readmePath, 'utf8')
-  .replace(/\b3 opt-in recipes\b/, '4 opt-in recipes')
-  .replace('Recipes from the 3 in core.', 'Recipes from the 4 in core.')
+  .replace(/\b3 policy-classified recipes\b/, '4 policy-classified recipes')
+  .replace('3 recipes layer project-specific discipline.', '4 recipes layer project-specific discipline.')
   .replace('**Recipe names** (3): `alpha`, `beta`, `gamma`.', '**Recipe names** (4): `alpha`, `beta`, `delta`, `gamma`.')
   .replace('Check recipe name spelling. Available: `alpha`, `beta`, `gamma`.', 'Check recipe name spelling. Available: `alpha`, `beta`, `delta`, `gamma`.')
   .replace('3개 recipe options', '4개 recipe options')

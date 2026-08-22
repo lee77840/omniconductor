@@ -108,7 +108,7 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/claude/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to install
+  --recipes=A,B,C       Exact recipe list (overrides onboarding; empty disables all)
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules + recipes
                         text + docs + CLAUDE.md; no agents/hooks/hookify) | strict (abort if
                         CLAUDE.md exists) | recipes-only (ONLY the selected recipe rule files;
@@ -604,7 +604,7 @@ do_uninstall() {
   # Try to clean up empty dirs left behind (children before parents). Includes the
   # self-improvement gate dir .conductor/reflect/ — leaving it would keep the
   # always-on trajectory hook active after uninstall.
-  for d in .claude/skills/coordinate-work .claude/skills/propose-skill .claude/skills/plan-change .claude/skills/verify-change .claude/skills/review-change .claude/skills .claude/rules .claude/agents .claude/hooks .claude/commands .conductor/reflect .conductor/manifests .conductor .claude docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .claude/skills/coordinate-work .claude/skills/propose-skill .claude/skills/plan-change .claude/skills/verify-change .claude/skills/review-change .claude/skills .claude/rules .claude/agents .claude/hooks .claude/commands .claude/conductor/rules .claude/conductor/recipes .claude/conductor .conductor/reflect .conductor/manifests .conductor .claude docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -723,16 +723,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
   fi
 
   # 3. Select recipes
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, or leave blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
   else
-    echo "  No recipes selected."
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, or leave blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; else echo "  No recipes selected."; fi
   fi
 
   # 4. Measure cache baseline?
@@ -790,19 +789,25 @@ conductor_install_portable_skills "claude" ".claude/skills"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/6: universal-rules — skipped (--mode=$MODE is à la carte)"
 elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
-  log "Step 1/6: universal-rules → .claude/rules/"
-  mkdir_if_real "$TARGET_ABS/.claude/rules"
+  log "Step 1/6: bounded kernel + complete universal references"
+  mkdir_if_real "$TARGET_ABS/.claude/conductor/rules"
 
   for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
     src="$CORE_ROOT/universal-rules/$rule.md"
-    dest="$TARGET_ABS/.claude/rules/$rule.md"
+    dest="$TARGET_ABS/.claude/conductor/rules/$rule.md"
     if [ ! -f "$src" ]; then
       echo "Warning: $src not found; skipping" >&2
       continue
     fi
     backup_and_remember "$dest"
-    copy_with_paths_frontmatter "$src" "$dest" "**"
-    record_emit ".claude/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    if [ "$DRY_RUN" != "true" ]; then /bin/cp "$src" "$dest"; fi
+    record_emit ".claude/conductor/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+  done
+
+  # v1.6 and earlier loaded all five complete rules from .claude/rules on every
+  # request. Retire only exact manifest-owned bytes; preserve user edits.
+  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
+    conductor_retire_owned_path ".claude/rules/$rule.md" "legacy eager universal rule"
   done
 else
   log "Step 1/6: universal-rules — skipped (user opted out)"
@@ -880,20 +885,37 @@ fi
 
 # ----- step 3: recipes (opt-in) ------------------------------------------
 
-log "Step 3/6: recipes (opt-in) → .claude/rules/"
+log "Step 3/6: path-scoped recipe pointers + complete references"
 RECIPES_EMITTED=0
 if [ -n "$RECIPES" ]; then
   mkdir_if_real "$TARGET_ABS/.claude/rules"
+  mkdir_if_real "$TARGET_ABS/.claude/conductor/recipes"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     src="$CORE_ROOT/recipes/$r.md"
     dest="$TARGET_ABS/.claude/rules/$r.md"
+    ref_dest="$TARGET_ABS/.claude/conductor/recipes/$r.md"
     if [ ! -f "$src" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
     fi
+    backup_and_remember "$ref_dest"
+    if [ "$DRY_RUN" != "true" ]; then /bin/cp "$src" "$ref_dest"; fi
+    record_emit ".claude/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     backup_and_remember "$dest"
-    copy_with_paths_frontmatter "$src" "$dest" "**"
+    recipe_globs="$(conductor_recipe_globs_csv "$r")"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would write path-scoped recipe pointer $dest ($recipe_globs)"
+    else
+      {
+        echo '---'; echo 'paths:'
+        printf '%s\n' "$recipe_globs" | /usr/bin/tr ',' '\n' | while IFS= read -r recipe_glob; do
+          printf '  - "%s"\n' "$recipe_glob"
+        done
+        echo '---'; echo ''
+        conductor_render_recipe_pointer_body "$src" ".claude/conductor/recipes/$r.md"
+      } > "$dest"
+    fi
     record_emit ".claude/rules/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     RECIPES_EMITTED=$((RECIPES_EMITTED + 1))
   done
@@ -909,6 +931,45 @@ fi
 # ----- step 4: hooks + settings.json -------------------------------------
 
 INSTALLED_HOOKS=()
+SELF_IMPROVEMENT_SELECTED=false
+case ",$RECIPES," in *",self-improvement,"*) SELF_IMPROVEMENT_SELECTED=true ;; esac
+
+# v1.6.0 and earlier emitted the trajectory hook in every full install. On an
+# update that keeps self-improvement disabled, retire only the exact file that
+# the prior Claude manifest still owns. A modified hook becomes adopter-owned;
+# a pre-CONDUCTOR backup is restored instead of deleted.
+TRAJECTORY_REMOVE_REGISTRATION=false
+if [ "$SELF_IMPROVEMENT_SELECTED" != "true" ]; then
+  TRAJECTORY_REL=".claude/hooks/stop-trajectory-log.sh"
+  TRAJECTORY_ENTRY="$(conductor_manifest_entry_for_path "$TRAJECTORY_REL" 2>/dev/null || true)"
+  if [ -n "$TRAJECTORY_ENTRY" ]; then
+    TRAJECTORY_SHA="$(conductor_manifest_field "$TRAJECTORY_ENTRY" sha256 2>/dev/null || true)"
+    TRAJECTORY_BACKUP="$(conductor_manifest_field "$TRAJECTORY_ENTRY" backup_path 2>/dev/null || true)"
+    TRAJECTORY_HAD_BACKUP=false
+    case "$TRAJECTORY_ENTRY" in *'"had_backup": true'*) TRAJECTORY_HAD_BACKUP=true ;; esac
+    TRAJECTORY_DEST="$TARGET_ABS/$TRAJECTORY_REL"
+    if [ -f "$TRAJECTORY_DEST" ] && ! conductor_manifest_file_matches "$TRAJECTORY_DEST" "$TRAJECTORY_SHA"; then
+      log "  preserving user-modified $TRAJECTORY_REL while disabling self-improvement"
+    elif [ "$TRAJECTORY_HAD_BACKUP" = "true" ] && [ -n "$TRAJECTORY_BACKUP" ] \
+      && [ -f "$TARGET_ABS/$TRAJECTORY_BACKUP" ]; then
+      if [ "$DRY_RUN" = "true" ]; then
+        log "would restore $TRAJECTORY_BACKUP -> $TRAJECTORY_REL (self-improvement disabled)"
+      else
+        /bin/mv -f "$TARGET_ABS/$TRAJECTORY_BACKUP" "$TRAJECTORY_DEST"
+        log "  restored pre-CONDUCTOR $TRAJECTORY_REL (self-improvement disabled)"
+      fi
+    else
+      if [ "$DRY_RUN" = "true" ]; then
+        log "would remove CONDUCTOR-owned $TRAJECTORY_REL (self-improvement disabled)"
+      else
+        /bin/rm -f "$TRAJECTORY_DEST"
+        log "  removed CONDUCTOR-owned $TRAJECTORY_REL (self-improvement disabled)"
+      fi
+      TRAJECTORY_REMOVE_REGISTRATION=true
+    fi
+    conductor_manifest_stage_drop_path "$TRAJECTORY_REL"
+  fi
+fi
 
 if [ "$MODE" = "minimal" ]; then
   log "Step 4/6: hooks + settings.json — skipped (--mode=minimal ships text only)"
@@ -961,6 +1022,9 @@ mkdir_if_real "$TARGET_ABS/.claude/hooks"
 # read guard) emit only if their templates are present in the CONDUCTOR core/ tree, allowing the
 # adapter to remain forward-compatible with P1.7 work in progress.
 for hook in pretool-agent-routing stop-session-log-check stop-r6-review-check stop-cache-hit-baseline-check pretool-large-file-read-guard pretool-commit-current-work-check pretool-commit-test-coverage-check stop-trajectory-log stop-git-hygiene-guard pretool-loop-guard output-cap; do
+  if [ "$hook" = "stop-trajectory-log" ] && [ "$SELF_IMPROVEMENT_SELECTED" != "true" ]; then
+    continue
+  fi
   src="$CORE_ROOT/hooks/$hook.sh.template"
   dest="$TARGET_ABS/.claude/hooks/$hook.sh"
   if [ ! -f "$src" ]; then
@@ -978,14 +1042,19 @@ done
 # Mutating commands are intentionally excluded.
 SETTINGS_PATH="$TARGET_ABS/.claude/settings.json"
 if [ -f "$SETTINGS_PATH" ]; then
+  CLAUDE_HOOKIFY_FLAGS=""
+  [ "$SELF_IMPROVEMENT_SELECTED" = "true" ] && CLAUDE_HOOKIFY_FLAGS="$CLAUDE_HOOKIFY_FLAGS --self-improvement"
+  [ "$TRAJECTORY_REMOVE_REGISTRATION" = "true" ] && CLAUDE_HOOKIFY_FLAGS="$CLAUDE_HOOKIFY_FLAGS --remove-trajectory"
   HOOKIFY_SETTINGS_STATE="$(node "$CONDUCTOR_ROOT/bin/claude-hookify.js" state "$SETTINGS_PATH" 2>/dev/null || printf 'invalid')"
-  MISSING_CORE_HOOKS="$(node "$CONDUCTOR_ROOT/bin/claude-hookify.js" missing-hooks "$SETTINGS_PATH" 2>/dev/null || printf 'invalid')"
-  if [ "$HOOKIFY_SETTINGS_STATE" = "missing" ] || { [ "$MISSING_CORE_HOOKS" != "invalid" ] && [ "$MISSING_CORE_HOOKS" -gt 0 ]; }; then
+  # shellcheck disable=SC2086 -- flags are a closed set constructed above.
+  HOOKIFY_NEEDS_RECONCILE="$(node "$CONDUCTOR_ROOT/bin/claude-hookify.js" needs-reconcile "$SETTINGS_PATH" $CLAUDE_HOOKIFY_FLAGS 2>/dev/null || printf 'invalid')"
+  if [ "$HOOKIFY_SETTINGS_STATE" = "missing" ] || [ "$HOOKIFY_NEEDS_RECONCILE" = "yes" ]; then
     if [ "$DRY_RUN" = "true" ]; then
       log "would semantically merge the missing Hookify dependency/core hook registrations into $SETTINGS_PATH (all existing keys preserved)"
     else
       backup_and_remember "$SETTINGS_PATH"
-      node "$CONDUCTOR_ROOT/bin/claude-hookify.js" ensure "$SETTINGS_PATH" >/dev/null
+      # shellcheck disable=SC2086 -- flags are a closed set constructed above.
+      node "$CONDUCTOR_ROOT/bin/claude-hookify.js" ensure "$SETTINGS_PATH" $CLAUDE_HOOKIFY_FLAGS >/dev/null
       record_emit ".claude/settings.json" "<semantic-merge:claude-runtime>" "$MANIFEST_LAST_BACKUP"
       log "  merged missing Hookify/core hook runtime entries into $SETTINGS_PATH (existing settings preserved)"
     fi
@@ -1072,7 +1141,6 @@ else
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-session-log-check.sh" },
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-r6-review-check.sh" },
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-cache-hit-baseline-check.sh" },
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-trajectory-log.sh" },
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-git-hygiene-guard.sh" }
         ]
       }
@@ -1080,7 +1148,10 @@ else
   }
 }
 SETTINGS_EOF
-  log "  wrote $SETTINGS_PATH (Hookify project dependency + $(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') hook(s) installed in .claude/hooks; settings.json registers 11 core hooks: 5 PreToolUse + 1 PostToolUse + 5 Stop)"
+  if [ "$SELF_IMPROVEMENT_SELECTED" = "true" ]; then
+    node "$CONDUCTOR_ROOT/bin/claude-hookify.js" ensure "$SETTINGS_PATH" --self-improvement >/dev/null
+  fi
+  log "  wrote $SETTINGS_PATH (Hookify project dependency + $(printf '%s' "${INSTALLED_HOOKS[*]}" | /usr/bin/wc -w | /usr/bin/tr -d ' ') selected hook(s) installed and registered)"
   record_emit ".claude/settings.json" "<synthesized>" ""
 fi
 fi
@@ -1167,7 +1238,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     fi
     # scheduling assets → .conductor/reflect/ (weekly runner + brief + registration guide)
     if [ "$DRY_RUN" = "true" ]; then
-      log "  would emit .conductor/reflect/{run-weekly.sh,reflect-brief.md,SCHEDULING.md}"
+      log "  would emit .conductor/reflect/{run-weekly.sh,reflection-proposals.js,reflect-brief.md,SCHEDULING.md}"
     else
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect"
       conductor_install_trajectory_ignore
@@ -1179,6 +1250,10 @@ case ",$RECIPES_FOR_RUNTIME," in
         case "$f" in *.sh) /bin/chmod +x "$dest" ;; esac
         record_emit ".conductor/reflect/$f" "core/reflector/$f" "$MANIFEST_LAST_BACKUP"
       done
+      dest="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_and_remember "$dest"
+      /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$dest"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
     fi
     ;;
   *)
@@ -1186,7 +1261,7 @@ case ",$RECIPES_FOR_RUNTIME," in
     # opted-in install, so a recipe-less re-install is fully dormant (the always-on
     # trajectory hook gates on .conductor/reflect/, and /reflect must not dangle).
     if [ "$DRY_RUN" != "true" ] && [ -d "$TARGET_ABS/.conductor/reflect" ]; then
-      /bin/rm -f "$TARGET_ABS/.conductor/reflect/prune-lessons.sh" "$TARGET_ABS/.conductor/reflect/run-weekly.sh" "$TARGET_ABS/.conductor/reflect/reflect-brief.md" "$TARGET_ABS/.conductor/reflect/SCHEDULING.md"
+      /bin/rm -f "$TARGET_ABS/.conductor/reflect/prune-lessons.sh" "$TARGET_ABS/.conductor/reflect/run-weekly.sh" "$TARGET_ABS/.conductor/reflect/reflection-proposals.js" "$TARGET_ABS/.conductor/reflect/reflect-brief.md" "$TARGET_ABS/.conductor/reflect/SCHEDULING.md"
       /bin/rm -f "$TARGET_ABS/.claude/commands/reflect.md" "$TARGET_ABS/.claude/agents/reflector.md" 2>/dev/null || true
       if /bin/rmdir "$TARGET_ABS/.conductor/reflect" 2>/dev/null; then
         log "Step 4.6: self-improvement not selected — cleared stale .conductor/reflect gate + /reflect artifacts"
@@ -1260,102 +1335,27 @@ else
 log "Step 6/6: synthesize CLAUDE.md"
 CLAUDE_MD="$TARGET_ABS/CLAUDE.md"
 
-CLAUDE_MD_CONTENT=$(/bin/cat <<'EOF'
-# Project Orchestrator Manual (installed by CONDUCTOR)
+CLAUDE_MD_CONTENT="$(conductor_render_runtime_kernel \
+  "Claude Code" ".claude/conductor/rules" ".claude/conductor/recipes" \
+  "$WIZARD_APPLY_RULES" "$RECIPES")"
+CLAUDE_MD_CONTENT="$CLAUDE_MD_CONTENT
 
-You are the orchestrator. You coordinate, delegate, and verify. You do not implement code yourself except for the smallest tasks — developer roles handle that.
+## Claude Code native appendix
 
-Sub-agents in Claude Code are isolated and do not inherit this file. Every dispatch brief must be self-contained: objective, file paths, constraints, output path, stop condition.
+Sub-agents are isolated and do not inherit this file. Every dispatch brief must
+be self-contained: objective, bounded file paths, constraints, expected output,
+and stop condition. The PreToolUse routing hook requires an explicit saved model.
 
-## ABSOLUTE rules (read before every tool call)
-
-The following universal rules are loaded from `.claude/rules/` and apply to every turn:
-
-| Rule file | Bundles |
-|---|---|
-| `workflow.md` | Plan-first, docs-first, 7-step, process-over-speed, never-skip |
-| `spec-as-you-go.md` | Same-turn spec update, real-time docs sync |
-| `quality-gates.md` | Pre-commit + pre-merge review, test sync, verify-after-changes |
-| `operations.md` | Session continuity, completed-task delete, dev/prod sync |
-| `meta-discipline.md` | Originality, ambiguity AMB-1..7 triggers, token economy, model routing, flat-with-leader |
-
-If you catch yourself about to break one, STOP and fix course. Silent recovery is worse than explicit acknowledgment.
-
-## Roles available for dispatch
-
-| Role | Difficulty | Claude translation | When to use |
-|---|---|---|---|
-| `@planner` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Architecture, ADRs, gap analysis (no code) |
-| `@builder` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Multi-file (3+) cross-cutting code |
-| `@reviewer` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Plan validation (read-only) |
-| `@code-reviewer` | Tier 1 | `{{CLAUDE_TIER_1_MODEL}}` | Post-implementation code review (read-only) |
-| `@helper` | Tier 2 | `{{CLAUDE_TIER_2_MODEL}}` | Single-file work, established patterns |
-| `@designer` | Tier 2 | `{{CLAUDE_TIER_2_MODEL}}` | UI / UX, design tokens, accessibility |
-| `@scribe` | Tier 2 | `{{CLAUDE_TIER_2_MODEL}}` | Documentation sync (no code) |
-| `@utility` | Tier 3 | `{{CLAUDE_TIER_3_MODEL}}` | Direct lookup or trivial one-file edit; escalate if scope grows |
-
-Per `meta-discipline.md` section 6, the orchestrator classifies every task first,
-then passes the matching Claude model explicitly. Family aliases follow current
-Claude releases; exact model IDs are saved with
-`omniconductor models configure --target=claude`. The PreToolUse hook
-(`.claude/hooks/pretool-agent-routing.sh`) enforces explicit selection.
-
-## Topology — flat-with-leader
-
-Roles do NOT dispatch each other. Multi-step work returns intermediate results to the orchestrator, which decides the next dispatch. See `meta-discipline.md` section 7.
-
-## Ambiguity policy
-
-Default: ACT-WITH-DECLARATION (proceed with best-guess + surface assumption in response prefix).
-
-Override: ASK (multiple-choice template) when any of AMB-1..7 fires:
-- AMB-1 deictic ("this", "like before"), AMB-2 unspecified scope, AMB-3 external system invocation, AMB-4 protected-branch merge, AMB-5 design decisions, AMB-6 dependency add, AMB-7 user manual action required.
-
-Full catalog: `meta-discipline.md` section 3.
-
-## Session startup (lazy-load by default)
-
-Auto-load on every session: `docs/CURRENT_WORK.md` only.
-
-Lazy-load on demand:
-- `docs/architecture/README.md` — when designing / changing system structure.
-- `docs/specs/<area>.md` — when touching that area's code.
-- Recipe files in `.claude/rules/` — auto-loaded by Claude Code when matching files are touched (via `paths:` frontmatter).
-
-Canonical artifact paths:
-
-| Artifact | Path |
-|---|---|
-| Implementation plan | `docs/plans/YYYY-MM-DD-<topic>.md` |
-| Long-lived domain spec | `docs/specs/<area>.md` |
-| Architecture / ADR | `docs/architecture/README.md` / `docs/architecture/NNNN-<topic>.md` |
-| Research note | `docs/research/YYYY-MM-DD-<topic>.md` |
-
-Existing files and plugin folders are not policy. These paths win unless
-`docs/INDEX.md` explicitly declares a project override; an unresolved conflict
-requires STOP + ASK before writing.
-
-## Hooks installed
-
-| Hook | Trigger | Action |
+| Role group | Difficulty | Claude translation |
 |---|---|---|
-| `pretool-agent-routing.sh` | Agent tool dispatch | Block forbidden subagent_type, require explicit model |
-| `pretool-commit-current-work-check.sh` | Bash `git commit` | Soft `ask` warn (non-blocking) when 3+ source files are staged but CURRENT_WORK.md is not in the commit (skip: `CONDUCTOR_SKIP_CURRENT_WORK_HOOK=1`) |
-| `pretool-commit-test-coverage-check.sh` | Bash `git commit` | Soft `ask` warn (non-blocking, quality-gates Q3) when a new feature-shaped file is added with no new test in the commit (skip: `CONDUCTOR_SKIP_TEST_COVERAGE_HOOK=1`) |
-| `pretool-large-file-read-guard.sh` | Read tool | Block Read of files ≥ 500 lines without offset/limit; recommends range-read or Grep (override: `CONDUCTOR_ALLOW_LARGE_READ=1`) |
-| `pretool-loop-guard.sh` | Every tool call | Warn on repeated no-progress actions or an exceeded session tool budget when the loop-engineering recipe is active |
-| `output-cap.sh` | After every tool call | Truncate oversized tool output before it re-enters context, with an elision marker (skip: `CONDUCTOR_SKIP_OUTPUT_CAP=1`) |
-| `stop-session-log-check.sh` | Session stop | Block stop when CURRENT_WORK.md / specs are stale after recent commits |
-| `stop-r6-review-check.sh` | Session stop | Remind to run pre-merge review on open PR |
-| `stop-cache-hit-baseline-check.sh` | Session stop | Non-blocking cache-hit-rate diagnostic vs baseline (skip: `CONDUCTOR_SKIP_CACHE_CHECK=1`) |
-| `stop-trajectory-log.sh` | Session stop | Record a bounded trajectory pointer when the self-improvement recipe is active |
-| `stop-git-hygiene-guard.sh` | Session stop | Remind on orphan worktrees, local-only commits, or branch sprawl when the git-hygiene recipe is active |
+| planner, builder, reviewer, code-reviewer | Tier 1 | \`{{CLAUDE_TIER_1_MODEL}}\` |
+| helper, designer, scribe | Tier 2 | \`{{CLAUDE_TIER_2_MODEL}}\` |
+| utility | Tier 3 | \`{{CLAUDE_TIER_3_MODEL}}\` |
 
-## Prompt caching (recommended)
-
-When using the Anthropic SDK directly, place this orchestrator manual + the universal-rules + recipes in the cacheable prefix. See the CONDUCTOR repo's `docs/PROMPT-CACHING-GUIDE.md` for the recommended structure.
-EOF
-)
+Selected recipe pointer files under \`.claude/rules/\` use native \`paths:\`
+frontmatter. When one loads, read its exact complete reference before acting.
+Deterministic hooks in \`.claude/settings.json\` remain guardrails, not a security
+boundary. Use \`/hooks\` and \`doctor\` to inspect effective registration."
 CLAUDE_MD_CONTENT="$(printf '%s' "$CLAUDE_MD_CONTENT" | /usr/bin/sed \
   -e "s/{{CLAUDE_TIER_1_MODEL}}/$CLAUDE_TIER_1_MODEL/g" \
   -e "s/{{CLAUDE_TIER_2_MODEL}}/$CLAUDE_TIER_2_MODEL/g" \
@@ -1397,8 +1397,8 @@ if [ "$MEASURE_BASELINE" = "true" ]; then
       MEASURE_OUTPUT=""
       if MEASURE_OUTPUT=$(bash "$MEASURE_SCRIPT" --latest --export-csv="$BASELINE_CSV" 2>&1); then
         echo "$MEASURE_OUTPUT"
-        # Extract cache hit rate for step 8 decision.
-        BASELINE_HIT_RATE=$(echo "$MEASURE_OUTPUT" | /usr/bin/grep "Cache hit rate" | /usr/bin/awk '{print $NF}' | /usr/bin/tr -d '%')
+        # Extract canonical cache-read token share for step 8 decision.
+        BASELINE_HIT_RATE=$(echo "$MEASURE_OUTPUT" | /usr/bin/grep "Cache-read token share" | /usr/bin/awk '{print $NF}' | /usr/bin/tr -d '%')
         echo ""
         echo "[conductor] Baseline saved: $BASELINE_CSV"
       else

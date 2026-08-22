@@ -47,15 +47,26 @@ function install(tool, target) {
 
 function fakeCli(name, version) {
   const dir = fs.mkdtempSync(path.join(base, `${name}-bin-`));
-  const file = path.join(dir, name);
-  fs.writeFileSync(file, `#!/bin/sh\nif [ "\${1:-}" = "--version" ]; then echo "${version}"; exit 0; fi\nexit 1\n`);
-  fs.chmodSync(file, 0o755);
+  if (process.platform === 'win32') {
+    const fixture = path.join(dir, `${name}-fixture.js`);
+    fs.writeFileSync(fixture,
+      `'use strict';\nif (process.argv[2] !== '--version') process.exit(1);\nprocess.stdout.write(${JSON.stringify(`${version}\n`)});\n`);
+    fs.writeFileSync(path.join(dir, `${name}.cmd`),
+      `@echo off\r\n"${process.execPath}" "%~dp0${name}-fixture.js" %*\r\n`);
+  } else {
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, `#!/bin/sh\nif [ "\${1:-}" = "--version" ]; then echo "${version}"; exit 0; fi\nexit 1\n`);
+    fs.chmodSync(file, 0o755);
+  }
   return dir;
 }
 
 function doctor(target, binDir) {
+  const env = { ...process.env };
+  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === 'PATH') || 'PATH';
+  env[pathKey] = [binDir, env[pathKey]].filter(Boolean).join(path.delimiter);
   const result = runNode(['bin/omniconductor.js', 'doctor', target, '--json'], {
-    env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
+    env,
   });
   assert.ok(result.status === 0 || result.status === 1, result.stdout + result.stderr);
   return JSON.parse(result.stdout);
@@ -103,6 +114,16 @@ check('schema validation rejects an incomplete contract', () => {
   assert.ok(problems.some((problem) => problem.includes('headless_cli')));
   assert.ok(problems.some((problem) => problem.includes('product')));
   assert.ok(problems.some((problem) => problem.includes('probe')));
+
+  const unsafeCommand = JSON.parse(JSON.stringify(runtime.loadMetadata('claude')));
+  unsafeCommand.headless_cli.command = 'claude & echo unsafe';
+  assert.ok(runtime.validateRuntimeContract(unsafeCommand)
+    .some((problem) => problem.includes('execution-safe bare command')));
+
+  const unsafeArg = JSON.parse(JSON.stringify(runtime.loadMetadata('claude')));
+  unsafeArg.runtime_contract.version.args = ['--version', '& unsafe'];
+  assert.ok(runtime.validateRuntimeContract(unsafeArg)
+    .some((problem) => problem.includes('execution-safe option arguments')));
 });
 
 check('CLI rejects an unknown adapter without a stack trace', () => {
@@ -116,6 +137,50 @@ check('version parsing and comparison are numeric', () => {
   assert.strictEqual(runtime.parseVersion('claude 2.1.121').label, '2.1.121');
   assert.strictEqual(runtime.versionAtLeast('2.10.0', '2.9.9'), true);
   assert.strictEqual(runtime.versionAtLeast('2.1.120', '2.1.121'), false);
+});
+
+check('Windows command resolution distinguishes missing, executable, and npm cmd launchers', () => {
+  const winPath = 'C:\\fixture one;D:\\fixture-two';
+  const existing = new Set([
+    'C:\\fixture one\\claude.CMD',
+    'D:\\fixture-two\\codex.EXE',
+  ]);
+  const exists = (candidate) => existing.has(candidate);
+  const env = { Path: winPath, ComSpec: 'C:\\Windows\\System32\\cmd.exe' };
+
+  assert.strictEqual(runtime.resolveWindowsCommand('missing', env, exists), null);
+  assert.strictEqual(runtime.resolveWindowsCommand('codex', env, exists),
+    'D:\\fixture-two\\codex.EXE');
+  assert.deepStrictEqual(runtime.windowsProbeInvocation('codex', ['--version'], env, exists), {
+    command: 'D:\\fixture-two\\codex.EXE',
+    args: ['--version'],
+    windowsVerbatimArguments: false,
+  });
+  assert.deepStrictEqual(runtime.windowsProbeInvocation('claude', ['--version'], env, exists), {
+    command: 'C:\\Windows\\System32\\cmd.exe',
+    args: ['/d', '/s', '/c', '""C:\\fixture one\\claude.CMD" --version"'],
+    windowsVerbatimArguments: true,
+  });
+});
+
+check('Windows npm-style cmd fixture executes through the exact resolved invocation', () => {
+  if (process.platform !== 'win32') return;
+  const binDir = fakeCli('fixture-cli', 'fixture-cli 9.8.7');
+  const env = { ...process.env };
+  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === 'PATH') || 'PATH';
+  env[pathKey] = [binDir, env[pathKey]].filter(Boolean).join(path.delimiter);
+  const probeEnv = runtime.versionProbeEnv(env);
+  const invocation = runtime.windowsProbeInvocation('fixture-cli', ['--version'], probeEnv);
+  assert.ok(invocation, 'fixture-cli.cmd was not resolved from the isolated PATH');
+  const result = spawnSync(invocation.command, invocation.args, {
+    encoding: 'utf8',
+    env: probeEnv,
+    windowsHide: true,
+    windowsVerbatimArguments: invocation.windowsVerbatimArguments,
+  });
+  assert.strictEqual(result.status, 0,
+    `status=${result.status} error=${result.error?.code || 'none'} stdout=${result.stdout || ''} stderr=${result.stderr || ''}`);
+  assert.strictEqual(String(result.stdout).trim(), 'fixture-cli 9.8.7');
 });
 
 check('missing CLI is informational and never authenticates', () => {
@@ -141,6 +206,9 @@ check('version probes receive only execution-safe environment values and never e
       assert.strictEqual(options.env.PATH, process.env.PATH);
       assert.strictEqual(options.env.SAFE_RUNTIME_LABEL, undefined);
       assert.ok(!Object.values(options.env).includes(secret), JSON.stringify(options.env));
+      assert.strictEqual(options.shell, undefined);
+      assert.strictEqual(options.windowsHide, true);
+      assert.strictEqual(options.windowsVerbatimArguments, false);
       return { status: 0, stdout: `unparseable ${secret}`, stderr: '' };
     },
   });
@@ -263,6 +331,18 @@ check('runtime-only live verification mode is read-only', () => {
   assert.strictEqual(result.status, 0, result.stdout + result.stderr);
   assert.ok(result.stdout.includes('[not-installed]'), result.stdout);
   assert.strictEqual(sha256(meta), before);
+});
+
+check('Devin live verification bypasses trust only for its generated throwaway workspace', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'tools', 'live-verify.sh'), 'utf8');
+  const bypass = '--respect-workspace-trust false';
+  assert.strictEqual(source.split(bypass).length - 1, 1,
+    'workspace-trust bypass must have exactly one narrowly owned call site');
+  assert.match(source,
+    /tmp="\$\(mktemp -d[\s\S]*devin\)\s+run_with_timeout "\$TIMEOUT_S" devin --respect-workspace-trust false -p "\$PROBE"/,
+    'Devin trust bypass must stay inside the generated live-verification fixture');
+  assert.doesNotMatch(source, /respect_workspace_trust|devin\s+config/,
+    'live verification must not weaken the user-level Devin trust configuration');
 });
 
 fs.rmSync(base, { recursive: true, force: true });

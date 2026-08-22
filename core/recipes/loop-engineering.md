@@ -11,7 +11,9 @@ linked_rules:
 
 # Recipe — Loop Engineering
 
-> Opt-in recipe. Install for any project where the agent works in a **loop** — "do → check → fix → re-check until done." It codifies how to run that loop so it **terminates correctly, stays bounded, and never declares success without an external check.** Install if you want agent loops that are reliable instead of ones that thrash, run away, or report "done" on unverified work.
+> Automatic safe default on fresh full/strict installs. It bounds work and requires
+> external verification but grants no new write, data, network, scheduler, or Git
+> authority. Use an exact `--recipes=` override if a project deliberately excludes it.
 
 ## Why this exists
 

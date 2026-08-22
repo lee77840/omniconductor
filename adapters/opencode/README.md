@@ -2,7 +2,7 @@
 
 The OpenCode adapter installs CONDUCTOR without taking ownership of the root
 `AGENTS.md`. That path may already belong to the Codex adapter. Instead it
-semantically merges two CONDUCTOR instruction globs into `opencode.json` and keeps
+semantically merges one bounded CONDUCTOR kernel into `opencode.json` and keeps
 the OpenCode surface isolated under `.opencode/`.
 
 Enumerable capability facts live in [`metadata.json`](./metadata.json). The full
@@ -35,8 +35,10 @@ npx omniconductor@latest init --target=opencode . \
 
 ```text
 opencode.json                              # semantic instructions merge
-.opencode/rules/*.md                       # five universal rules
-.opencode/rules/recipes/*.md               # selected recipes
+.opencode/rules/conductor-kernel.md        # bounded always-active kernel
+.opencode/conductor/rules/*.md             # five complete on-demand rules
+.opencode/conductor/recipes/*.md           # selected complete on-demand recipes
+.opencode/rules/recipes/*.md               # compact pointers in recipes-only modes
 .opencode/agents/*.md                      # eight baseline subagents
 .opencode/plugins/conductor-guards.js      # v1 commit preconditions
 .opencode/skills/*/SKILL.md                # portable skills

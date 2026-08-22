@@ -1,15 +1,20 @@
 # Scheduling the weekly Reflector
 
-The Reflector is **propose-only** — a scheduled run reads `.conductor/trajectories/index.jsonl`
-+ git history and appends proposals to `docs/REFLECTION-PROPOSALS.md`. It applies nothing.
+The Reflector is **propose-only** — a scheduled run analyzes trajectories in a
+verified read-only CLI mode. The model emits typed data; a trusted deterministic
+writer alone appends `docs/REFLECTION-PROPOSALS.md`. It applies nothing.
 Nothing here auto-registers a schedule (that is a machine/user-level action a repo installer
 cannot do for you); this documents how to register the runner CONDUCTOR emitted:
 
     .conductor/reflect/run-weekly.sh
 
 It auto-detects the first supported CLI on `PATH`
-(`claude` → `codex` → `gemini` → `cursor-agent` → `copilot` → `devin`).
+(`claude` → `codex` → `gemini` → `cursor-agent` → `copilot` → `opencode`).
 Force one with `CONDUCTOR_REFLECT_CLI=<cli>`; preview with `CONDUCTOR_REFLECT_DRYRUN=1`.
+
+Windsurf/Devin remains a manual `/reflect` workflow until its CLI exposes an
+equivalent verified headless read-only contract. The runner fails closed rather
+than granting broad workspace writes.
 
 > **Local vs cloud — the one rule that matters.** The trajectory log lives locally under
 > `.conductor/` (typically git-ignored). A **cloud** scheduler runs on a fresh clone and
@@ -64,7 +69,7 @@ back. Per-tool official actions + `on: schedule`:
       with: { prompt: "Run the $reflect skill", openai-api-key: ${{ secrets.OPENAI_API_KEY }} }
 
     # Copilot
-    - run: npm i -g @github/copilot && copilot -p "$(cat .conductor/reflect/reflect-brief.md)" --allow-tool=write --no-ask-user
+    - run: npm i -g @github/copilot && .conductor/reflect/run-weekly.sh
       env: { COPILOT_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }} }
 
 (Trigger with `on: { schedule: [{ cron: "0 9 * * 1" }] }`.)
@@ -76,8 +81,6 @@ memory entries, then run `.conductor/reflect/prune-lessons.sh <memory-dir>` to k
 
 ---
 
-*Headless flags + scheduler local/cloud behavior verified against first-party docs 2026-07-05.
-Some details (Cursor custom-command in `-p`, exact approval-flag names, Copilot-app local file
-scope, the Copilot CI token env var `COPILOT_GITHUB_TOKEN`) were not first-party-confirmable —
-the runner inlines the brief text rather than relying on unverified `/reflect` resolution, and
-you may need to add your tool's write-approval flag / confirm its CI secret name.*
+*Headless read-only flags were re-verified against first-party CLI contracts on
+2026-08-13. Provider-native enforcement differs, but the invariant is the same:
+the analyzer cannot write and the trusted importer owns the one proposal path.*

@@ -8,6 +8,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const installerPlatform = require('../bin/installer-platform.js');
+const installConflicts = require('../bin/install-conflicts.js');
 
 if (process.platform !== 'win32') {
   console.log('SKIP: Windows Git Bash installer regression runs on windows-latest');
@@ -20,7 +21,12 @@ const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'op
 const bash = installerPlatform.resolveBash();
 assert(bash, 'Git Bash is required on the Windows release runner');
 const SINGLE_TIMEOUT_MS = 180_000;
+const DIRECT_TIMEOUT_MS = 180_000;
 const ALL_TARGET_TIMEOUT_MS = 600_000;
+
+function progress(message) {
+  process.stdout.write(`[windows-installer] ${message}\n`);
+}
 
 function runCli(args, timeout = SINGLE_TIMEOUT_MS) {
   const started = Date.now();
@@ -33,6 +39,27 @@ function runCli(args, timeout = SINGLE_TIMEOUT_MS) {
   });
   result.elapsedMs = Date.now() - started;
   result.timeoutMs = timeout;
+  return result;
+}
+
+function runDirectAdapter(tool, target) {
+  const transform = path.join(ROOT, 'adapters', tool, 'transform.sh');
+  const started = Date.now();
+  // The CLI loop above already exercises a full install for every adapter.
+  // This second loop isolates direct Git Bash dispatch/identity termination;
+  // minimal mode avoids repeating roles/hooks while still writing a manifest.
+  const result = spawnSync(bash.command, [
+    toBashPath(transform), toBashPath(target), '--mode=minimal', '--recipes=',
+    '--no-prompt', '--accept-model-defaults',
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: DIRECT_TIMEOUT_MS,
+    windowsHide: true,
+    env: { ...process.env, CONDUCTOR_BASH_PATH: bash.command, CONDUCTOR_CLI_DISPATCH: '' },
+  });
+  result.elapsedMs = Date.now() - started;
+  result.timeoutMs = DIRECT_TIMEOUT_MS;
   return result;
 }
 
@@ -70,7 +97,8 @@ function inventory(root) {
 const base = fs.mkdtempSync(path.join(os.tmpdir(), 'CONDUCTOR Windows (한글) '));
 try {
   let copilotTarget = null;
-  for (const tool of TOOLS) {
+  for (const [index, tool] of TOOLS.entries()) {
+    progress(`CLI full install ${index + 1}/${TOOLS.length}: ${tool}`);
     const target = path.join(base, `CLI ${tool} project`);
     fs.mkdirSync(target);
     const result = runCli(['init', `--target=${tool}`, target, '--no-prompt', '--accept-model-defaults']);
@@ -82,6 +110,7 @@ try {
     const report = JSON.parse(doctor.stdout);
     assert.strictEqual(report.summary.FAIL, 0, `${tool} doctor reported failures`);
     assert(report.checks.some((entry) => entry.id === 'D16' && entry.status === 'OK'), `${tool} D16 missing`);
+    progress(`CLI full install ${index + 1}/${TOOLS.length}: ${tool} PASS (${result.elapsedMs}ms)`);
     if (tool === 'copilot') copilotTarget = target;
     if (tool === 'opencode') {
       const plugin = path.join(target, '.opencode', 'plugins', 'conductor-guards.js');
@@ -90,6 +119,47 @@ try {
       assert.strictEqual(syntax.status, 0, syntax.stderr || syntax.stdout);
     }
   }
+
+  // Existing-project adoption must fail before model routing or adapter state
+  // unless the operator states an explicit policy. Exercise every adapter with
+  // its native Windows path spelling, then prove both safe choices on Claude.
+  progress('unmanaged-baseline conflict checks');
+  for (const tool of TOOLS) {
+    const target = path.join(base, `Conflict ${tool} project`);
+    fs.mkdirSync(target);
+    const relative = installConflicts.SURFACES[tool][0];
+    const surface = path.join(target, ...relative.split('/'));
+    if (path.extname(surface) || path.basename(surface).startsWith('.')) {
+      fs.mkdirSync(path.dirname(surface), { recursive: true });
+      fs.writeFileSync(surface, 'KEEP\r\n');
+    } else {
+      fs.mkdirSync(surface, { recursive: true });
+      fs.writeFileSync(path.join(surface, 'keep.txt'), 'KEEP\r\n');
+    }
+    const blocked = runCli(['init', `--target=${tool}`, target, '--no-prompt', '--accept-model-defaults']);
+    assert.strictEqual(blocked.status, 2, `${tool} implicit conflict must fail closed: ${blocked.stderr}`);
+    assert(!fs.existsSync(path.join(target, '.conductor')), `${tool} conflict created project state`);
+  }
+
+  const preserveTarget = path.join(base, 'Conflict preserve project');
+  fs.mkdirSync(preserveTarget);
+  fs.writeFileSync(path.join(preserveTarget, 'CLAUDE.md'), 'KEEP\r\n');
+  let adoption = runCli(['init', '--target=claude', preserveTarget, '--no-prompt', '--conflict-policy=recipes-only', '--recipes=debugging']);
+  assertSpawnSuccess(adoption, 'Windows recipes-only preservation failed');
+  assert.strictEqual(fs.readFileSync(path.join(preserveTarget, 'CLAUDE.md'), 'utf8'), 'KEEP\r\n');
+  adoption = runCli(['init', '--target=claude', preserveTarget, '--uninstall']);
+  assertSpawnSuccess(adoption, 'Windows recipes-only uninstall failed');
+  assert.strictEqual(fs.readFileSync(path.join(preserveTarget, 'CLAUDE.md'), 'utf8'), 'KEEP\r\n');
+
+  const replaceTarget = path.join(base, 'Conflict replace project');
+  fs.mkdirSync(replaceTarget);
+  fs.writeFileSync(path.join(replaceTarget, 'CLAUDE.md'), 'KEEP\r\n');
+  adoption = runCli(['init', '--target=claude', replaceTarget, '--no-prompt', '--mode=full', '--recipes=', '--accept-model-defaults']);
+  assertSpawnSuccess(adoption, 'Windows explicit replacement failed');
+  assert.notStrictEqual(fs.readFileSync(path.join(replaceTarget, 'CLAUDE.md'), 'utf8'), 'KEEP\r\n');
+  adoption = runCli(['init', '--target=claude', replaceTarget, '--uninstall']);
+  assertSpawnSuccess(adoption, 'Windows replacement rollback failed');
+  assert.strictEqual(fs.readFileSync(path.join(replaceTarget, 'CLAUDE.md'), 'utf8'), 'KEEP\r\n');
 
   // A zero exit is vacuous for fail-open hooks. Force the positive branch:
   // three staged source files without CURRENT_WORK must emit a parseable ask
@@ -112,21 +182,19 @@ try {
   assert.strictEqual(decision.permissionDecision, 'ask');
   assert.match(decision.permissionDecisionReason, /CURRENT_WORK/);
 
-  for (const tool of TOOLS) {
+  for (const [index, tool] of TOOLS.entries()) {
+    progress(`direct Git Bash minimal install ${index + 1}/${TOOLS.length}: ${tool}`);
     const target = path.join(base, `Direct ${tool} project`);
     fs.mkdirSync(target);
-    const transform = path.join(ROOT, 'adapters', tool, 'transform.sh');
-    const result = spawnSync(bash.command, [toBashPath(transform), toBashPath(target), '--no-prompt', '--accept-model-defaults'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      timeout: 120_000,
-      windowsHide: true,
-      env: { ...process.env, CONDUCTOR_BASH_PATH: bash.command, CONDUCTOR_CLI_DISPATCH: '' },
-    });
+    const result = runDirectAdapter(tool, target);
     assertSpawnSuccess(result, `${tool} direct install failed or recursed`);
     assert(fs.existsSync(path.join(target, '.conductor', 'manifests', `${tool}.json`)), `${tool} direct manifest missing`);
+    const directManifest = JSON.parse(fs.readFileSync(path.join(target, '.conductor', 'manifests', `${tool}.json`), 'utf8'));
+    assert.strictEqual(directManifest.mode, 'minimal', `${tool} direct mode was not forwarded through CLI dispatch`);
+    progress(`direct Git Bash minimal install ${index + 1}/${TOOLS.length}: ${tool} PASS (${result.elapsedMs}ms)`);
   }
 
+  progress('all-target dry-run byte-identity check');
   const dryRun = path.join(base, 'Dry Run All');
   fs.mkdirSync(dryRun);
   fs.writeFileSync(path.join(dryRun, 'user.txt'), 'preserve me\n');
@@ -135,21 +203,36 @@ try {
   assertSpawnSuccess(result, 'all-target dry-run failed');
   assert.deepStrictEqual(inventory(dryRun), before, 'dry-run changed the Windows target');
 
+  progress('all-target minimal install/uninstall lifecycle');
   const lifecycle = path.join(base, 'All Lifecycle');
   fs.mkdirSync(lifecycle);
   fs.writeFileSync(path.join(lifecycle, 'user.txt'), 'preserve me\n');
-  result = runCli(['init', '--target=all', lifecycle, '--no-prompt', '--accept-model-defaults'], ALL_TARGET_TIMEOUT_MS);
+  // Per-adapter full output already passed above. This combined lifecycle owns
+  // the cross-adapter Windows contract: shared manifests/files, path spelling,
+  // uninstall order, and adopter-data preservation. Minimal mode exercises that
+  // ownership graph without repeating seven expensive role/hook compilations.
+  result = runCli([
+    'init', '--target=all', lifecycle, '--mode=minimal', '--recipes=',
+    '--no-prompt', '--accept-model-defaults',
+  ], ALL_TARGET_TIMEOUT_MS);
   assertSpawnSuccess(result, 'all-target install failed');
-  for (const tool of TOOLS) assert(fs.existsSync(path.join(lifecycle, '.conductor', 'manifests', `${tool}.json`)));
+  for (const tool of TOOLS) {
+    const manifestPath = path.join(lifecycle, '.conductor', 'manifests', `${tool}.json`);
+    assert(fs.existsSync(manifestPath), `${tool} all-target manifest missing`);
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    assert.strictEqual(manifest.mode, 'minimal', `${tool} all-target mode was not preserved`);
+  }
   result = runCli(['init', '--target=all', lifecycle, '--uninstall'], ALL_TARGET_TIMEOUT_MS);
   assertSpawnSuccess(result, 'all-target uninstall failed');
   assert.strictEqual(fs.readFileSync(path.join(lifecycle, 'user.txt'), 'utf8'), 'preserve me\n');
   const manifests = path.join(lifecycle, '.conductor', 'manifests');
   assert(!fs.existsSync(manifests) || fs.readdirSync(manifests).length === 0);
+  progress('all-target minimal lifecycle PASS');
 
   console.log('PASS: seven CLI and seven direct Git Bash adapter installs terminate on Windows');
   console.log('PASS: Windows doctor D16 reports the supported Git Bash execution path');
   console.log('PASS: Windows CRLF hook payload reaches a non-vacuous current-work ask decision');
+  console.log('PASS: all seven unmanaged baselines fail byte-free and explicit preserve/replace policies round-trip');
   console.log('PASS: all-target dry-run is byte-identical and install/uninstall preserves user data');
 } finally {
   fs.rmSync(base, { recursive: true, force: true });

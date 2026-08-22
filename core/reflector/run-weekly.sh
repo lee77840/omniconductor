@@ -42,14 +42,51 @@ fi
 PROMPT="$(/bin/cat "$_self/reflect-brief.md" 2>/dev/null || true)"
 [ -n "$PROMPT" ] || { echo "conductor-reflect: reflect-brief.md missing" >&2; exit 0; }
 
-# Headless, non-interactive invocation per tool (flags verified 2026-07-05).
+# The model is an analyzer, never a writer. Each supported invocation below has
+# a verified native read-only contract. Its stdout is untrusted data; only the
+# deterministic writer may append the one proposal target afterward.
+OUT="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/conductor-reflect-output.XXXXXX")" || exit 1
+trap '/bin/rm -f "$OUT"' EXIT INT TERM
+BEFORE=""
+CHECK_GIT="false"
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  CHECK_GIT="true"
+  BEFORE="$(git status --porcelain=v1 --untracked-files=all 2>/dev/null || true)"
+fi
+
 case "$CLI" in
-  claude)       exec claude -p "$PROMPT" --permission-mode acceptEdits ;;
-  codex)        exec codex exec --sandbox workspace-write "$PROMPT" ;;
-  gemini)       exec gemini -p "$PROMPT" ;;
-  cursor-agent) exec cursor-agent -p --force "$PROMPT" ;;
-  copilot)      exec copilot -p "$PROMPT" --allow-tool=write --no-ask-user ;;
-  devin)        exec devin -p "$PROMPT" ;;
-  opencode)     exec opencode run "$PROMPT" ;;
-  *)            echo "conductor-reflect: unknown CLI '$CLI'" >&2; exit 0 ;;
+  claude)
+    claude -p "$PROMPT" --output-format text --permission-mode plan \
+      --disallowedTools Edit Write NotebookEdit >"$OUT" ;;
+  codex)
+    codex exec --sandbox read-only "$PROMPT" >"$OUT" ;;
+  gemini)
+    gemini --approval-mode=plan -p "$PROMPT" --output-format text >"$OUT" ;;
+  cursor-agent)
+    cursor-agent -p --mode=ask --output-format text "$PROMPT" >"$OUT" ;;
+  copilot)
+    copilot -p "$PROMPT" --available-tools=view,grep,glob \
+      --deny-tool=write,memory,shell,url --no-ask-user >"$OUT" ;;
+  opencode)
+    opencode run --agent reflector "$PROMPT" >"$OUT" ;;
+  devin)
+    echo "conductor-reflect: devin has no verified headless read-only contract; run the installed manual /reflect workflow instead" >&2
+    exit 2 ;;
+  *)
+    echo "conductor-reflect: unknown CLI '$CLI'" >&2
+    exit 2 ;;
 esac
+MODEL_RC=$?
+[ "$MODEL_RC" -eq 0 ] || { echo "conductor-reflect: analyzer failed (exit $MODEL_RC); no proposal was written" >&2; exit "$MODEL_RC"; }
+
+if [ "$CHECK_GIT" = "true" ]; then
+  AFTER="$(git status --porcelain=v1 --untracked-files=all 2>/dev/null || true)"
+  [ "$BEFORE" = "$AFTER" ] || {
+    echo "conductor-reflect: analyzer changed the worktree despite its read-only contract; refusing proposal import" >&2
+    exit 2
+  }
+fi
+
+WRITER="$_self/reflection-proposals.js"
+[ -f "$WRITER" ] || { echo "conductor-reflect: trusted proposal writer missing" >&2; exit 2; }
+node "$WRITER" --from="$OUT" --target=docs/REFLECTION-PROPOSALS.md

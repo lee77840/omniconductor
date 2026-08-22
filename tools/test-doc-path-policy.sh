@@ -10,12 +10,12 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 primary_surface() {
   case "$1" in
     claude) echo "CLAUDE.md" ;;
-    cursor) echo ".cursor/rules/workflow.mdc" ;;
+    cursor) echo ".cursor/rules/conductor-kernel.mdc" ;;
     copilot) echo ".github/copilot-instructions.md" ;;
     gemini) echo "GEMINI.md" ;;
     codex) echo "AGENTS.md" ;;
     windsurf) echo ".windsurfrules" ;;
-    opencode) echo ".opencode/rules/workflow.md" ;;
+    opencode) echo ".opencode/rules/conductor-kernel.md" ;;
   esac
 }
 

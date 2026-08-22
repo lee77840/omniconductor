@@ -115,9 +115,9 @@ function validateRecipeDocs(root) {
   // silently removed guard, which is the exact drift class this file exists to
   // close. Rewording a sentence must fail here, not disappear from the gate.
   const countPatterns = [
-    { regex: /\b(\d+)\s+(?:strictly\s+)?opt-in recipes\b/gi, expected: count, label: 'opt-in recipe count' },
+    { regex: /\b(\d+)\s+(?:strictly\s+)?(?:opt-in|policy-classified) recipes\b/gi, expected: count, label: 'classified recipe count' },
     { regex: /\b(\d+)개\s+recipe\b/gi, expected: count, label: 'Korean recipe count' },
-    { regex: /\brecipes from the (\d+)\b/gi, expected: count, label: 'recipe option count' },
+    { regex: /\b(\d+) recipes layer project-specific discipline\b/gi, expected: count, label: 'recipe catalog count' },
     { regex: /\*\*Recipe names\*\*\s*\((\d+)\)/g, expected: count, label: 'recipe names count' },
     { regex: /^## The (\d+) recipes$/gm, expected: count, label: 'recipe catalog heading count' },
     { regex: /\b(\d+) universal rule bundles and the other \d+ recipes are stack-agnostic\b/gi, expected: rules, label: 'universal rule bundle count' },

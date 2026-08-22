@@ -74,6 +74,9 @@ DIRECT_PUSH="${CONDUCTOR_DIRECT_PUSH_BRANCHES:-develop|main|release|HEAD}"
 STALE_MINUTES="${CONDUCTOR_STALE_MINUTES:-30}"
 COOLDOWN="${CONDUCTOR_COOLDOWN_SECONDS:-1800}"
 REVIEW_COMMAND="${CONDUCTOR_REVIEW_COMMAND:-/code-review}"
+case "$COOLDOWN" in
+  ''|*[!0-9]*) exit 0 ;;
+esac
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 [ -n "$BRANCH" ] || exit 0
@@ -110,7 +113,18 @@ PR_NUM=$(printf '%s' "$PR_JSON" | /usr/bin/sed -n 's/.*"number":\([0-9]*\).*/\1/
 # Cool-down per PR.
 FLAG="/tmp/conductor-q2-flag-${USER:-unknown}-${PR_NUM}"
 if [ -f "$FLAG" ]; then
-  FLAG_AGE=$(( $(date +%s) - $(/usr/bin/stat -f %m "$FLAG" 2>/dev/null || /usr/bin/stat -c %Y "$FLAG" 2>/dev/null || echo 0) ))
+  # GNU stat (Linux/Git Bash) accepts -c; BSD stat (macOS) accepts -f.
+  # Trying BSD first is unsafe on Git Bash because `stat -f %m` succeeds with
+  # a filesystem report beginning with "File:", which is not an epoch value.
+  FLAG_MTIME=$(/usr/bin/stat -c %Y "$FLAG" 2>/dev/null || /usr/bin/stat -f %m "$FLAG" 2>/dev/null || printf '0')
+  NOW=$(date +%s 2>/dev/null || printf '0')
+  case "$FLAG_MTIME" in
+    ''|*[!0-9]*) exit 0 ;;
+  esac
+  case "$NOW" in
+    ''|*[!0-9]*) exit 0 ;;
+  esac
+  FLAG_AGE=$(( NOW - FLAG_MTIME ))
   [ "$FLAG_AGE" -lt "$COOLDOWN" ] && exit 0
 fi
 touch "$FLAG"

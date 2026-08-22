@@ -19,10 +19,23 @@ recipe_file() {
     claude) echo "$target/.claude/rules/$recipe.md" ;;
     cursor) echo "$target/.cursor/rules/$recipe.mdc" ;;
     copilot) echo "$target/.github/instructions/$recipe.instructions.md" ;;
-    codex) echo "$target/.codex/conductor/recipes/$recipe.md" ;;
+    codex) echo "$target/AGENTS.md" ;;
     windsurf) echo "$target/.devin/rules/$recipe.md" ;;
     gemini) echo "$target/GEMINI.md" ;;
     opencode) echo "$target/.opencode/rules/recipes/$recipe.md" ;;
+  esac
+}
+
+reference_file() {
+  tool="$1" target="$2" recipe="$3"
+  case "$tool" in
+    claude) echo "$target/.claude/conductor/recipes/$recipe.md" ;;
+    cursor) echo "$target/.cursor/conductor/recipes/$recipe.md" ;;
+    copilot) echo "$target/.github/conductor/recipes/$recipe.md" ;;
+    gemini) echo "$target/.gemini/conductor/recipes/$recipe.md" ;;
+    codex) echo "$target/.codex/conductor/recipes/$recipe.md" ;;
+    windsurf) echo "$target/.devin/conductor/recipes/$recipe.md" ;;
+    opencode) echo "$target/.opencode/conductor/recipes/$recipe.md" ;;
   esac
 }
 
@@ -41,8 +54,10 @@ for tool in claude cursor copilot gemini codex windsurf opencode; do
   installed=true
   for recipe in $RECIPE_NAMES; do
     file="$(recipe_file "$tool" "$target" "$recipe")"
+    reference="$(reference_file "$tool" "$target" "$recipe")"
     [ -s "$file" ] || installed=false
-    /usr/bin/grep -Eq '^#{1,2} Recipe' "$file" 2>/dev/null || installed=false
+    /usr/bin/grep -q "$recipe" "$file" 2>/dev/null || installed=false
+    /usr/bin/cmp -s "core/recipes/$recipe.md" "$reference" || installed=false
     /usr/bin/grep -q "$recipe" "$target/.conductor/manifests/$tool.json" 2>/dev/null \
       || installed=false
   done
@@ -57,6 +72,8 @@ for tool in claude cursor copilot gemini codex windsurf opencode; do
     removed=true
     for recipe in $RECIPE_NAMES; do
       file="$(recipe_file "$tool" "$target" "$recipe")"
+      reference="$(reference_file "$tool" "$target" "$recipe")"
+      [ ! -e "$reference" ] || removed=false
       if [ "$tool" = "gemini" ]; then
         /usr/bin/grep -q "$recipe" "$file" 2>/dev/null && removed=false
       else

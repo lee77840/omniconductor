@@ -11,6 +11,7 @@
  *   omniconductor models show [target-dir]
  *   omniconductor doctor [target-dir] [--json]
  *   omniconductor audit extensions [target-dir] [--target=<tool|all>] [--json]
+ *   omniconductor audit savings [target-dir] --target=<tool> [--sessions=<path>|--requests=N]
  *   omniconductor eval coverage [--json] [--compare=<report.json>]
  *   omniconductor evidence validate|check <report.json> [--json]
  *   omniconductor work claim|status|handoff|release ...
@@ -35,6 +36,8 @@ const adapterDispatch = require('./adapter-dispatch.js');
 const installerPlatform = require('./installer-platform.js');
 const modelRouting = require('./model-routing.js');
 const pathSafety = require('./path-safety.js');
+const recipeOnboarding = require('./recipe-onboarding.js');
+const installConflicts = require('./install-conflicts.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const TOOLS = ['claude', 'cursor', 'copilot', 'gemini', 'codex', 'windsurf', 'opencode'];
@@ -56,6 +59,8 @@ Usage:
   omniconductor models show [target-dir]                     Show saved model routing
   omniconductor doctor [target-dir] [--json]                  Health-check an existing install (read-only)
   omniconductor audit extensions [target-dir] [options]       Audit extension/MCP trust (read-only)
+  omniconductor audit instructions [dir] [--requests=N]       Estimate avoided eager context (read-only)
+  omniconductor audit savings [dir] --target=<tool> [options] Personal local savings report (read-only)
   omniconductor eval coverage [--json] [--compare=<file>]     Report evidence-backed policy coverage
   omniconductor evidence validate <report.json> [--json]      Validate evidence schema without judging completion
   omniconductor evidence check <report.json> [--json]         Fail when any valid claim remains non-passed
@@ -74,11 +79,13 @@ Usage:
 Tools: ${TOOLS.join(', ')}, all
 
 Common options (forwarded to the adapter):
-  --recipes=a,b,c     Opt-in recipes to install
+  --recipes=a,b,c     Exact recipe list (overrides onboarding; empty disables all)
   --mode=<m>          Install preset: full (default) | minimal | strict |
                       recipes-only | reflector-only (ADR-044)
+  --conflict-policy=<p>
+                      Existing unmanaged instructions: replace | recipes-only | abort
   --dry-run           Preview only — write nothing
-  --no-prompt         Skip interactive prompts (CI-safe)
+  --no-prompt         Safe defaults on fresh install; preserve recipes on update
   --accept-model-defaults
                       Accept documented model recommendations without prompting
   --uninstall         Revert a previous install (manifest-based)
@@ -94,6 +101,7 @@ Examples:
   omniconductor init --target=codex . --uninstall
   omniconductor doctor ./my-app --json
   omniconductor audit extensions ./my-app --target=all --json
+  omniconductor audit savings ./my-app --target=claude --sessions=/path/to/claude/sessions
   omniconductor eval coverage --json
   omniconductor evidence check ./verification-evidence.json
 
@@ -190,6 +198,42 @@ async function askForChoices(targets) {
   } finally { rl.close(); }
 }
 
+async function askForRecipePlan(options) {
+  const mayPrompt = ['full', 'strict'].includes(options.mode)
+    && options.explicitRecipes === null && !options.noPrompt && !options.dryRun;
+  if (mayPrompt && (!process.stdin.isTTY || !process.stdout.isTTY)) {
+    throw new Error('recipe onboarding needs an interactive terminal; rerun with --no-prompt for safe automatic defaults or pass an exact --recipes= list');
+  }
+  const rl = mayPrompt
+    ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
+  try {
+    return await recipeOnboarding.resolveRecipePlan({
+      ...options,
+      ask: rl ? (question) => rl.question(question) : async () => '',
+      output: process.stdout,
+    });
+  } finally { if (rl) rl.close(); }
+}
+
+async function askForConflictPlan(options) {
+  const mayPrompt = !options.noPrompt && !options.dryRun && !options.modeExplicit && options.policy === null;
+  const rl = mayPrompt && process.stdin.isTTY && process.stdout.isTTY
+    ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
+  try {
+    return await installConflicts.resolve({
+      ...options,
+      ask: rl ? (question) => rl.question(question) : null,
+      output: process.stdout,
+    });
+  } finally { if (rl) rl.close(); }
+}
+
+function adapterRecipeArgs(baseArgs, recipePlan, tool) {
+  if (!recipePlan.resolved || recipePlan.byTool[tool] === null) return baseArgs;
+  const withoutRecipe = baseArgs.filter((arg) => !arg.startsWith('--recipes='));
+  return [...withoutRecipe, `--recipes=${recipePlan.byTool[tool].join(',')}`];
+}
+
 async function configureMissingModels({ targetAbs, targets, noPrompt, acceptDefaults, dryRun, force = false, reconfigure = false }) {
   let config = modelRouting.loadConfig(targetAbs, { allowInvalid: force });
   const missing = reconfigure ? targets : modelRouting.missingTargets(config, targets);
@@ -242,7 +286,69 @@ async function main(argv) {
 
   if (cmd === 'audit') {
     const action = args[1];
-    if (action !== 'extensions') fail("audit expects 'extensions'");
+    if (!['extensions', 'instructions', 'savings'].includes(action)) fail("audit expects 'extensions', 'instructions', or 'savings'");
+    if (action === 'savings') {
+      const rest = args.slice(2);
+      const allowed = ['--json'];
+      const prefixes = ['--target=', '--sessions=', '--since=', '--thresholds=', '--requests=', '--subject='];
+      const unknown = rest.filter((arg) => arg.startsWith('-') && !allowed.includes(arg) && !prefixes.some((prefix) => arg.startsWith(prefix)));
+      if (unknown.length) fail(`unknown audit savings option(s): ${unknown.join(', ')}`);
+      const positionals = rest.filter((arg) => !arg.startsWith('-'));
+      if (positionals.length > 1) fail('audit savings accepts at most one project directory');
+      const once = (prefix) => {
+        const found = rest.filter((arg) => arg.startsWith(prefix));
+        if (found.length > 1) fail(`${prefix.slice(0, -1)} must appear at most once`);
+        return found.length ? found[0].slice(prefix.length) : null;
+      };
+      const target = once('--target=');
+      if (!target || target === 'all') fail('audit savings requires one explicit --target=<tool>');
+      const requestText = once('--requests=');
+      const requests = requestText === null ? null : Number(requestText);
+      const thresholdText = once('--thresholds=');
+      const thresholds = thresholdText === null ? null : thresholdText.split(',').map(Number);
+      if (thresholds && (!thresholds.length || thresholds.some((value) => !Number.isSafeInteger(value) || value < 1))) {
+        fail('--thresholds must be a comma-separated list of positive integers');
+      }
+      try {
+        const savings = require('./user-token-savings.js');
+        const report = savings.create({
+          project: positionals[0] || '.', target, requests,
+          sessions: once('--sessions='), since: once('--since='), thresholds,
+          subject: once('--subject='),
+        });
+        process.stdout.write(rest.includes('--json') ? `${JSON.stringify(report, null, 2)}\n` : `${savings.render(report)}\n`);
+        return report.problems.length ? 1 : 0;
+      } catch (error) {
+        process.stderr.write(`omniconductor: personal savings audit failed: ${error.message}\n`);
+        return 2;
+      }
+    }
+    if (action === 'instructions') {
+      const rest = args.slice(2);
+      const unknown = rest.filter((arg) => arg.startsWith('-') && arg !== '--json' && !arg.startsWith('--requests=') && !arg.startsWith('--target='));
+      if (unknown.length) fail(`unknown audit instructions option(s): ${unknown.join(', ')}`);
+      const positionals = rest.filter((arg) => !arg.startsWith('-'));
+      if (positionals.length > 1) fail('audit instructions accepts at most one target directory');
+      try {
+        const footprint = require('./instruction-footprint.js');
+        const requestArg = rest.find((arg) => arg.startsWith('--requests='));
+        const requests = requestArg ? Number(requestArg.slice('--requests='.length)) : null;
+        if (rest.filter((arg) => arg.startsWith('--requests=')).length > 1
+          || (requestArg && (!Number.isSafeInteger(requests) || requests < 1 || requests > 1000000000))) {
+          fail('--requests must appear once and be an integer from 1 to 1000000000');
+        }
+        const targetArg = rest.find((arg) => arg.startsWith('--target='));
+        if (rest.filter((arg) => arg.startsWith('--target=')).length > 1) fail('--target must appear at most once');
+        const targetValue = targetArg ? targetArg.slice('--target='.length) : null;
+        const adapters = targetValue && targetValue !== 'all' ? [targetValue] : undefined;
+        const report = footprint.audit(positionals[0] || '.', { requests, adapters });
+        process.stdout.write(rest.includes('--json') ? `${JSON.stringify(report, null, 2)}\n` : `${footprint.render(report)}\n`);
+        return report.summary.problems ? 1 : 0;
+      } catch (error) {
+        process.stderr.write(`omniconductor: instruction audit failed: ${error.message}\n`);
+        return 2;
+      }
+    }
     const parsed = parseTargetAndDir(args.slice(2), { defaultTarget: 'all' });
     const targets = selectedTools(parsed.target);
     const known = new Set(['--json']);
@@ -543,14 +649,33 @@ async function main(argv) {
   const target = parsed.target;
   const dir = parsed.targetDir;
   const acceptDefaults = parsed.passthrough.includes('--accept-model-defaults');
-  const passthrough = parsed.passthrough.filter((a) => a !== '--accept-model-defaults');
+  let passthrough = parsed.passthrough.filter((a) => a !== '--accept-model-defaults' && !a.startsWith('--conflict-policy='));
   const targets = selectedTools(target);
   const targetAbs = path.resolve(process.cwd(), dir);
   const uninstall = passthrough.includes('--uninstall') || passthrough.includes('--rollback');
   const dryRun = passthrough.includes('--dry-run');
   const noPrompt = passthrough.includes('--no-prompt');
-  const modeArg = passthrough.find((a) => a.startsWith('--mode='));
-  const mode = modeArg ? modeArg.slice('--mode='.length) : 'full';
+  let modeArg = passthrough.find((a) => a.startsWith('--mode='));
+  let mode = modeArg ? modeArg.slice('--mode='.length) : 'full';
+  const malformedConflictArgs = parsed.passthrough.filter((a) => a === '--conflict-policy' || (a.startsWith('--conflict-policy') && !a.startsWith('--conflict-policy=')));
+  if (malformedConflictArgs.length) {
+    process.stderr.write('omniconductor: use --conflict-policy=<replace|recipes-only|abort> (with =)\n');
+    return 2;
+  }
+  const conflictArgs = parsed.passthrough.filter((a) => a.startsWith('--conflict-policy='));
+  if (conflictArgs.length > 1) {
+    process.stderr.write('omniconductor: init accepts one --conflict-policy value\n');
+    return 2;
+  }
+  const conflictPolicy = conflictArgs.length ? conflictArgs[0].slice('--conflict-policy='.length) : null;
+  if (conflictPolicy !== null && !installConflicts.POLICIES.has(conflictPolicy)) {
+    process.stderr.write(`omniconductor: unknown --conflict-policy '${conflictPolicy}' (use replace, recipes-only, or abort)\n`);
+    return 2;
+  }
+  if (uninstall && conflictPolicy !== null) {
+    process.stderr.write('omniconductor: --conflict-policy applies only to installation, not --uninstall\n');
+    return 2;
+  }
   if (!fs.existsSync(targetAbs) || !fs.statSync(targetAbs).isDirectory()) {
     process.stderr.write(`omniconductor: target directory does not exist: ${targetAbs}\n`);
     return 2;
@@ -560,6 +685,34 @@ async function main(argv) {
   } catch (error) {
     process.stderr.write(`omniconductor: unsafe target refused before any write: ${error.message}\n`);
     return 2;
+  }
+  if (!uninstall) {
+    const recipeArg = passthrough.find((arg) => arg.startsWith('--recipes='));
+    try {
+      const conflictPlan = await askForConflictPlan({
+        targetAbs,
+        targets,
+        mode,
+        modeExplicit: Boolean(modeArg),
+        policy: conflictPolicy,
+        explicitRecipes: recipeArg === undefined ? null : recipeArg.slice('--recipes='.length),
+        noPrompt,
+        dryRun,
+      });
+      mode = conflictPlan.mode;
+      if (mode !== (modeArg ? modeArg.slice('--mode='.length) : 'full')) {
+        passthrough = passthrough.filter((arg) => !arg.startsWith('--mode='));
+        passthrough.push(`--mode=${mode}`);
+        modeArg = `--mode=${mode}`;
+      }
+      if (conflictPlan.explicitRecipes !== (recipeArg === undefined ? null : recipeArg.slice('--recipes='.length))) {
+        passthrough = passthrough.filter((arg) => !arg.startsWith('--recipes='));
+        passthrough.push(`--recipes=${conflictPlan.explicitRecipes}`);
+      }
+    } catch (error) {
+      process.stderr.write(`omniconductor: install conflict check failed before installation: ${error.message}\n`);
+      return 2;
+    }
   }
   const reserved = passthrough.filter((arg) => arg.startsWith('--conductor-'));
   if (reserved.length) {
@@ -581,6 +734,23 @@ async function main(argv) {
   } catch (error) {
     process.stderr.write(`omniconductor: ${error.message}\n`);
     return 2;
+  }
+  let recipePlan = { resolved: false, byTool: {} };
+  if (!uninstall) {
+    const recipeArg = passthrough.find((arg) => arg.startsWith('--recipes='));
+    try {
+      recipePlan = await askForRecipePlan({
+        targetAbs,
+        targets,
+        mode,
+        explicitRecipes: recipeArg === undefined ? null : recipeArg.slice('--recipes='.length),
+        noPrompt,
+        dryRun,
+      });
+    } catch (error) {
+      process.stderr.write(`omniconductor: recipe onboarding failed before installation: ${error.message}\n`);
+      return 2;
+    }
   }
   let routingEnv = {};
   if (!uninstall && mode !== 'recipes-only') {
@@ -611,6 +781,7 @@ async function main(argv) {
       }
       const ordered = uninstall ? [...TOOLS].reverse() : TOOLS;
       for (const tool of ordered) {
+        const toolArgs = adapterRecipeArgs(passthrough, recipePlan, tool);
         const transform = path.join(ROOT, 'adapters', tool, 'transform.sh');
         if (!fs.existsSync(transform)) {
           process.stderr.write(`omniconductor: the '${tool}' adapter has no transform.sh\n`);
@@ -619,8 +790,8 @@ async function main(argv) {
         // The literal 'bash' here was only ever sliced off before printing, but it
         // read as the interpreter this command uses. It is not: execution goes
         // through the resolved Git Bash on Windows.
-        process.stderr.write(`omniconductor [${tool}] → ${[transform, dir, ...passthrough].join(' ')}\n`);
-        const res = runAdapterTransform(bash.command, tool, targetAbs, transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
+        process.stderr.write(`omniconductor [${tool}] → ${[transform, dir, ...toolArgs].join(' ')}\n`);
+        const res = runAdapterTransform(bash.command, tool, targetAbs, transform, [dir, ...toolArgs], { ...process.env, ...routingEnv, CONDUCTOR_RECIPE_ONBOARDING_RESOLVED: recipePlan.resolved ? '1' : '0' });
         if (res.error || res.status !== 0) {
           const detail = res.error ? res.error.message : `exit ${res.status}`;
           process.stderr.write(`omniconductor: '${tool}' adapter failed (${detail}); prior adapter manifests remain intact for diagnosis/retry.\n`);
@@ -635,9 +806,10 @@ async function main(argv) {
       fail(`the '${target}' adapter has no transform.sh yet (manual install — see docs/MANUAL-INSTALL.md).`);
     }
 
-    process.stderr.write(`omniconductor → ${[transform, dir, ...passthrough].join(' ')}\n`);
+    const toolArgs = adapterRecipeArgs(passthrough, recipePlan, target);
+    process.stderr.write(`omniconductor → ${[transform, dir, ...toolArgs].join(' ')}\n`);
 
-    const res = runAdapterTransform(bash.command, target, targetAbs, transform, [dir, ...passthrough], { ...process.env, ...routingEnv });
+    const res = runAdapterTransform(bash.command, target, targetAbs, transform, [dir, ...toolArgs], { ...process.env, ...routingEnv, CONDUCTOR_RECIPE_ONBOARDING_RESOLVED: recipePlan.resolved ? '1' : '0' });
     if (res.error) {
       process.stderr.write(`omniconductor: failed to run adapter: ${res.error.message}\n`);
       return 1;

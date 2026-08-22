@@ -4,14 +4,17 @@
   "display_name": "Claude Code",
   "tier": "T1",
   "outputs": [
-    { "path": "CLAUDE.md", "kind": "always_loaded", "validated": false },
-    { "path": ".claude/rules", "kind": "rules", "validated": true },
+    { "path": "CLAUDE.md", "kind": "bounded_kernel", "validated": true },
+    { "path": ".claude/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".claude/conductor/recipes", "kind": "recipe_references", "validated": true },
+    { "path": ".claude/rules", "kind": "path_scoped_recipe_pointers", "validated": true },
     { "path": ".claude/agents", "kind": "agents", "validated": true },
     { "path": ".claude/skills", "kind": "skills", "validated": true },
     { "path": ".claude/hooks", "kind": "hooks", "validated": false },
     { "path": ".claude/settings.json", "kind": "config", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
+  "instruction_loading": { "strategy": "bounded-kernel+complete-references", "eager": ["CLAUDE.md"], "reference_roots": [".claude/conductor/rules", ".claude/conductor/recipes"], "recipe_pointer_root": ".claude/rules", "native_scoping": "paths" },
   "reflector_outputs": [
     { "path": ".claude/commands", "note": "/reflect command (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
@@ -29,7 +32,7 @@
       "skills": "yes"
     },
     "conductor_emitted": {
-      "rules": "full",
+      "rules": "bounded-kernel+full-references",
       "guard_hooks": "full",
       "reflector_loop": "recipe",
       "role_agents": "full",

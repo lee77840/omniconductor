@@ -268,6 +268,13 @@ grep -q 'codex full/strict install has no effective output cap' "$CAP_GAP_LOG" \
   || fail "doctor did not explain the effective Codex cap gap"
 rm -rf "$CAP_GAP" "$CAP_GAP_LOG"
 
+# Documentation reach is derived from the current adapter inventory so adding
+# an eighth adapter cannot silently leave another stale "3/7" claim behind.
+adapter_total="$(find "$ROOT/adapters" -mindepth 2 -maxdepth 2 -name metadata.json -type f | wc -l | tr -d ' ')"
+[ "$adapter_total" -ge 3 ] || fail "adapter metadata inventory is unexpectedly small"
+grep -q "3/$adapter_total" "$ROOT/docs/COMPATIBILITY-MATRIX.md" \
+  || fail "compatibility matrix output-cap reach is not 3/$adapter_total"
+
 echo "PASS: output-cap Claude dialect"
 echo "PASS: output-cap Gemini dialect"
 echo "PASS: output-cap validator + doctor verify effective claude/codex/gemini activation"

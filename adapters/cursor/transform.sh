@@ -104,7 +104,7 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/cursor/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to install
+  --recipes=A,B,C       Exact recipe list (overrides onboarding; empty disables all)
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
                         docs only; no Reflector runtime) | strict (abort if .cursor/rules/
                         already has files) | recipes-only (ONLY the selected recipe .mdc
@@ -228,18 +228,10 @@ derive_description() {
 # Adopter is expected to tighten globs after install if they want stricter scoping.
 derive_globs_for_recipe() {
   local recipe_id="$1"
-  case "$recipe_id" in
-    monorepo)            echo '"apps/**", "packages/**"' ;;
-    web-mobile-parity)   echo '"apps/web/**", "apps/mobile/**", "packages/shared/**"' ;;
-    i18n)                echo '"**/i18n/**", "**/translations.ts", "**/locales/**"' ;;
-    branch-strategy)     echo '"**"' ;;
-    auto-mock-data)      echo '"**/*.sql", "**/migrations/**", "**/seeds/**"' ;;
-    coding-conventions)  echo '"**/*.ts", "**/*.tsx"' ;;
-    database-discipline) echo '"**/*.sql", "**/migrations/**"' ;;
-    design-system)       echo '"**/*.tsx", "**/*.css", "**/*.scss"' ;;
-    tdd)                 echo '"**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/e2e/**"' ;;
-    *)                   echo '"**"' ;;
-  esac
+  conductor_recipe_globs_csv "$recipe_id" | /usr/bin/awk -F, '{
+    for (i=1; i<=NF; i++) printf "%s\"%s\"", (i>1 ? ", " : ""), $i
+    print ""
+  }'
 }
 
 # Emit a `.mdc` file from a `core/*.md` source.
@@ -526,7 +518,7 @@ do_uninstall() {
 
   # Try to clean up empty .cursor/rules and .cursor dirs left behind.
   # (children before parents so nested empties collapse in one pass)
-  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor/hooks .cursor .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .cursor/rules .cursor/skills/reflect .cursor/skills .cursor/agents .cursor/hooks .cursor/conductor/rules .cursor/conductor/recipes .cursor/conductor .cursor .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -569,7 +561,7 @@ uninstall_legacy_scan() {
   done < <(/usr/bin/find "$TARGET_ABS" -type f -name '*.conductor-backup-*' 2>/dev/null)
   log "legacy scan: $found backup file(s)"
   log "WARNING: legacy mode does not delete Conductor-emitted source files (no manifest)."
-  log "         Delete .cursor/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.mdc manually if desired."
+  log "         Delete .cursor/rules/conductor-kernel.mdc and .cursor/conductor/ manually if desired."
 }
 
 if [ "$UNINSTALL" = "true" ]; then
@@ -630,16 +622,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
     echo "  Skipping universal-rules installation."
   fi
 
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, or leave blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
   else
-    echo "  No recipes selected."
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, or leave blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; else echo "  No recipes selected."; fi
   fi
 
   printf "Also emit legacy .cursorrules bundle? (for Cursor < 0.45) (y/N): "
@@ -669,47 +660,70 @@ UNIVERSAL_RULES="workflow spec-as-you-go quality-gates operations meta-disciplin
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
 elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
-  log "Step 1/4: universal-rules → .cursor/rules/"
+  log "Step 1/4: bounded kernel + complete universal references"
   mkdir_if_real "$TARGET_ABS/.cursor/rules"
+  mkdir_if_real "$TARGET_ABS/.cursor/conductor/rules"
 
   for rule in $UNIVERSAL_RULES; do
     src="$CORE_ROOT/universal-rules/$rule.md"
-    dest="$TARGET_ABS/.cursor/rules/$rule.mdc"
+    dest="$TARGET_ABS/.cursor/conductor/rules/$rule.md"
     if [ ! -f "$src" ]; then
       echo "Warning: $src not found; skipping" >&2
       continue
     fi
     backup_and_remember "$dest"
-    desc="$(derive_description "$src")"
-    # All universal rules are always-loaded per core/universal-rules/README.md → alwaysApply: true
-    emit_mdc "$src" "$dest" "$desc" '"**"' "true"
-    record_emit ".cursor/rules/$rule.mdc" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    if [ "$DRY_RUN" != "true" ]; then /bin/cp "$src" "$dest"; fi
+    record_emit ".cursor/conductor/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    conductor_retire_owned_path ".cursor/rules/$rule.mdc" "legacy eager universal rule"
   done
+
+  kernel_dest="$TARGET_ABS/.cursor/rules/conductor-kernel.mdc"
+  backup_and_remember "$kernel_dest"
+  if [ "$DRY_RUN" = "true" ]; then
+    log "would write bounded Cursor kernel $kernel_dest"
+  else
+    {
+      printf -- '---\ndescription: "CONDUCTOR bounded execution kernel"\nglobs: ["**"]\nalwaysApply: true\n---\n\n'
+      conductor_render_runtime_kernel "Cursor" ".cursor/conductor/rules" ".cursor/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES"
+    } > "$kernel_dest"
+  fi
+  record_emit ".cursor/rules/conductor-kernel.mdc" "core/runtime-kernel.md" "$MANIFEST_LAST_BACKUP"
 else
   log "Step 1/4: universal-rules — skipped (user opted out)"
 fi
 
 # ----- step 2: recipes (opt-in) -> .cursor/rules/*.mdc -------------------
 
-log "Step 2/4: recipes (opt-in) → .cursor/rules/"
+log "Step 2/4: path-scoped recipe pointers + complete references"
 INSTALLED_RECIPES=""
 if [ -n "$RECIPES" ]; then
   mkdir_if_real "$TARGET_ABS/.cursor/rules"
+  mkdir_if_real "$TARGET_ABS/.cursor/conductor/recipes"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
     [ -z "$r" ] && continue
     src="$CORE_ROOT/recipes/$r.md"
     dest="$TARGET_ABS/.cursor/rules/$r.mdc"
+    ref_dest="$TARGET_ABS/.cursor/conductor/recipes/$r.md"
     if [ ! -f "$src" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
     fi
+    backup_and_remember "$ref_dest"
+    if [ "$DRY_RUN" != "true" ]; then /bin/cp "$src" "$ref_dest"; fi
+    record_emit ".cursor/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     backup_and_remember "$dest"
     desc="$(derive_description "$src")"
     globs="$(derive_globs_for_recipe "$r")"
-    # Recipes are path-scoped (alwaysApply: false) — Cursor lazy-loads when a matching path is touched.
-    emit_mdc "$src" "$dest" "$desc" "$globs" "false"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would write recipe pointer $dest (alwaysApply=false, globs=$globs)"
+    else
+      {
+        printf -- '---\ndescription: "%s"\nglobs: [%s]\nalwaysApply: false\n---\n\n' "$desc" "$globs"
+        conductor_render_recipe_pointer_body "$src" ".cursor/conductor/recipes/$r.md"
+      } > "$dest"
+    fi
     record_emit ".cursor/rules/$r.mdc" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
   done
@@ -836,6 +850,9 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
         record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
       done
+      d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_and_remember "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"

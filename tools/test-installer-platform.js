@@ -114,7 +114,13 @@ assert(fs.existsSync(path.join(ROOT, 'tools', 'run-bash.js')));
 assert(fs.existsSync(path.join(ROOT, 'tools', 'test-install-modes-all.js')));
 const windowsInstallerSource = fs.readFileSync(path.join(ROOT, 'tools', 'test-windows-installer.js'), 'utf8');
 assert.match(windowsInstallerSource, /ALL_TARGET_TIMEOUT_MS\s*=\s*600_000/);
+assert.match(windowsInstallerSource, /DIRECT_TIMEOUT_MS\s*=\s*180_000/);
 assert.match(windowsInstallerSource, /elapsedMs=.*timeoutMs=.*error=/);
+assert.match(windowsInstallerSource, /runDirectAdapter\(tool, target\)/);
+assert.match(windowsInstallerSource, /'--mode=minimal', '--recipes='/);
+assert.match(windowsInstallerSource,
+  /'init', '--target=all', lifecycle, '--mode=minimal', '--recipes='/);
+assert.match(windowsInstallerSource, /\[windows-installer\]/);
 
 // Same class again: the Claude adapter's completion summary hardcoded "Roles: 7"
 // while it emitted 8, so the installer under-reported its own output on every
@@ -187,7 +193,11 @@ for (const dir of ['bin', 'tools']) {
       if (/^\s*(\/\/|\*)/.test(line)) return;
       if (!/path\.relative\(/.test(line)) return;
       // Both normalization idioms in use here count as normalized.
-      if (/\.replace\(|\.split\(path\.sep\)/.test(line) || line.includes('`')) return;
+      // An explicit `native-path-compare` marker exempts a relative path that is
+      // consumed as a platform-native value — containment tests that use
+      // path.sep and path.isAbsolute — where forcing POSIX would break the
+      // comparison. The marker keeps the exception visible in review.
+      if (/\.replace\(|\.split\(path\.sep\)|native-path-compare/.test(line) || line.includes('`')) return;
       unnormalizedRelatives.push(`${dir}/${name}:${index + 1}`);
     });
   }

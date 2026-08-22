@@ -18,7 +18,11 @@ const BRANCH_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
 function safeDirectory(directory, label) {
   const stat = fs.lstatSync(directory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`${label} must be a real directory: ${directory}`);
-  return fs.realpathSync(directory);
+  // Share the OS-level resolver with work-contract. Its resolveRepository
+  // canonicalizes through fs.realpathSync.native, so a directory spelled here
+  // with a Windows 8.3 short name would never equal the long-form Git root and
+  // every repository was reported as 'not an exact repository root'.
+  return workContract.canonicalPath(directory);
 }
 
 function safeFile(file, label, limit = MANIFEST_LIMIT) {

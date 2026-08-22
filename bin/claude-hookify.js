@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const HOOKIFY_PLUGIN_ID = 'hookify@claude-plugins-official';
-const CORE_HOOK_GROUPS = [
+const BASE_CORE_HOOK_GROUPS = [
   { event: 'PreToolUse', matcher: 'Agent', commands: ['.claude/hooks/pretool-agent-routing.sh'] },
   { event: 'PreToolUse', matcher: 'Bash', commands: [
     '.claude/hooks/pretool-commit-current-work-check.sh',
@@ -17,10 +17,20 @@ const CORE_HOOK_GROUPS = [
     '.claude/hooks/stop-session-log-check.sh',
     '.claude/hooks/stop-r6-review-check.sh',
     '.claude/hooks/stop-cache-hit-baseline-check.sh',
-    '.claude/hooks/stop-trajectory-log.sh',
     '.claude/hooks/stop-git-hygiene-guard.sh',
   ] },
 ];
+const TRAJECTORY_COMMAND = '.claude/hooks/stop-trajectory-log.sh';
+
+function coreHookGroups(options = {}) {
+  const groups = BASE_CORE_HOOK_GROUPS.map((group) => ({
+    ...group, commands: [...group.commands],
+  }));
+  if (options.selfImprovement) {
+    groups.find((group) => group.event === 'Stop').commands.push(TRAJECTORY_COMMAND);
+  }
+  return groups;
+}
 
 function readSettings(settingsPath) {
   let parsed;
@@ -67,10 +77,10 @@ function registeredCoreHooks(settings) {
   return registered;
 }
 
-function missingCoreHooks(settingsPath) {
+function missingCoreHooks(settingsPath, options = {}) {
   const settings = typeof settingsPath === 'string' ? readSettings(settingsPath) : settingsPath;
   const registered = registeredCoreHooks(settings);
-  return CORE_HOOK_GROUPS.flatMap((group) => group.commands.map((command) => ({ group, command })))
+  return coreHookGroups(options).flatMap((group) => group.commands.map((command) => ({ group, command })))
     .filter(({ group, command }) => !registered.has(`${group.event}\0${group.matcher || ''}\0${command}`))
     .map(({ command }) => command);
 }
@@ -85,7 +95,35 @@ function configuredState(settingsPath) {
   return settings.enabledPlugins[HOOKIFY_PLUGIN_ID] === true ? 'enabled' : 'disabled';
 }
 
-function ensureConfigured(settingsPath) {
+function removeExactCommand(settings, command) {
+  let changed = false;
+  for (const event of ['PreToolUse', 'PostToolUse', 'Stop']) {
+    const groups = (settings.hooks && settings.hooks[event]) || [];
+    const keptGroups = [];
+    let eventChanged = false;
+    for (const group of groups) {
+      if (!group || !Array.isArray(group.hooks)) { keptGroups.push(group); continue; }
+      const hooks = group.hooks.filter((hook) => normalizedCommand(hook && hook.command) !== command);
+      if (hooks.length !== group.hooks.length) {
+        changed = true;
+        eventChanged = true;
+      }
+      if (hooks.length) keptGroups.push({ ...group, hooks });
+      else if (group.hooks.length === 0) keptGroups.push(group);
+    }
+    if (settings.hooks && eventChanged) settings.hooks[event] = keptGroups;
+  }
+  return changed;
+}
+
+function needsReconcile(settingsPath, options = {}) {
+  const settings = readSettings(settingsPath);
+  if (missingCoreHooks(settings, options).length) return true;
+  return Boolean(options.removeTrajectory && registeredCoreHooks(settings)
+    .has(`Stop\0\0${TRAJECTORY_COMMAND}`));
+}
+
+function ensureConfigured(settingsPath, options = {}) {
   const settings = readSettings(settingsPath);
   settings.enabledPlugins = settings.enabledPlugins || {};
   let changed = false;
@@ -95,8 +133,9 @@ function ensureConfigured(settingsPath) {
   }
 
   settings.hooks = settings.hooks || {};
+  if (options.removeTrajectory && removeExactCommand(settings, TRAJECTORY_COMMAND)) changed = true;
   const registered = registeredCoreHooks(settings);
-  for (const group of CORE_HOOK_GROUPS) {
+  for (const group of coreHookGroups(options)) {
     const key = (command) => `${group.event}\0${group.matcher || ''}\0${command}`;
     const missing = group.commands.filter((command) => !registered.has(key(command)));
     if (!missing.length) continue;
@@ -130,17 +169,23 @@ function localOverrideState(targetAbs) {
 }
 
 if (require.main === module) {
-  const [command, settingsPath] = process.argv.slice(2);
+  const [command, settingsPath, ...flags] = process.argv.slice(2);
+  const options = {
+    selfImprovement: flags.includes('--self-improvement'),
+    removeTrajectory: flags.includes('--remove-trajectory'),
+  };
   try {
     if (command === 'state' && settingsPath) {
       process.stdout.write(`${configuredState(path.resolve(settingsPath))}\n`);
     } else if (command === 'missing-hooks' && settingsPath) {
-      process.stdout.write(`${missingCoreHooks(path.resolve(settingsPath)).length}\n`);
+      process.stdout.write(`${missingCoreHooks(path.resolve(settingsPath), options).length}\n`);
+    } else if (command === 'needs-reconcile' && settingsPath) {
+      process.stdout.write(`${needsReconcile(path.resolve(settingsPath), options) ? 'yes' : 'no'}\n`);
     } else if (command === 'ensure' && settingsPath) {
-      const result = ensureConfigured(path.resolve(settingsPath));
+      const result = ensureConfigured(path.resolve(settingsPath), options);
       process.stdout.write(`${result.changed ? 'changed' : result.state}\n`);
     } else {
-      process.stderr.write('Usage: node bin/claude-hookify.js <state|missing-hooks|ensure> <settings.json>\n');
+      process.stderr.write('Usage: node bin/claude-hookify.js <state|missing-hooks|needs-reconcile|ensure> <settings.json> [--self-improvement] [--remove-trajectory]\n');
       process.exitCode = 2;
     }
   } catch (error) {
@@ -151,10 +196,13 @@ if (require.main === module) {
 
 module.exports = {
   HOOKIFY_PLUGIN_ID,
-  CORE_HOOK_GROUPS,
+  CORE_HOOK_GROUPS: BASE_CORE_HOOK_GROUPS,
+  TRAJECTORY_COMMAND,
+  coreHookGroups,
   configuredState,
   ensureConfigured,
   localOverrideState,
   missingCoreHooks,
+  needsReconcile,
   readSettings,
 };

@@ -4,12 +4,15 @@
   "display_name": "Windsurf",
   "tier": "T3",
   "outputs": [
-    { "path": ".windsurfrules", "kind": "always_loaded", "validated": true },
-    { "path": ".devin/rules", "kind": "rules", "validated": true },
+    { "path": ".windsurfrules", "kind": "bounded_kernel", "validated": true },
+    { "path": ".devin/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".devin/conductor/recipes", "kind": "recipe_references", "validated": true },
+    { "path": ".devin/rules", "kind": "recipe_pointers", "validated": true },
     { "path": ".windsurf/workflows", "kind": "role_workflows", "validated": true },
     { "path": ".agents/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
+  "instruction_loading": { "strategy": "bounded-kernel+complete-references", "eager": [".windsurfrules"], "reference_roots": [".devin/conductor/rules", ".devin/conductor/recipes"], "recipe_pointer_root": ".devin/rules", "native_scoping": "all-native-pointers" },
   "reflector_outputs": [
     { "path": ".windsurf/hooks.json", "note": "post_cascade_response_with_transcript trajectory hook config (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
@@ -27,7 +30,7 @@
       "skills": "yes"
     },
     "conductor_emitted": {
-      "rules": "full",
+      "rules": "bounded-kernel+full-references",
       "guard_hooks": "none",
       "reflector_loop": "recipe",
       "role_agents": "workflow-fallback",
@@ -121,6 +124,6 @@
       }
     ]
   },
-  "live_verification": { "status": "pending", "date": null, "cli": null, "note": "not yet run" },
+  "live_verification": { "status": "verified", "date": "2026-08-21", "cli": "devin 3000.4.25 (7e8e528a)", "note": "Devin for Terminal headless probe listed 5/5 rules + read-CURRENT_WORK-first; Desktop UI smoke remains manual" },
   "headless_cli": { "command": "devin", "invocation": "devin -p" }
 }

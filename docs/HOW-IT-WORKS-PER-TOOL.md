@@ -122,9 +122,10 @@ docs/
 
 ### What works
 
-- Modern `.cursor/rules/*.mdc` with `alwaysApply: true` for all 5 universal rules.
+- Modern `.cursor/rules/conductor-kernel.mdc` as the bounded always-active kernel,
+  with byte-identical complete rules under `.cursor/conductor/rules/`.
 - Optional legacy `.cursorrules` bundle (`--legacy-cursorrules`) for older Cursor versions.
-- Opt-in recipes (`--recipes=...`) emitted as path-scoped `.mdc` (`globs:`).
+- Policy-selected recipes (`--recipes=...` is the exact override) emitted as path-scoped `.mdc` (`globs:`).
 - All universal rule TEXT (workflow, spec-as-you-go, quality-gates, operations, meta-discipline).
 - All doc templates.
 
@@ -188,12 +189,18 @@ bash adapters/gemini/transform.sh <target>
 # or: node bin/omniconductor.js init --target=gemini <target>
 ```
 
-Produces `GEMINI.md` (all 5 universal rules concatenated) + `.gemini/styleguide.md`. Output is emit-verified (`validate-adapter-output.sh gemini` PASS); live runtime consumption by the Gemini CLI is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 3 — Gemini CLI" remains as a fallback.
+Produces a bounded `GEMINI.md` kernel, five byte-identical complete references under
+`.gemini/conductor/rules/`, selected recipe references, and optional
+`.gemini/styleguide.md`. Output is emit-verified (`validate-adapter-output.sh gemini`
+PASS); live runtime consumption by the Gemini CLI is still adopter-pending — see
+[`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md).
 
 ### Files produced
 
 ```
-GEMINI.md                                   # All 5 universal rules concatenated; sections labeled
+GEMINI.md                                   # bounded always-active kernel
+.gemini/conductor/rules/*.md                # five complete on-demand rules
+.gemini/conductor/recipes/*.md              # selected complete recipes
 .gemini/
 └── styleguide.md                           # coding-conventions recipe excerpt (Gemini convention)
 docs/                                       # (same as above)
@@ -201,8 +208,8 @@ docs/                                       # (same as above)
 
 ### What works
 
-- Single-file always-loaded rule bundle (`GEMINI.md`).
-- All universal rule TEXT (concatenated).
+- Single bounded always-loaded kernel (`GEMINI.md`).
+- All universal rule text retained byte-identically outside the eager surface.
 - All doc templates.
 
 ### What is LOST vs Claude
@@ -210,13 +217,13 @@ docs/                                       # (same as above)
 | Lost feature (vs Claude emission) | Workaround |
 |---|---|
 | Claude's exact agent schema | Eight equivalent native profiles are emitted in `.gemini/agents/`. |
-| Per-pattern rule scoping | All rules always-loaded; no per-file routing (Gemini scopes by nested-file hierarchy, not glob). |
+| Per-pattern rule scoping | No automatic glob routing claimed; bounded kernel uses explicit Read of exact references. |
 | Guard hooks (not emitted — Gemini has native hooks, ADR-031) | Self-police; the Reflector session-end hook IS emitted via `--recipes=self-improvement`. |
 | Full mechanical guard set | Only verified Gemini lifecycle hooks are emitted; remaining guards are workflow obligations. |
 | Per-role model-routing config | First setup recommends `pro` / `flash` / `flash-lite` and writes the saved mapping into Gemini agents. |
 | Memory directory | DIY at `.memory/`. |
 
-Gemini's strength is large-context exploration (its rule bundle being always-loaded is fine for that use case).
+Gemini's large context remains useful for exploration; the bounded kernel avoids spending it on unrelated complete policy.
 
 ---
 
@@ -269,26 +276,24 @@ bash adapters/windsurf/transform.sh <target>
 # or: node bin/omniconductor.js init --target=windsurf <target>
 ```
 
-Produces `.windsurfrules` (always-loaded baseline) + `.devin/rules/*.md` (preferred; legacy `.windsurf/rules/` still read). Output is emit-verified (`validate-adapter-output.sh windsurf` PASS); live runtime consumption by Windsurf is still adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md). Manual `cp` install in [`docs/MANUAL-INSTALL.md`](./MANUAL-INSTALL.md) → "Tool 5 — Windsurf" remains as a fallback.
+Produces a bounded `.windsurfrules` kernel plus byte-identical complete references
+under `.devin/conductor/`. Output is emit-verified
+(`validate-adapter-output.sh windsurf` PASS); live runtime consumption remains
+adopter-pending — see [`docs/ADAPTER-LIVE-VERIFICATION.md`](./ADAPTER-LIVE-VERIFICATION.md).
 
 ### Files produced
 
 ```
-.windsurfrules                              # Always-loaded baseline (5 universal rules)
-.devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
-└── rules/
-    ├── workflow.md
-    ├── spec-as-you-go.md
-    ├── quality-gates.md
-    ├── operations.md
-    └── meta-discipline.md
+.windsurfrules                              # bounded always-loaded kernel
+.devin/conductor/rules/*.md                 # five complete on-demand rules
+.devin/conductor/recipes/*.md               # selected complete recipes
 docs/                                       # (same as above)
 ```
 
 ### What works
 
-- Always-loaded baseline.
-- Directory-based rule loading (Windsurf reads all files under `.devin/rules/` — legacy `.windsurf/rules/` still read; no per-pattern scoping).
+- Bounded always-loaded kernel.
+- Explicit Read routing to complete references; no unverified per-pattern loader claim.
 - All universal rule TEXT.
 - All doc templates.
 
@@ -309,7 +314,9 @@ docs/                                       # (same as above)
 
 ```text
 opencode.json
-.opencode/rules/*.md
+.opencode/rules/conductor-kernel.md
+.opencode/conductor/rules/*.md
+.opencode/conductor/recipes/*.md
 .opencode/agents/*.md
 .opencode/plugins/conductor-guards.js
 .opencode/skills/*/SKILL.md

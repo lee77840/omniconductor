@@ -45,7 +45,11 @@ async function main() {
     assert(!fs.existsSync(path.join(target, 'AGENTS.md')));
     const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
     assert.deepStrictEqual(config.instructions,
-      ['.opencode/rules/*.md', '.opencode/rules/recipes/*.md']);
+      ['.opencode/rules/conductor-kernel.md']);
+    assert(!fs.existsSync(path.join(target, '.opencode', 'rules', 'recipes', 'tdd.md')));
+    assert(fs.existsSync(path.join(target, '.opencode', 'conductor', 'recipes', 'tdd.md')));
+    assert(fs.existsSync(path.join(target, '.opencode', 'conductor', 'rules', 'workflow.md')));
+    assert(!fs.existsSync(path.join(target, '.opencode', 'rules', 'workflow.md')));
     for (const role of ['planner', 'reviewer', 'code-reviewer', 'builder', 'helper', 'designer', 'scribe', 'utility']) {
       assert(fs.existsSync(path.join(target, '.opencode', 'agents', `${role}.md`)), role);
     }
@@ -64,7 +68,7 @@ async function main() {
       const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
       assert.strictEqual(config.theme, 'custom');
       assert.deepStrictEqual(config.instructions,
-        ['docs/local.md', '.opencode/rules/*.md', '.opencode/rules/recipes/*.md']);
+        ['docs/local.md', '.opencode/rules/conductor-kernel.md']);
     }
     const uninstall = install(target, '--uninstall');
     assert.strictEqual(uninstall.status, 0, uninstall.stderr || uninstall.stdout);

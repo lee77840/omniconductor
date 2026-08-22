@@ -126,7 +126,7 @@ while [ $# -gt 0 ]; do
 Usage: bash adapters/copilot/transform.sh <target-project> [options]
 
 Options:
-  --recipes=A,B,C       Comma-separated list of recipes to install
+  --recipes=A,B,C       Exact recipe list (overrides onboarding; empty disables all)
   --mode=<m>            Install preset (ADR-044): full (default) | minimal (rules text +
                         docs only; no Reflector runtime) | strict (abort if
                         .github/copilot-instructions.md exists) | recipes-only (ONLY the
@@ -144,7 +144,7 @@ Options:
 Recipes available: web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering
 
 Output (default):
-  <target>/.github/copilot-instructions.md            (5 universal rules merged)
+  <target>/.github/copilot-instructions.md            (bounded kernel; default mode)
   <target>/.github/instructions/<recipe>.instructions.md  (per recipe, applyTo: from paths)
   <target>/docs/{CURRENT_WORK,REMAINING_TASKS,PLANS,TASKS,INDEX}.md
   <target>/docs/{specs,plans,architecture,research}/  Canonical artifact seeds
@@ -568,7 +568,7 @@ do_uninstall() {
   fi
   conductor_manifest_refresh_projection
 
-  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .github/instructions .github/hooks/conductor .github/hooks .github/prompts .github/agents .github .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
+  for d in .agents/skills/coordinate-work .agents/skills/propose-skill .agents/skills/plan-change .agents/skills/verify-change .agents/skills/review-change .agents/skills .agents .github/instructions .github/hooks/conductor .github/hooks .github/prompts .github/agents .github/conductor/rules .github/conductor/recipes .github/conductor .github .conductor/reflect .conductor/manifests .conductor docs/plans docs/architecture docs/research docs/specs docs; do
     local abs_d="$TARGET_ABS/$d"
     if [ -d "$abs_d" ]; then
       if [ "$DRY_RUN" = "true" ]; then
@@ -665,14 +665,15 @@ if [ "$IS_ADOPTER_CASE" = "true" ] && [ "$NO_PROMPT" = "false" ] && [ "$DRY_RUN"
     echo "  Skipping universal-rules installation."
   fi
 
-  echo ""
-  echo "Available recipes:"
-  echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
-  printf "Select recipes (comma-separated, blank for none): "
-  read -r _recipe_answer
-  if [ -n "$_recipe_answer" ]; then
-    RECIPES="$_recipe_answer"
-    echo "  Recipes selected: $RECIPES"
+  if [ "${CONDUCTOR_RECIPE_ONBOARDING_RESOLVED:-0}" = "1" ]; then
+    echo "  Recipes resolved once by the central installer: ${RECIPES:-(none)}"
+  else
+    echo ""
+    echo "Available recipes:"
+    echo "  web-mobile-parity, i18n, monorepo, branch-strategy, auto-mock-data, coding-conventions, tdd, non-vacuous-testing, debugging, database-discipline, database-change-assurance, design-system, visual-baseline-integrity, release-provenance, self-improvement, git-hygiene, loop-engineering"
+    printf "Select recipes (comma-separated, blank for none): "
+    read -r _recipe_answer
+    if [ -n "$_recipe_answer" ]; then RECIPES="$_recipe_answer"; echo "  Recipes selected: $RECIPES"; fi
   fi
 
   printf "Use --per-rule mode (split universal-rules into 5 separate per-file files)? (y/N): "
@@ -700,64 +701,43 @@ conductor_install_portable_skills "copilot" ".agents/skills"
 if [ "$MODE" = "recipes-only" ] || [ "$MODE" = "reflector-only" ]; then
   log "Step 1/4: universal-rules — skipped (--mode=$MODE is à la carte)"
 elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
+  log "Step 1/4: bounded kernel + complete universal references"
+  mkdir_if_real "$TARGET_ABS/.github/conductor/rules"
+  for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
+    src="$CORE_ROOT/universal-rules/$rule.md"
+    dest="$TARGET_ABS/.github/conductor/rules/$rule.md"
+    [ -f "$src" ] || { echo "Warning: $src not found; skipping" >&2; continue; }
+    backup_if_exists "$dest"
+    if [ "$DRY_RUN" != "true" ]; then /bin/cp "$src" "$dest"; fi
+    record_emit ".github/conductor/rules/$rule.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
+    conductor_retire_owned_path ".github/instructions/$rule.instructions.md" "legacy eager universal rule"
+  done
+
   if [ "$PER_RULE" = "true" ]; then
-    log "Step 1/4: universal-rules → .github/instructions/*.instructions.md (per-rule mode)"
     mkdir_if_real "$TARGET_ABS/.github/instructions"
-    for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
-      src="$CORE_ROOT/universal-rules/$rule.md"
-      dest="$TARGET_ABS/.github/instructions/$rule.instructions.md"
-      if [ ! -f "$src" ]; then
-        echo "Warning: $src not found; skipping" >&2
-        continue
-      fi
-      backup_if_exists "$dest"
-      # Universal rules are always-loaded → applyTo: '**'
-      write_copilot_per_file "$src" "$dest" "**"
-      record_emit ".github/instructions/$rule.instructions.md" "core/universal-rules/$rule.md" "$MANIFEST_LAST_BACKUP"
-    done
+    dest="$TARGET_ABS/.github/instructions/conductor-kernel.instructions.md"
+    backup_if_exists "$dest"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would write bounded Copilot kernel $dest"
+    else
+      {
+        printf -- "---\napplyTo: '**'\n---\n\n"
+        conductor_render_runtime_kernel "GitHub Copilot" ".github/conductor/rules" ".github/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES"
+      } > "$dest"
+    fi
+    record_emit ".github/instructions/conductor-kernel.instructions.md" "core/runtime-kernel.md" "$MANIFEST_LAST_BACKUP"
+    conductor_retire_owned_path ".github/copilot-instructions.md" "superseded Copilot kernel surface"
   else
-    log "Step 1/4: universal-rules → .github/copilot-instructions.md (single-file mode)"
     mkdir_if_real "$TARGET_ABS/.github"
     dest="$TARGET_ABS/.github/copilot-instructions.md"
     backup_if_exists "$dest"
     if [ "$DRY_RUN" = "true" ]; then
-      log "would synthesize $dest from 5 universal-rule bodies"
+      log "would write bounded Copilot kernel $dest"
     else
-      /bin/cat > "$dest" <<'HEADER_EOF'
-# Project Custom Instructions (installed by CONDUCTOR — Copilot adapter)
-
-> Loaded automatically by GitHub Copilot for every chat in this repository.
-> Read the 5 universal rules below before any tool call.
-> Source: https://github.com/<your-org>/conductor (universal-rules/*.md)
-
-## Topology note (Copilot)
-
-GitHub Copilot supports repository custom agents and hooks natively. CONDUCTOR emits
-eight role profiles in `.github/agents/` for a full/strict install. The 5
-universal rules below still require the human and Copilot Chat to follow
-the same Plan → Architecture → Tasks → Implementation → Review → Spec workflow
-that Claude Code enforces with CONDUCTOR-emitted hooks. Two-stage code review degrades to the
-Copilot PR review feature for Stage B (configure separately at the repo level).
-
----
-
-HEADER_EOF
-      for rule in workflow spec-as-you-go quality-gates operations meta-discipline; do
-        src="$CORE_ROOT/universal-rules/$rule.md"
-        if [ ! -f "$src" ]; then
-          echo "Warning: $src not found; skipping" >&2
-          continue
-        fi
-        echo "" >> "$dest"
-        echo "<!-- ===== universal-rule: $rule ===== -->" >> "$dest"
-        echo "" >> "$dest"
-        strip_frontmatter "$src" >> "$dest"
-        echo "" >> "$dest"
-        echo "---" >> "$dest"
-      done
-      log "  wrote $dest ($(/usr/bin/wc -l < "$dest" | /usr/bin/tr -d ' ') lines)"
+      conductor_render_runtime_kernel "GitHub Copilot" ".github/conductor/rules" ".github/conductor/recipes" "$WIZARD_APPLY_RULES" "$RECIPES" > "$dest"
     fi
-    record_emit ".github/copilot-instructions.md" "<synthesized:5-universal-rules>" "$MANIFEST_LAST_BACKUP"
+    record_emit ".github/copilot-instructions.md" "core/runtime-kernel.md" "$MANIFEST_LAST_BACKUP"
+    conductor_retire_owned_path ".github/instructions/conductor-kernel.instructions.md" "alternate Copilot kernel surface"
   fi
 else
   log "Step 1/4: universal-rules — skipped (user opted out)"
@@ -765,24 +745,35 @@ fi
 
 # ----- step 2: recipes → .github/instructions/<r>.instructions.md --------
 
-log "Step 2/4: recipes (opt-in) → .github/instructions/"
+log "Step 2/4: path-scoped recipe pointers + complete references"
 INSTALLED_RECIPES=""
 if [ -n "$RECIPES" ]; then
   mkdir_if_real "$TARGET_ABS/.github/instructions"
+  mkdir_if_real "$TARGET_ABS/.github/conductor/recipes"
   IFS=',' read -ra RECIPE_LIST <<< "$RECIPES"
   for r in "${RECIPE_LIST[@]}"; do
     r="$(printf '%s' "$r" | /usr/bin/sed 's/^ *//; s/ *$//')"
     [ -z "$r" ] && continue
     src="$CORE_ROOT/recipes/$r.md"
     dest="$TARGET_ABS/.github/instructions/$r.instructions.md"
+    ref_dest="$TARGET_ABS/.github/conductor/recipes/$r.md"
     if [ ! -f "$src" ]; then
       echo "Warning: recipe '$r' not found at $src; skipping" >&2
       continue
     fi
+    backup_if_exists "$ref_dest"
+    if [ "$DRY_RUN" != "true" ]; then /bin/cp "$src" "$ref_dest"; fi
+    record_emit ".github/conductor/recipes/$r.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     backup_if_exists "$dest"
-    applyto="$(extract_paths_csv "$src")"
-    [ -z "$applyto" ] && applyto="**"
-    write_copilot_per_file "$src" "$dest" "$applyto"
+    applyto="$(conductor_recipe_globs_csv "$r")"
+    if [ "$DRY_RUN" = "true" ]; then
+      log "would write recipe pointer $dest with applyTo: '$applyto'"
+    else
+      {
+        printf -- "---\napplyTo: '%s'\n---\n\n" "$applyto"
+        conductor_render_recipe_pointer_body "$src" ".github/conductor/recipes/$r.md"
+      } > "$dest"
+    fi
     log "  recipe $r → applyTo: '$applyto'"
     record_emit ".github/instructions/$r.instructions.md" "core/recipes/$r.md" "$MANIFEST_LAST_BACKUP"
     INSTALLED_RECIPES="$INSTALLED_RECIPES $r"
@@ -872,6 +863,9 @@ case ",$RECIPES_FOR_RUNTIME," in
         backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/$s.sh" "$d"; /bin/chmod +x "$d"
         record_emit ".conductor/reflect/$s.sh" "core/reflector/$s.sh" "$MANIFEST_LAST_BACKUP"
       done
+      d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
+      backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
+      record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"

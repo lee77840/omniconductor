@@ -67,8 +67,8 @@ function audit(options) {
   const roles = new Map();
   const totals = {
     files_scanned: files.length, files_matched: 0, records: 0, tool_results: 0,
-    conductor_truncation_markers: 0, cache_read_tokens: 0,
-    cache_write_tokens: 0, uncached_input_tokens: 0, output_tokens: 0,
+    conductor_truncation_markers: 0, observed_declared_elided_tokens: 0, cache_read_tokens: 0,
+    cache_write_tokens: 0, uncached_input_tokens: 0, output_tokens: 0, model_calls_with_usage: 0,
   };
 
   for (const file of files) {
@@ -84,6 +84,8 @@ function audit(options) {
       if (record.gitBranch) branches.set(record.gitBranch, (branches.get(record.gitBranch) || 0) + 1);
       const message = record.message || {};
       const tokenUsage = message.usage || {};
+      if (['cache_read_input_tokens', 'cache_creation_input_tokens', 'input_tokens', 'output_tokens']
+        .some((key) => Number.isFinite(tokenUsage[key]))) totals.model_calls_with_usage++;
       totals.cache_read_tokens += tokenUsage.cache_read_input_tokens || 0;
       totals.cache_write_tokens += tokenUsage.cache_creation_input_tokens || 0;
       totals.uncached_input_tokens += tokenUsage.input_tokens || 0;
@@ -96,6 +98,9 @@ function audit(options) {
           const text = resultText(item.content);
           resultTokens.push(Math.ceil(text.length / 4));
           if (text.includes('[CONDUCTOR] output truncated')) totals.conductor_truncation_markers++;
+          for (const match of text.matchAll(/\[CONDUCTOR\] output truncated[^\n]*?([0-9][0-9,]*) tokens elided/g)) {
+            totals.observed_declared_elided_tokens += Number(match[1].replace(/,/g, ''));
+          }
         }
         if (item.type === 'tool_use' && item.name === 'Agent') {
           const input = item.input || {};
@@ -107,7 +112,8 @@ function audit(options) {
     if (matched) totals.files_matched++;
   }
 
-  const denominator = totals.cache_read_tokens + totals.cache_write_tokens;
+  const denominator = totals.cache_read_tokens + totals.cache_write_tokens + totals.uncached_input_tokens;
+  const cacheReadShare = denominator ? Number((totals.cache_read_tokens / denominator * 100).toFixed(2)) : 0;
   const thresholdAnalysis = options.thresholds.map((threshold) => ({
     threshold_tokens: threshold,
     results_over_threshold: resultTokens.filter((value) => value > threshold).length,
@@ -132,7 +138,9 @@ function audit(options) {
     source: path.resolve(options.sessions),
     since: options.since,
     ...totals,
-    cache_reuse_percent: denominator ? Number((totals.cache_read_tokens / denominator * 100).toFixed(2)) : 0,
+    cache_read_share_percent: cacheReadShare,
+    // Compatibility alias. It now uses the canonical all-input denominator.
+    cache_reuse_percent: cacheReadShare,
     branches: Object.fromEntries([...branches.entries()].sort()),
     role_dispatches: Object.fromEntries([...roles.entries()].sort()),
     thresholds: thresholdAnalysis,
@@ -148,7 +156,9 @@ function printReport(report) {
   process.stdout.write(`Files matched / scanned       : ${report.files_matched.toLocaleString()} / ${report.files_scanned.toLocaleString()}\n`);
   process.stdout.write(`Tool results                  : ${report.tool_results.toLocaleString()}\n`);
   process.stdout.write(`CONDUCTOR truncation markers  : ${report.conductor_truncation_markers.toLocaleString()}\n`);
-  process.stdout.write(`Prompt-cache reuse            : ${report.cache_reuse_percent.toFixed(2)}% (read / (read + write))\n`);
+  process.stdout.write(`Observed declared elision     : ${report.observed_declared_elided_tokens.toLocaleString()} tokens (marker lower bound)\n`);
+  process.stdout.write(`Cache-read token share        : ${report.cache_read_share_percent.toFixed(2)}% (read / (read + write + uncached))\n`);
+  process.stdout.write(`Cache tokens (read/write/raw) : ${report.cache_read_tokens.toLocaleString()} / ${report.cache_write_tokens.toLocaleString()} / ${report.uncached_input_tokens.toLocaleString()}\n`);
   process.stdout.write(`Role dispatches               : ${JSON.stringify(report.role_dispatches)}\n`);
   process.stdout.write(`Observed branches             : ${JSON.stringify(report.branches)}\n\n`);
   process.stdout.write('Threshold reach (heuristic)\n');

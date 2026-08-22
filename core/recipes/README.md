@@ -1,6 +1,14 @@
-# `core/recipes/` — Project-specific opt-in patterns
+# `core/recipes/` — Policy-classified project patterns
 
-Per ADR-013, CONDUCTOR ships project-specific recipes as OPT-IN. They are not loaded by default. Adopters select the recipes that match their project and the adapter wires them into the appropriate native location.
+ADR-073 amends the original all-opt-in model from ADR-013. Recipes are classified
+instead of asking 17 independent questions:
+
+- `debugging` and `loop-engineering` are safe automatic defaults on a fresh
+  full/strict install;
+- stack-shaped recipes are detected and recommended once as a group;
+- permission-, data-, Git-, or database-impacting recipes require explicit consent;
+- updates preserve the existing per-adapter selection;
+- an explicit `--recipes=` value is exact and overrides onboarding.
 
 ## The 17 recipes
 
@@ -39,7 +47,7 @@ Per ADR-013, CONDUCTOR ships project-specific recipes as OPT-IN. They are not lo
 | Third-party or policy-bound release material | `release-provenance` plus adopter-owned domain policy |
 | Any git repo, esp. shared / multi-session | add `git-hygiene` to any of the above |
 | Agentic / iterative loops (fix-verify, test-fix) | add `loop-engineering` to any of the above |
-| Greenfield experiment | None — universal-rules + roles only is enough |
+| Greenfield experiment | Automatic `debugging` + `loop-engineering` only |
 
 ## How adapters consume these files
 
@@ -52,6 +60,7 @@ Adapter `transform.sh` accepts a `--recipes=<comma-separated-list>` flag (or per
 | Copilot | `.github/instructions/<recipe>.instructions.md` |
 | Gemini | Section in `GEMINI.md` |
 | Codex | Section in `AGENTS.md` |
-| Windsurf | `.devin/rules/<recipe>.md` (legacy `.windsurf/rules/` still read) |
+| Windsurf | Full: `.devin/conductor/recipes/<recipe>.md`; à-la-carte: compact `.devin/rules/<recipe>.md` pointer |
+| OpenCode | `.opencode/rules/<recipe>.md` |
 
 Recipes are layered on TOP of universal-rules. They never override; they extend.

@@ -19,6 +19,8 @@ const AUTH_STATUSES = new Set(['documented', 'policy-controlled', 'source-confli
 const PROBE_KINDS = new Set(['local-renderer', 'headless-model', 'manual-ide']);
 const FLOOR_BASES = new Set(['documented', 'live-verified']);
 const VERSION_ENV_ALLOWLIST = new Set(['PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'COMSPEC']);
+const SAFE_COMMAND = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const SAFE_VERSION_ARG = /^--?[A-Za-z0-9][A-Za-z0-9._=-]*$/;
 
 function loadMetadata(tool) {
   if (!TOOLS.includes(tool)) throw new Error(`unknown adapter '${tool}'`);
@@ -37,6 +39,10 @@ function validateRuntimeContract(meta) {
   at(meta && nonEmpty(meta.tool) && TOOLS.includes(meta.tool), `tool must be one of: ${TOOLS.join(', ')}`);
   at(meta && meta.headless_cli && nonEmpty(meta.headless_cli.command),
     'headless_cli.command must be available to the runtime contract');
+  if (meta && meta.headless_cli && nonEmpty(meta.headless_cli.command)) {
+    at(SAFE_COMMAND.test(meta.headless_cli.command),
+      'headless_cli.command must be an execution-safe bare command name');
+  }
   at(meta && meta.live_verification && nonEmpty(meta.live_verification.status),
     'live_verification.status must be available to the runtime contract');
   at(contract && typeof contract === 'object' && !Array.isArray(contract), 'runtime_contract must be an object');
@@ -58,6 +64,10 @@ function validateRuntimeContract(meta) {
   if (version && typeof version === 'object' && !Array.isArray(version)) {
     at(Array.isArray(version.args) && version.args.length > 0 && version.args.every(nonEmpty),
       'runtime_contract.version.args must be a non-empty string array');
+    if (Array.isArray(version.args) && version.args.every(nonEmpty)) {
+      at(version.args.every((arg) => SAFE_VERSION_ARG.test(arg)),
+        'runtime_contract.version.args must contain only execution-safe option arguments');
+    }
     at(Array.isArray(version.capability_floors), 'runtime_contract.version.capability_floors must be an array');
     const seenCapabilities = new Set();
     for (const [index, floor] of (Array.isArray(version.capability_floors) ? version.capability_floors : []).entries()) {
@@ -135,6 +145,47 @@ function versionProbeEnv(source) {
     .filter(([name]) => VERSION_ENV_ALLOWLIST.has(name.toUpperCase())));
 }
 
+function environmentValue(env, name) {
+  const wanted = name.toUpperCase();
+  const entry = Object.entries(env || {}).find(([key]) => key.toUpperCase() === wanted);
+  return entry ? entry[1] : undefined;
+}
+
+function resolveWindowsCommand(command, env, exists = fs.existsSync) {
+  if (!SAFE_COMMAND.test(command)) return null;
+  const searchPath = String(environmentValue(env, 'PATH') || '');
+  const extensions = ['.COM', '.EXE', '.BAT', '.CMD'];
+  const givenExtension = path.win32.extname(command).toUpperCase();
+  const suffixes = extensions.includes(givenExtension) ? [''] : extensions;
+  for (const rawDirectory of searchPath.split(';')) {
+    const directory = rawDirectory.trim().replace(/^"|"$/g, '');
+    if (!directory) continue;
+    for (const suffix of suffixes) {
+      const candidate = path.win32.join(directory, `${command}${suffix}`);
+      if (exists(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+function windowsProbeInvocation(command, args, env, exists) {
+  const resolved = resolveWindowsCommand(command, env, exists);
+  if (!resolved) return null;
+  const extension = path.win32.extname(resolved).toLowerCase();
+  if (extension !== '.cmd' && extension !== '.bat') {
+    return { command: resolved, args, windowsVerbatimArguments: false };
+  }
+  const commandProcessor = environmentValue(env, 'COMSPEC') || 'cmd.exe';
+  return {
+    command: commandProcessor,
+    // cmd.exe /s requires the outer quote pair as well as the quoted shim
+    // path. Verbatim delivery prevents libuv from applying C-runtime quoting
+    // rules to a command processor string.
+    args: ['/d', '/s', '/c', `""${resolved}" ${args.join(' ')}"`],
+    windowsVerbatimArguments: true,
+  };
+}
+
 function inspectRuntime(tool, options = {}) {
   const meta = options.meta || loadMetadata(tool);
   const problems = validateRuntimeContract(meta);
@@ -153,10 +204,27 @@ function inspectRuntime(tool, options = {}) {
   const emitted = new Set(options.emittedPaths || []);
   const runner = options.spawnSync || spawnSync;
   const command = meta.headless_cli.command;
-  const result = runner(command, contract.version.args, {
+  const probeEnv = versionProbeEnv(options.env || process.env);
+  let invocation = { command, args: contract.version.args };
+  if (process.platform === 'win32' && !options.spawnSync) {
+    invocation = windowsProbeInvocation(command, contract.version.args, probeEnv);
+    if (!invocation) {
+      return {
+        tool,
+        status: 'not-installed',
+        severity: 'OK',
+        detail: `${command} is not on PATH; emitted files remain portable but runtime activation is not locally observable`,
+        installed: false,
+        version: null,
+      };
+    }
+  }
+  const result = runner(invocation.command, invocation.args, {
     encoding: 'utf8',
     timeout: options.timeout || 5000,
-    env: versionProbeEnv(options.env || process.env),
+    env: probeEnv,
+    windowsHide: true,
+    windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
   });
 
   if (result.error && result.error.code === 'ENOENT') {
@@ -302,10 +370,13 @@ if (require.main === module) process.exitCode = runCli(process.argv.slice(2));
 
 module.exports = {
   TOOLS,
+  environmentValue,
   inspectRuntime,
   loadMetadata,
   parseVersion,
+  resolveWindowsCommand,
   validateRuntimeContract,
   versionProbeEnv,
   versionAtLeast,
+  windowsProbeInvocation,
 };

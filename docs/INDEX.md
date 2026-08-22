@@ -41,7 +41,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `docs/specs/2026-08-11-verification-assurance-contracts.md` | Evidence schema and DB/test/visual/provenance/multi-surface invariants. |
 | `docs/plans/2026-08-11-verification-assurance-contracts.md` | P0→P2 implementation and verification checklist. |
 | `docs/specs/2026-08-12-opencode-adapter.md` | Implemented OpenCode stable-v1 contract: JSON merge, v1/v2 boundary, native agents/skills/plugins, and seven-adapter impact. |
-| `core/recipes/README.md` | The 17 opt-in recipes catalog + selection guidance. |
+| `core/recipes/README.md` | The 17 policy-classified recipes catalog + onboarding guidance. |
 | `core/recipes/self-improvement.md` | Opt-in Reflector loop — propose-only session self-review (ADR-030/032/033). |
 | `core/recipes/web-mobile-parity.md` | P1 + P2 (feature + bug parity). |
 | `core/recipes/i18n.md` | Multi-locale translation key sync. |
@@ -75,7 +75,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `core/hooks/pretool-large-file-read-guard.sh.template` | PreToolUse — intercept large-file Read; suggest Grep + range-read. |
 | `core/hooks/stop-session-log-check.sh.template` | Stop — block when CURRENT_WORK / specs are stale. |
 | `core/hooks/stop-r6-review-check.sh.template` | Stop — remind to run pre-merge review on open PR. |
-| `core/hooks/stop-cache-hit-baseline-check.sh.template` | Stop — warn if cache hit rate drops below 95% SLA. |
+| `core/hooks/stop-cache-hit-baseline-check.sh.template` | Stop — warn if canonical cache-read token share drops below 95%. |
 | `core/hooks/stop-trajectory-log.sh.template` | Stop — upsert a trajectory pointer for the Reflector (self-improvement recipe; opt-in gated). |
 | `core/hooks/stop-git-hygiene-guard.sh.template` | Stop — remind on git-hygiene collapse (orphan worktrees / local-only commits / stale branches; git-hygiene recipe). |
 | `core/hooks/pretool-loop-guard.sh.template` | PreToolUse — soft-warn on loop oscillation / runaway (same action repeated or session tool-call budget; loop-engineering recipe). |
@@ -103,7 +103,7 @@ Single catalog of every asset in this repo. Updated when new documents land.
 | `adapters/<tool>/metadata.json` | **✅ v0.7.0 (ADR-040).** Single source per adapter for outputs / legacy paths / tier / capabilities / live-verification / headless CLI. CI-checked. |
 | `adapters/gemini/transform.sh` | **✅ adapter shipped (v0.2).** core → `GEMINI.md` + `.gemini/styleguide.md`. Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 | `adapters/codex/transform.sh` | **✅ adapter shipped (v0.2).** core → `AGENTS.md`. Emit-verified + **live-verified** (auto-probe `tools/live-verify.sh`) — current status in `docs/ADAPTER-LIVE-VERIFICATION.md`. |
-| `adapters/windsurf/transform.sh` | **✅ adapter shipped (v0.2).** core → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/` still read). Emit-verified; live runtime pending — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
+| `adapters/windsurf/transform.sh` | **✅ adapter shipped (v0.2).** core → `.windsurfrules` + `.devin/rules/*.md` (legacy `.windsurf/rules/` still read). Devin for Terminal headless live-verified; Desktop UI smoke remains manual — see `docs/ADAPTER-LIVE-VERIFICATION.md`. |
 | `adapters/opencode/transform.sh` | **✅ adapter shipped (v1.6).** core → `opencode.json` instructions + `.opencode/{rules,agents,plugins,skills,commands}`. Stable v1 live-verified; v2 beta unsupported. |
 
 ## `tools/`
@@ -179,5 +179,5 @@ Legacy Claude-only scaffold. Kept for backward compatibility. Use `adapters/clau
 | P1.7 — Cache-hit Stop hook + Large-file Read guard | Complete | 2026-05-18 |
 | P2 — Cursor adapter | Complete | 2026-05-30 |
 | P3 — Copilot ✅ + Gemini ✅ adapters | Done (both ship `transform.sh`; live runtime adopter-pending) | 2026-06-28 |
-| P3.5 — Codex ✅ + Windsurf ✅ adapters | Done (both ship `transform.sh`; Codex live-verified 2026-06-28, Windsurf live pending) | 2026-06-28 |
+| P3.5 — Codex ✅ + Windsurf ✅ adapters | Done (both ship `transform.sh` and have recorded live probes; current evidence is generated in `ADAPTER-LIVE-VERIFICATION.md`) | 2026-06-28 |
 | P4 — Public release | npm `omniconductor` published + public GitHub mirror live (v0.6.0, 2026-07); marketplace listing pending | 2026-07 |

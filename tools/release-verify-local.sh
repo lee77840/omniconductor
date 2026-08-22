@@ -46,14 +46,16 @@ npm test
 
 echo "[release] static, metadata, generated-doc, and source checks"
 for required_tracked_file in \
-  bin/adapter-dispatch.js bin/installer-platform.js bin/opencode-config.js \
+  bin/adapter-dispatch.js bin/installer-platform.js bin/opencode-config.js bin/instruction-footprint.js bin/user-token-savings.js \
+  bin/recipe-onboarding.js bin/install-conflicts.js \
   adapters/opencode/transform.sh adapters/opencode/metadata.json \
   adapters/opencode/conductor-guards.js adapters/opencode/README.md \
   adapters/opencode/SUPPORTED-FEATURES.md adapters/opencode/transform-spec.md \
   bin/claude-hookify.js bin/runtime-contract.js bin/portable-skills.js bin/hook-config.js \
   bin/assurance-coverage.js bin/evidence-contract.js bin/extension-trust.js bin/plugin-packager.js \
   bin/skill-proposals.js bin/work-contract.js bin/workspace-contract.js \
-  core/hooks/registry.json core/skills/coordinate-work/SKILL.md \
+  core/hooks/registry.json core/reflector/reflection-proposals.js core/runtime-kernel.md \
+  core/skills/coordinate-work/SKILL.md \
   core/skills/propose-skill/SKILL.md docs/AGENT-EVAL-COVERAGE.json \
   docs/AGENT-EVAL-COVERAGE.md docs/PARALLEL-WORK.md docs/WORKSPACE-FEDERATION.md \
   docs/TOKEN-ECONOMY-KO.md docs/VERIFICATION-EVIDENCE.md \
@@ -63,7 +65,9 @@ for required_tracked_file in \
   tools/test-installer-platform.js tools/test-windows-installer.js \
   tools/run-bash.js tools/test-install-modes-all.js \
   tools/test-hook-python-runtime.js tools/test-opencode-adapter.js \
-  tools/test-recipe-docs.js tools/test-work-contract.js tools/test-workspace-contract.js; do
+  tools/test-recipe-docs.js tools/test-recipe-onboarding.js tools/test-install-conflicts.js \
+  tools/test-reflection-proposals.js tools/test-reflector-runner.js tools/test-instruction-footprint.js tools/test-user-token-savings.js \
+  tools/test-work-contract.js tools/test-workspace-contract.js; do
   git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
     echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
     exit 1
@@ -94,9 +98,10 @@ else
   echo "          rerun with CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 after the release commit"
   SNAPSHOT_STATUS="DEFERRED (uncommitted working tree)"
 fi
-for file in bin/{omniconductor,doctor,model-routing,path-safety,adapter-dispatch,installer-platform,claude-hookify,runtime-contract,portable-skills,hook-config,opencode-config}.js \
+for file in bin/{omniconductor,doctor,model-routing,path-safety,adapter-dispatch,installer-platform,claude-hookify,runtime-contract,portable-skills,hook-config,opencode-config,recipe-onboarding,install-conflicts,instruction-footprint,user-token-savings}.js \
   bin/{assurance-coverage,evidence-contract,extension-trust,plugin-packager,skill-proposals,work-contract,workspace-contract}.js \
-  tools/{run-bash,test-install-modes-all,test-model-routing,test-path-safety,test-installer-platform,test-windows-installer,test-hookify-posttool,test-hook-python-runtime,test-runtime-contract,test-portable-skills,test-hook-compiler,test-opencode-adapter,test-recipe-docs,test-release-version,check-release-version,check-recipe-docs}.js \
+  core/reflector/reflection-proposals.js \
+  tools/{run-bash,test-install-modes-all,test-model-routing,test-path-safety,test-installer-platform,test-windows-installer,test-hookify-posttool,test-hook-python-runtime,test-runtime-contract,test-portable-skills,test-hook-compiler,test-opencode-adapter,test-recipe-docs,test-recipe-onboarding,test-install-conflicts,test-reflection-proposals,test-reflector-runner,test-instruction-footprint,test-user-token-savings,test-release-version,check-release-version,check-recipe-docs}.js \
   tools/{generate-assurance-coverage,test-assurance-coverage,test-evidence-contract,test-extension-trust,test-plugin-packager,test-skill-proposals,test-work-contract,test-workspace-contract}.js; do
   node --check "$file"
 done

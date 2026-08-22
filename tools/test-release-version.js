@@ -52,6 +52,10 @@ for (const requiredGovernanceAsset of [
   'bin/workspace-contract.js',
   'bin/installer-platform.js',
   'bin/opencode-config.js',
+  'bin/recipe-onboarding.js',
+  'bin/install-conflicts.js',
+  'bin/instruction-footprint.js',
+  'bin/user-token-savings.js',
   'adapters/opencode/transform.sh',
   'adapters/opencode/metadata.json',
   'adapters/opencode/conductor-guards.js',
@@ -60,6 +64,8 @@ for (const requiredGovernanceAsset of [
   'adapters/opencode/transform-spec.md',
   'core/skills/coordinate-work/SKILL.md',
   'core/skills/propose-skill/SKILL.md',
+  'core/reflector/reflection-proposals.js',
+  'core/runtime-kernel.md',
   'docs/AGENT-EVAL-COVERAGE.json',
   'docs/AGENT-EVAL-COVERAGE.md',
   'docs/PARALLEL-WORK.md',
@@ -83,6 +89,12 @@ for (const requiredGovernanceAsset of [
   'tools/test-windows-installer.js',
   'tools/check-recipe-docs.js',
   'tools/test-recipe-docs.js',
+  'tools/test-recipe-onboarding.js',
+  'tools/test-install-conflicts.js',
+  'tools/test-reflection-proposals.js',
+  'tools/test-reflector-runner.js',
+  'tools/test-instruction-footprint.js',
+  'tools/test-user-token-savings.js',
 ]) {
   assert(
     releaseGateSource.includes(requiredGovernanceAsset),
@@ -106,15 +118,22 @@ fi
 fs.chmodSync(path.join(fakeBin, 'npm'), 0o755);
 
 for (let run = 0; run < 2; run += 1) {
+  const fixtureEnv = {
+    ...process.env,
+    PATH: `${fakeBin}:${process.env.PATH}`,
+    TMPDIR: fixture,
+    CONDUCTOR_TEST_NPM_LOG: npmLog,
+  };
+  // The complete release gate can be run with a caller-supplied, already
+  // verified registry snapshot. This fixture must still exercise its own fake
+  // registry and fresh-cache contract rather than silently inheriting that
+  // parent state.
+  delete fixtureEnv.CONDUCTOR_REGISTRY_LATEST_VERSION;
+  delete fixtureEnv.CONDUCTOR_REGISTRY_VERSIONS_JSON;
   const result = spawnSync(BASH, ['tools/release-verify-local.sh'], {
     cwd: root,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      PATH: `${fakeBin}:${process.env.PATH}`,
-      TMPDIR: fixture,
-      CONDUCTOR_TEST_NPM_LOG: npmLog,
-    },
+    env: fixtureEnv,
   });
   assert.notStrictEqual(result.status, 0);
   assert(`${result.stdout}\n${result.stderr}`.includes(`${packageVersion} is already published`));

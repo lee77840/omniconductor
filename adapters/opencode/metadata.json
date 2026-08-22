@@ -5,13 +5,16 @@
   "tier": "T2",
   "outputs": [
     { "path": "opencode.json", "kind": "config", "validated": true },
-    { "path": ".opencode/rules", "kind": "rules", "validated": true },
+    { "path": ".opencode/rules", "kind": "registered_kernel_and_recipe_pointers", "validated": true },
+    { "path": ".opencode/conductor/rules", "kind": "rule_references", "validated": true },
+    { "path": ".opencode/conductor/recipes", "kind": "recipe_references", "validated": true },
     { "path": ".opencode/agents", "kind": "agents", "validated": true },
     { "path": ".opencode/plugins", "kind": "hooks", "validated": true },
     { "path": ".opencode/commands", "kind": "commands", "validated": true },
     { "path": ".opencode/skills", "kind": "skills", "validated": true },
     { "path": "docs/CURRENT_WORK.md", "kind": "docs", "validated": false }
   ],
+  "instruction_loading": { "strategy": "bounded-kernel+complete-references", "eager": [".opencode/rules/conductor-kernel.md"], "reference_roots": [".opencode/conductor/rules", ".opencode/conductor/recipes"], "recipe_pointer_root": ".opencode/rules/recipes", "native_scoping": "registered-explicit-read" },
   "reflector_outputs": [
     { "path": ".opencode/commands/reflect.md", "note": "manual propose-only Reflector command (recipe-gated)" },
     { "path": ".conductor/reflect", "note": "runner + brief + scheduling (recipe-gated)" }
@@ -29,7 +32,7 @@
       "skills": "yes"
     },
     "conductor_emitted": {
-      "rules": "full",
+      "rules": "bounded-kernel+full-references",
       "guard_hooks": "commit-native-review-rule-fallback",
       "reflector_loop": "recipe-manual-command",
       "role_agents": "full",

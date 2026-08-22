@@ -20,7 +20,7 @@ core/docs-templates/*.md
 core/docs-templates/specs/_example.md
 core/docs-templates/{plans,architecture,research}/README.md
 core/memory-pattern/README.md
-adapters/copilot/_native/all.instructions.tpl       # Always-loaded baseline template
+core/runtime-kernel.md                              # portable bounded baseline
 ```
 
 ## Outputs
@@ -35,13 +35,11 @@ Reflector-only; review preserves `applied: false`.
 ```
 <target-dir>/
 ├── .github/
-│   ├── copilot-instructions.md                  # DEFAULT: 5 universal rules concatenated (repo-wide)
-│   └── instructions/                            # --per-rule mode and/or selected recipes
-│       ├── meta-discipline.instructions.md      # applyTo: '**'  (only in --per-rule mode)
-│       ├── operations.instructions.md           # applyTo: '**'  (only in --per-rule mode)
-│       ├── quality-gates.instructions.md        # applyTo: '**'  (only in --per-rule mode)
-│       ├── spec-as-you-go.instructions.md       # applyTo: '**'  (only in --per-rule mode)
-│       └── workflow.instructions.md             # applyTo: '**'  (only in --per-rule mode)
+│   ├── copilot-instructions.md                  # DEFAULT: bounded repo-wide kernel
+│   ├── conductor/rules/*.md                    # complete byte-identical rules
+│   ├── conductor/recipes/*.md                  # complete selected recipes
+│   └── instructions/                            # alternate kernel + scoped recipe pointers
+│       └── conductor-kernel.instructions.md     # --per-rule bounded-kernel alternative
 └── docs/
     ├── CURRENT_WORK.md                          # Verbatim
     ├── REMAINING_TASKS.md
@@ -54,28 +52,21 @@ Reflector-only; review preserves `applied: false`.
     └── research/README.md
 ```
 
-## Universal-rules → Copilot `.instructions.md` translation
+## Universal-rules → Copilot bounded translation
 
-For each `core/universal-rules/<rule>.md`:
-
-1. Parse YAML front-matter. Extract `applies_to:`, `always_loaded:`.
-2. Translate `applies_to:` array → CSV string for `applyTo:` (Copilot uses CSV glob syntax).
-3. If `always_loaded: true` → emit with `applyTo: '**'`.
-4. Else → emit with `applyTo: '<csv>'`.
-5. Preserve capability-aware callouts from the universal source. Never rewrite a
+1. Render the shared bounded kernel into the default root file or the `--per-rule`
+   alternative with `applyTo: '**'`.
+2. Copy complete rules byte-identically to `.github/conductor/rules/`.
+3. Emit selected complete recipes plus small `applyTo:` pointers using canonical globs.
+4. Preserve capability-aware callouts from the universal source. Never rewrite a
    Claude + Codex shared guard as Claude-only, and never claim that Copilot emits
    a local guard that the adapter does not install.
 
 ## Repo-wide baseline (`.github/copilot-instructions.md`)
 
-In the default mode, the 5 universal rules are concatenated (body only) into `.github/copilot-instructions.md`. Body composition (in order):
-
-1. Header: orchestrator manual intro adapted for Copilot Chat and its native custom-agent surface.
-2. ABSOLUTE rules plus the native eight-role topology and a Copilot-specific note about PR review for Stage B; omit only contracts the adapter cannot verify.
-3. All universal-rule content where `always_loaded: true`.
-4. Pointer to `docs/CURRENT_WORK.md` as session-start read.
-
-Maximum size guidance: keep ≤ 1500 lines (Copilot has context limits; check Copilot's current docs for exact limit at P3 implementation time).
+The default file contains only the portable kernel. Complete policy remains on
+demand, with a 12 KiB kernel and 16 KiB always-active budget enforced by
+`audit instructions`.
 
 ## Copilot-specific extensions
 
@@ -86,8 +77,7 @@ Maximum size guidance: keep ≤ 1500 lines (Copilot has context limits; check Co
 | Case | Adapter behavior |
 |---|---|
 | `.github/` doesn't exist | Create it. |
-| Existing `.github/copilot-instructions.md` | Skip; report "SKIP (exists)". |
-| Existing `.github/instructions/<rule>.instructions.md` | Skip individually. |
+| Existing unmanaged baseline | Central adoption policy requires recipes-only preservation, explicit backup-and-replace, or abort before writes. |
 | Glob patterns contain commas (Copilot uses CSV) | Properly escape; warn if any pattern itself contains comma. |
 
 ## Idempotency check
@@ -99,7 +89,7 @@ Re-run reports "SKIP (exists)" for everything.
 ```bash
 test -f "<target>/.github/copilot-instructions.md"                   || echo "MISSING copilot-instructions.md"
 # --per-rule mode:
-# test -f "<target>/.github/instructions/spec-as-you-go.instructions.md" || echo "MISSING spec-as-you-go"
+# test -f "<target>/.github/instructions/conductor-kernel.instructions.md" || echo "MISSING kernel"
 
 # Open Copilot Chat in project; ask "what rules apply?"; verify list.
 # Touch a docs/specs/*.md file; ask Copilot for guidance; verify spec-as-you-go content surfaces.

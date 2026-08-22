@@ -31,20 +31,55 @@ function git(cwd, args, options = {}) {
   return options.buffer ? result.stdout : String(result.stdout).trim();
 }
 
+/**
+ * Windows keeps 8.3 short names alive: os.tmpdir() reports
+ * C:\\Users\\SANGYO~1.LEE\\... while `git rev-parse` answers with the long
+ * C:\\Users\\sangyoub01.lee\\... form. fs.realpathSync is a JS resolver and
+ * preserves whichever it was given, so the two producers this file mixes
+ * disagreed on the same directory and every claim aborted as "outside its
+ * reported Git top-level". fs.realpathSync.native goes through the OS
+ * (GetFinalPathNameByHandle) and returns the canonical long path, which puts
+ * both sides in one namespace. It falls back where the native resolver is
+ * unavailable.
+ */
+function canonicalPath(target) {
+  try { return fs.realpathSync.native(target); }
+  catch (error) {
+    if (error && (error.code === 'ENOENT' || error.code === 'EACCES' || error.code === 'EPERM')) throw error;
+    return fs.realpathSync(target);
+  }
+}
+
 function inspectDirectory(directory, label) {
   const stat = fs.lstatSync(directory);
   if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`${label} must be a real directory: ${directory}`);
-  return fs.realpathSync(directory);
+  return canonicalPath(directory);
+}
+
+/**
+ * Containment test that survives the two path producers this file mixes.
+ * `git rev-parse` emits a Windows path with a lower-case drive letter and
+ * forward slashes, while Node's realpath keeps the caller's casing, so a
+ * literal `!==` plus `startsWith` reported a repository as being outside its
+ * own Git top-level and made every claim fail on Windows. path.relative
+ * compares case-insensitively on win32 and exactly on POSIX, which is the
+ * platform's own notion of identity — it does not loosen the boundary.
+ */
+function withinOrEqual(parent, child) {
+  const relative = path.relative(parent, child); // native-path-compare
+  if (relative === '') return true;
+  if (path.isAbsolute(relative)) return false;
+  return relative !== '..' && !relative.startsWith(`..${path.sep}`);
 }
 
 function resolveRepository(targetDir) {
   const requested = path.resolve(targetDir || '.');
   const cwd = inspectDirectory(requested, 'repository target');
-  const top = fs.realpathSync(git(cwd, ['rev-parse', '--show-toplevel']));
-  if (top !== cwd && !cwd.startsWith(`${top}${path.sep}`)) throw new Error('target is outside its reported Git top-level');
+  const top = canonicalPath(git(cwd, ['rev-parse', '--show-toplevel']));
+  if (!withinOrEqual(top, cwd)) throw new Error('target is outside its reported Git top-level');
   let common = git(cwd, ['rev-parse', '--git-common-dir']);
   if (!path.isAbsolute(common)) common = path.resolve(cwd, common);
-  common = fs.realpathSync(common);
+  common = canonicalPath(common);
   inspectDirectory(common, 'Git common directory');
   return { cwd, top, common, stateRoot: path.join(common, STATE_DIR_NAME) };
 }
@@ -299,9 +334,23 @@ function hashRegularFile(file) {
   return hash.digest('hex');
 }
 
+function requireHead(repo) {
+  const headProbe = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], {
+    cwd: repo.cwd, encoding: 'utf8', timeout: 5000,
+    env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', LC_ALL: 'C' },
+  });
+  if (headProbe.status !== 0) {
+    throw new Error('repository has no commits yet; make an initial commit before claiming work');
+  }
+  return String(headProbe.stdout).trim();
+}
+
 function snapshot(targetDir) {
   const repo = resolveRepository(targetDir);
-  const head = git(repo.cwd, ['rev-parse', '--verify', 'HEAD']);
+  // A repository with no commits yet surfaces git's own "Needed a single
+  // revision", which tells an adopter nothing about what to do. Every claim is
+  // bound to a commit, so say that plainly instead.
+  const head = requireHead(repo);
   let branch = '(detached)';
   const branchResult = spawnSync('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
     cwd: repo.cwd, encoding: 'utf8', timeout: 5000,
@@ -320,7 +369,7 @@ function snapshot(targetDir) {
   for (const relative of untracked) {
     const normalized = normalizeScope(relative);
     const absolute = path.resolve(repo.top, normalized);
-    if (absolute !== repo.top && !absolute.startsWith(`${repo.top}${path.sep}`)) throw new Error(`untracked path escapes repository: ${relative}`);
+    if (!withinOrEqual(repo.top, absolute)) throw new Error(`untracked path escapes repository: ${relative}`);
     const stat = fs.lstatSync(absolute);
     let digest;
     if (stat.isSymbolicLink()) digest = crypto.createHash('sha256').update(`symlink:${fs.readlinkSync(absolute)}`).digest('hex');
@@ -362,12 +411,17 @@ function assertNoOverlap(records, task, scopes) {
 
 function claim(targetDir, task, options) {
   const repo = resolveRepository(targetDir);
+  const taskId = validateTask(task);
   const identity = validateIdentity(options.tool, options.session);
   const scopes = normalizeScopes(options.scopes);
+  // Refuse an unborn repository before acquireLock creates .git/conductor.
+  // snapshot() repeats this check under the mutation lock before recording the
+  // claim, so a concurrent HEAD change still cannot produce a stale record.
+  requireHead(repo);
   const release = acquireLock(repo);
   try {
     const records = readAll(repo);
-    const existing = records.find((record) => record.task_id === validateTask(task));
+    const existing = records.find((record) => record.task_id === taskId);
     const now = new Date().toISOString();
     if (existing) {
       if (existing.status === 'active') {
@@ -400,11 +454,11 @@ function claim(targetDir, task, options) {
       atomicWrite(repo, task, existing);
       return { created: false, resumed: true, record: existing, state_root: repo.stateRoot };
     }
-    assertNoOverlap(records, task, scopes);
+    assertNoOverlap(records, taskId, scopes);
     const current = snapshot(repo.cwd);
     const record = {
       schema_version: SCHEMA_VERSION,
-      task_id: task,
+      task_id: taskId,
       status: 'active',
       owner: identity,
       scopes,
@@ -415,7 +469,7 @@ function claim(targetDir, task, options) {
       updated_at: now,
       history: [{ event: 'claimed', at: now, owner: identity, snapshot: { head: current.head, digest: current.digest } }],
     };
-    atomicWrite(repo, task, record);
+    atomicWrite(repo, taskId, record);
     return { created: true, resumed: false, record, state_root: repo.stateRoot };
   } finally { release(); }
 }
@@ -535,6 +589,7 @@ function render(report) {
 
 module.exports = {
   STATE_DIR_NAME,
+  canonicalPath,
   claim,
   handoff,
   inspect,

@@ -98,9 +98,9 @@ The Claude adapter ships a working `transform.sh`. Verified by fresh-target inst
 
 | Feature claim | Verified-by-real-install | Verification command / observation |
 |---|---|---|
-| `transform.sh` emits 8 base roles, 5 rules, verified hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
+| `transform.sh` emits 8 base roles, bounded kernel, 5 complete references, verified hooks, settings.json, docs | ✅ | `bash adapters/claude/transform.sh <tmp>` then inspect `<tmp>/.claude/` |
 | Sub-agent dispatch works | ✅ | `.claude/agents/{planner,builder,reviewer,helper,designer,scribe}.md` recognized by `/help` |
-| Lazy / always-loaded rules present | ✅ | `.claude/rules/{workflow,spec-as-you-go,quality-gates,operations,meta-discipline}.md` |
+| Bounded kernel + scoped routing present | ✅ | `CLAUDE.md`, `.claude/conductor/rules/*.md`, and compact selected-recipe pointers in `.claude/rules/` |
 | Hooks registered in settings.json | ✅ | `.claude/settings.json` lists 5 PreToolUse + 1 PostToolUse + 5 Stop |
 | Hookify rules have an active engine contract | ✅ | validator requires the project declaration and accepts deliberate per-rule disablement with a warning; doctor probes the local Claude plugin list and checkout path |
 | Stop hook blocks on missing spec update | ✅ | commit code without spec → `stop-session-log-check.sh` fires |

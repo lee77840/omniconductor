@@ -3,7 +3,8 @@
 Windsurf (the AI-IDE) is a T3 target because:
 
 - It supports an always-loaded baseline at `.windsurfrules`.
-- It supports a directory of additional rules at `.devin/rules/*.md` (preferred; legacy `.windsurf/rules/` is still read).
+- Complete rules live outside the eager surface under `.devin/conductor/rules/`;
+  `.devin/rules/` carries compact pointers only in à-la-carte modes.
 - Its workflow is similar to Cursor's but with less per-pattern scoping.
 
 **Tool capability vs CONDUCTOR emission (ADR-031/048/049):** CONDUCTOR emits eight Windsurf workflows as verified role entry points plus the opt-in Reflector workflow/rule. Each workflow carries the portable Tier and an explicit requirement to select Adaptive in Cascade. Because no workflow model field or selector-state API exists, enforcement is honestly recorded as advisory-session. Rule scoping and desktop scheduling remain limited.
@@ -16,7 +17,7 @@ Windsurf (the AI-IDE) is a T3 target because:
 ## Installation path
 
 ```bash
-# Install (always-loaded baseline + grouped rules + docs):
+# Install (bounded kernel + complete references + docs):
 bash adapters/windsurf/transform.sh <target>
 
 # With opt-in recipes:
@@ -37,16 +38,11 @@ bypass.
 
 ```
 <target>/
-├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules)
+├── .windsurfrules                              # bounded always-loaded kernel
 ├── .agents/skills/                             # plan-change, verify-change, review-change
-├── .devin/                                     # Preferred rules dir (legacy .windsurf/rules/ still read)
-│   └── rules/
-│       ├── workflow.md
-│       ├── spec-as-you-go.md
-│       ├── quality-gates.md
-│       ├── operations.md
-│       ├── meta-discipline.md
-│       └── <recipe>.md                          # per --recipes=
+├── .devin/conductor/
+│   ├── rules/*.md                              # complete universal rules
+│   └── recipes/*.md                            # complete selected recipes
 └── docs/
     ├── CURRENT_WORK.md                         # Universal templates
     ├── REMAINING_TASKS.md
@@ -70,8 +66,8 @@ typed inbox never auto-applies a live skill.
 
 ## Native features supported (emitted today)
 
-- ✅ Always-loaded baseline (`.windsurfrules`).
-- ✅ Directory-based rule loading (`.devin/rules/`; legacy `.windsurf/rules/` still read).
+- ✅ Bounded always-loaded kernel (`.windsurfrules`).
+- ✅ Complete byte-identical references under `.devin/conductor/`.
 - ✅ All universal rule TEXT.
 - ✅ All doc templates.
 - ✅ Eight native invocable role workflows in `.windsurf/workflows/`, including Tier 3 utility.
@@ -82,7 +78,7 @@ typed inbox never auto-applies a live skill.
 
 | Feature | Interim workaround |
 |---|---|
-| Per-pattern rule scoping | All rules in `.devin/rules/` load together. No glob filtering (tool-side). |
+| Per-pattern rule scoping | No verified glob filtering is claimed; the kernel routes to exact complete references. |
 | Enforcement guard hooks | Windsurf has hooks but **no session/stop events** (tool-side gap) — Stop-style enforcement isn't possible; self-police or pair with pre-commit git hooks. |
 | Project-local custom-agent profiles | No stable contract is claimed; eight native role workflows provide explicit entry points instead. |
 | Difficulty/model translation | Workflow Tier is immutable; first setup saves Adaptive and every workflow displays the required session preflight. Automatic enforcement is unavailable. |
@@ -92,8 +88,7 @@ typed inbox never auto-applies a live skill.
 
 1. Open the project in Windsurf.
 2. Verify `.windsurfrules` loads on session start.
-3. Verify `.devin/rules/*.md` load alongside.
-4. Customize `.windsurfrules` — replace `{{PROJECT_NAME}}`.
+3. Verify the `.devin/conductor/` reference paths exist and are readable on demand.
 5. Rename `docs/specs/_example.md` → `docs/specs/<your-area>.md`.
 6. Add `.memory/` to `.gitignore`.
 

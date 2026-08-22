@@ -21,10 +21,11 @@
 
 ## Output
 
-- Semantically merge only `.opencode/rules/*.md` and, when selected,
-  `.opencode/rules/recipes/*.md` into `opencode.json.instructions`; retain unrelated
-  keys and entries.
-- Emit five stripped Markdown universal rules and selected recipes.
+- Semantically merge only the bounded kernel into `opencode.json.instructions` in
+  full/strict/minimal modes; recipes-only modes register compact recipe pointers.
+  Retain unrelated keys and entries.
+- Emit five byte-identical complete universal-rule references and selected complete
+  recipe references outside the always-active instruction surface.
 - In full/strict mode emit eight `.opencode/agents/*.md` subagents with saved models.
   Planner, reviewer, and code-reviewer deny `edit` and `bash` through current
   `permission` frontmatter.

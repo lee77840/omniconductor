@@ -14,7 +14,7 @@ Levels: `—` unsupported · `I` instruction-only · `E` emit-verified ·
 | `adapter-load:cursor` | adapter-instruction-load | — | E | — | — | — | — | — |
 | `adapter-load:gemini` | adapter-instruction-load | — | — | — | E | — | — | — |
 | `adapter-load:opencode` | adapter-instruction-load | — | — | — | — | — | — | L |
-| `adapter-load:windsurf` | adapter-instruction-load | — | — | — | — | — | E | — |
+| `adapter-load:windsurf` | adapter-instruction-load | — | — | — | — | — | L | — |
 | `hook:commit-current-work` | hook-policy | N | I | N | I | N | I | N |
 | `hook:commit-test-coverage` | hook-policy | N | I | N | I | N | I | N |
 | `hook:git-hygiene-before-stop` | hook-policy | I | I | I | I | N | I | I |
@@ -67,7 +67,7 @@ Levels: `—` unsupported · `I` instruction-only · `E` emit-verified ·
 | copilot | 4 | 28 | 5 | 0 | 0 | 12 |
 | gemini | 5 | 28 | 4 | 0 | 0 | 12 |
 | codex | 1 | 27 | 8 | 1 | 0 | 12 |
-| windsurf | 7 | 28 | 2 | 0 | 0 | 12 |
+| windsurf | 7 | 27 | 2 | 1 | 0 | 12 |
 | opencode | 6 | 27 | 3 | 1 | 0 | 12 |
 
 Machine-readable evidence paths and reasons are in `docs/AGENT-EVAL-COVERAGE.json`.
