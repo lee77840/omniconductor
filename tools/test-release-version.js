@@ -12,7 +12,23 @@ const { spawnSync } = require('child_process');
 const BASH = (require('../bin/installer-platform.js').resolveBash() || { command: 'bash' }).command;
 const { assertPublishable, compareStable } = require('./check-release-version');
 
-const packageVersion = require('../package.json').version;
+const packageMetadata = require('../package.json');
+const packageVersion = packageMetadata.version;
+
+assert(Array.isArray(packageMetadata.keywords));
+assert.strictEqual(new Set(packageMetadata.keywords).size, packageMetadata.keywords.length);
+assert(packageMetadata.keywords.length <= 64, 'npm keyword inventory must stay at or below 64');
+for (const keyword of packageMetadata.keywords) assert.match(keyword, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+for (const requiredKeyword of [
+  'coding-agent', 'agent-framework', 'governance', 'guardrails', 'policy-as-code',
+  'agentic-workflow', 'token-optimization', 'token-savings', 'model-context-protocol',
+  'devin', 'openai-codex', 'cli', 'cross-platform',
+]) assert(packageMetadata.keywords.includes(requiredKeyword), requiredKeyword);
+for (const duplicateVariant of ['sub-agents', 'spec-driven']) {
+  assert(!packageMetadata.keywords.includes(duplicateVariant), duplicateVariant);
+}
+assert.match(packageMetadata.description, /governance and guardrails/);
+assert.match(packageMetadata.description, /token optimization/);
 
 assert.strictEqual(compareStable('1.2.0', '1.1.2'), 1);
 assert.strictEqual(compareStable('1.1.2', '1.1.2'), 0);
@@ -158,3 +174,4 @@ fs.rmSync(fixture, { recursive: true, force: true });
 console.log('PASS: release candidate must be new and greater than npm latest');
 console.log('PASS: release registry baseline uses a fresh revalidated cache per run');
 console.log('PASS: release gate tracks every governance runtime, skill, document, generator, and suite');
+console.log('PASS: npm discovery metadata stays focused, duplicate-free, and feature-accurate');

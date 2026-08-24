@@ -19,7 +19,7 @@
 #
 # What gets checked (per adapter):
 #   cursor:
-#     - .cursor/rules/*.mdc exist
+#     - manifest-owned .cursor/rules/*.mdc exist
 #     - frontmatter delimited by ^---$ (open + close)
 #     - description: <string> field present
 #     - globs: array OR string present
@@ -135,6 +135,17 @@ manifest_recipe_enabled() {
     const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
     process.exit(Array.isArray(manifest.recipes_enabled) && manifest.recipes_enabled.includes(process.argv[2]) ? 0 : 1);
   ' "$MANIFEST_PATH" "$recipe" 2>/dev/null
+}
+
+manifest_owns_path() {
+  local rel="$1"
+  [ -s "$MANIFEST_PATH" ] || return 1
+  node -e '
+    const fs=require("fs");
+    const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+    process.exit(Array.isArray(manifest.emitted_files)
+      && manifest.emitted_files.some((entry)=>entry && entry.path===process.argv[2]) ? 0 : 1);
+  ' "$MANIFEST_PATH" "$rel" 2>/dev/null
 }
 
 validate_ala_carte_manifest() {
@@ -855,7 +866,7 @@ validate_cursor_mdc() {
 }
 
 run_cursor() {
-  local rules_dir="$TARGET/.cursor/rules"
+  local rules_dir="$TARGET/.cursor/rules" rel
   if [ ! -d "$rules_dir" ]; then
     emit_fail ".cursor/rules/" "directory missing"
     return
@@ -863,6 +874,15 @@ run_cursor() {
   local found=0
   for f in "$rules_dir"/*.mdc; do
     [ -e "$f" ] || continue
+    rel="${f#"$TARGET/"}"
+    # Upgrades deliberately preserve adopter-modified legacy rules while
+    # releasing them from manifest ownership. The adapter-output validator
+    # certifies CONDUCTOR output; it must not reinterpret retained adopter
+    # content as a malformed current Cursor rule.
+    if [ -s "$MANIFEST_PATH" ] && ! manifest_owns_path "$rel"; then
+      emit_pass "$rel (user-owned; preserved and excluded from CONDUCTOR output validation)"
+      continue
+    fi
     found=$((found + 1))
     validate_cursor_mdc "$f"
   done

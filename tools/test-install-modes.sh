@@ -103,6 +103,21 @@ if run_adapter "$d" --no-prompt --recipes=tdd,self-improvement >/dev/null 2>&1 \
   ok "full: install + validator + manifest mode stamp"
 else bad "full mode"; fi
 
+if [ "$TOOL" = "cursor" ]; then
+  user_rule="$d/.cursor/rules/user-owned.mdc"
+  printf '%s\n' 'USER-OWNED-CURSOR-RULE-WITHOUT-CONDUCTOR-FRONTMATTER' > "$user_rule"
+  before="$(/usr/bin/cksum < "$user_rule")"
+  validator_output="$(bash tools/validate-adapter-output.sh "$d" cursor 2>&1)"
+  rc=$?
+  after="$(/usr/bin/cksum < "$user_rule")"
+  if [ "$rc" -eq 0 ] && [ "$before" = "$after" ] \
+    && printf '%s\n' "$validator_output" | /usr/bin/grep -qF 'user-owned; preserved and excluded from CONDUCTOR output validation'; then
+    ok "full: validator excludes user-owned Cursor rules without rewriting them"
+  else
+    bad "full Cursor user-owned rule validator boundary"
+  fi
+fi
+
 if [ "$TOOL" = "claude" ]; then
   d="$BASE/full-hookify-existing"; mkdir -p "$d/.claude"
   printf '{"customSetting":"preserve-me","hooks":{"PreToolUse":[{"matcher":"Custom","hooks":[{"type":"command","command":"custom-hook"},{"type":"command","command":"$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-agent-routing.sh"}]}]}}\n' > "$d/.claude/settings.json"

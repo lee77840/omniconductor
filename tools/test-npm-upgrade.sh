@@ -30,10 +30,28 @@ RECIPES="self-improvement,git-hygiene,loop-engineering"
 fail() { echo "FAIL [npm-upgrade] $* (fixture: $BASE)" >&2; exit 1; }
 ok() { echo "OK   [npm-upgrade] $*"; }
 
+version_at_least() {
+  node -e '
+    const parse=(value)=>String(value).replace(/^v/, "").split(".").map((part)=>Number(part)||0);
+    const left=parse(process.argv[1]), right=parse(process.argv[2]);
+    for (let i=0;i<Math.max(left.length,right.length);i++) {
+      const a=left[i]||0, b=right[i]||0;
+      if (a!==b) process.exit(a>b ? 0 : 1);
+    }
+    process.exit(0);
+  ' "$1" "$2"
+}
+
 baseline_for() {
   case "$1" in
     claude) echo "CLAUDE.md" ;;
-    cursor) echo ".cursor/rules/workflow.mdc" ;;
+    cursor)
+      if version_at_least "$PREVIOUS_VERSION" 1.7.0; then
+        echo ".cursor/rules/conductor-kernel.mdc"
+      else
+        echo ".cursor/rules/workflow.mdc"
+      fi
+      ;;
     copilot) echo ".github/copilot-instructions.md" ;;
     gemini) echo "GEMINI.md" ;;
     codex) echo "AGENTS.md" ;;
@@ -209,7 +227,8 @@ for tool in $PREVIOUS_TOOLS; do
     if (!c.adapters || !c.adapters[process.argv[4]]) process.exit(1);
   ' "$project/.conductor/manifests/$tool.json" "$project/.conductor/model-routing.json" \
     "$CURRENT_VERSION" "$tool" || fail "$tool version/routing migration"
-  if [ "$tool" = "opencode" ] || [ "$tool" = "cursor" ]; then
+  if [ "$tool" = "opencode" ] \
+      || { [ "$tool" = "cursor" ] && ! version_at_least "$PREVIOUS_VERSION" 1.7.0; }; then
     baseline_has_sentinel "$project" "$tool" "$baseline" "$sentinel" \
       || fail "$tool in-place user setting was not preserved during upgrade"
   else

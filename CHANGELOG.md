@@ -3,6 +3,28 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.7.1] — 2026-08-24
+
+### Changed
+
+- Improve npm discovery metadata with canonical high-intent terms for coding agents,
+  governance, guardrails, agentic workflows, token optimization, MCP, Devin, Codex,
+  CLI, and cross-platform adoption. Remove duplicate spelling variants rather than
+  padding the keyword list.
+- Tighten the npm description around OMNICONDUCTOR's actual differentiators: cross-tool
+  governance and guardrails, portable Agent Skills, model routing, attributable token
+  optimization, review evidence, and reversible installation.
+- Add a release regression that keeps the keyword inventory duplicate-free, requires
+  the core discovery terms, rejects retired duplicate variants, and caps the focused
+  lowercase-hyphen inventory at 64 entries.
+- Make Cursor output validation ownership-aware so a user-modified legacy rule that
+  an upgrade deliberately preserves and releases from the manifest is not rejected
+  as current CONDUCTOR output. Managed Cursor rules remain fail-closed.
+- Make the published-version upgrade fixture choose Cursor's bounded kernel for
+  v1.7+ baselines instead of inventing a retired eager `workflow.mdc` file, and
+  verify its current managed-file backup/restore contract rather than the legacy
+  retired-file in-place contract.
+
 ## [1.7.0] — 2026-08-20
 
 ### Added
