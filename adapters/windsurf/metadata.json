@@ -35,8 +35,16 @@
       "reflector_loop": "recipe",
       "role_agents": "workflow-fallback",
       "model_routing": "advisory-adaptive-session",
-      "skills": "full"
+      "skills": "full",
+      "role_capabilities": "instruction-fallback"
     }
+  },
+  "role_capabilities": {
+    "schema_version": 1,
+    "native_surface": "workflow instructions",
+    "default_policy": "instruction-fallback",
+    "enforcement": { "read": "fallback", "search": "fallback", "test": "fallback", "edit-code": "fallback", "edit-docs": "fallback", "shell": "fallback", "delegate": "fallback", "mcp": "fallback" },
+    "source": { "url": "https://docs.windsurf.com/windsurf/cascade/workflows", "checked": "2026-08-27" }
   },
   "agent_skills": {
     "schema_version": 1,

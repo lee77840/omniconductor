@@ -14,6 +14,7 @@ Detailed matrix of which CONDUCTOR features Copilot supports natively.
 | **PR review automation** | ✅ Native | Copilot's PR review feature (configurable per repo) | Useful Stage B analog. |
 | **MCP servers** | ⚠️ Partial | Copilot has limited MCP support depending on version | CONDUCTOR doesn't depend; project may add own. |
 | **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.github/agents/*.agent.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
+| **Per-role least privilege** | ✅ Native allowlist | Agent `tools` aliases | Exact mapped aliases are emitted. Portable `test` does not grant `execute`; edit is provider-coarse, and unnamed MCP authority is never synthesized. |
 | **Hooks (preToolUse / agentStop)** | ✅ Native (2026) | `.github/hooks/conductor-reflect.json` + `.github/hooks/conductor/*.sh` | Full/strict emits two commit `ask` soft-confirmations and review-stop continuation. Reflector is composed when selected. |
 | **Per-task model routing** | ✅ Configured native (2026) | Saved Tier model in each repository agent | Availability remains dependent on plan, client, and organization policy. |
 | **Custom slash commands** | ✅ Native (2026) | Prompt files at `.github/prompts/*.prompt.md` | Was unavailable as of late 2025; supported now (ADR-031). |

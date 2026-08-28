@@ -732,8 +732,10 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.windsurf/workflows"
     for role in planner reviewer code-reviewer builder helper designer scribe utility; do
-      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      role_src="$CORE_ROOT/roles/$role.md"
+      tier="$(conductor_role_difficulty_tier "$role_src")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$role_src")" || exit 1
       case "$role" in
         planner) desc="Architecture, gap analysis, and trade-off planning without implementation." ;;
         reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks." ;;
@@ -746,7 +748,7 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
       esac
       wf="$TARGET_ABS/.windsurf/workflows/$role.md"
       backup_and_remember "$wf"
-      { printf -- '---\ndescription: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant. Required routing: select **Adaptive** in Cascade before invoking this workflow; Windsurf cannot enforce a workflow-local model.\n\n' "$desc" "$tier_label"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$wf"
+      { printf -- '---\ndescription: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant. Required routing: select **Adaptive** in Cascade before invoking this workflow; Windsurf cannot enforce a workflow-local model.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: workflow fallback only; no verified per-workflow permission surface can enforce read, edit, shell, delegation, or MCP boundaries.\n\n' "$desc" "$tier_label" "$capability_contract"; strip_frontmatter "$role_src"; } > "$wf"
       record_emit ".windsurf/workflows/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
     done
   fi
@@ -788,7 +790,8 @@ case ",$RECIPES_FOR_RUNTIME," in
       backup_and_remember "$rl"
       tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
-      { printf -- '---\ntrigger: manual\ndescription: Reflector persona — propose lesson deltas, apply nothing.\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant. Required routing: select **Adaptive** in Cascade; enforcement is advisory-session.\n\n' "$tier_label"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$rl"
+      capability_contract="$(conductor_role_capability_contract "$CORE_ROOT/roles/reflector.md")" || exit 1
+      { printf -- '---\ntrigger: manual\ndescription: Reflector persona — propose lesson deltas, apply nothing.\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant. Required routing: select **Adaptive** in Cascade; enforcement is advisory-session.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: workflow fallback only; no verified per-workflow permission surface can enforce read, edit, shell, delegation, or MCP boundaries.\n\n' "$tier_label" "$capability_contract"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$rl"
       record_emit ".devin/rules/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;

@@ -12,6 +12,7 @@ Detailed matrix of which CONDUCTOR features Gemini CLI supports.
 | **Runtime compatibility diagnosis** | ⚠️ Source conflict | metadata `runtime_contract` + doctor D13 | June 2026 transition and current authentication docs conflict; an installed CLI remains `verification-required` until an opt-in effective probe passes. |
 | **Per-pattern rule scoping** | ❌ | explicit Read routing | Only the bounded kernel is always loaded; complete references are read when their activity applies. |
 | **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.gemini/agents/*.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
+| **Per-role least privilege** | ✅ Native allowlist | Agent `tools` (+ `max_turns` where declared) | Exact mapped tool names are emitted. `test` does not grant `run_shell_command`; subagents cannot recursively delegate, and abstract unnamed MCP grants fail closed. |
 | **Hooks (BeforeTool / AfterAgent / SessionEnd)** | ✅ Native (2026) | `.gemini/settings.json` + `.gemini/hooks/*.sh` | Full/strict emits output-cap and review continuation. Commit soft-confirmations remain rule fallbacks because Gemini's verified shell decision is allow/deny, not soft `ask`; Reflector is recipe-gated. |
 | **Per-task model routing** | ✅ Configured native (2026) | Agent `model` from saved Tier mapping | Recommended semantic aliases: `pro` / `flash` / `flash-lite`. |
 | **Custom slash commands** | ✅ Native (2026) | `.gemini/commands/*.toml` | ADR-031. |

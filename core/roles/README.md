@@ -27,6 +27,7 @@ Every role file uses the same frontmatter:
 role: builder
 purpose: "Multi-file or cross-cutting code implementation"
 difficulty_tier: 1
+capabilities: [read, search, test, edit-code, edit-docs, shell]
 must_do:
   - read AGENT.md (project rules)
   - update specs/*.md in same turn
@@ -56,6 +57,14 @@ native controls using the project-saved Tier mapping (model-family/semantic alia
 exact native model, reasoning effort, or an honestly advisory session selector);
 role sources never name a vendor model.
 
+`capabilities` is a fail-closed portable allowlist. The complete vocabulary is
+`read`, `search`, `test`, `edit-code`, `edit-docs`, `shell`, `delegate`, and `mcp`;
+an omitted capability is denied. Adapters compile only the distinctions their native
+role surface can enforce and state every coarse or fallback boundary in the emitted
+role. In particular, `test` never silently widens to arbitrary shell access,
+`edit-code` and `edit-docs` are reported as coarse when a provider exposes only one
+edit tool, and the flat-with-leader topology denies `delegate` to every baseline role.
+
 ## Flat-with-leader topology
 
 Roles do NOT dispatch each other. Multi-step work returns intermediate results to the orchestrator, which decides the next dispatch. Full rationale in `universal-rules/meta-discipline.md` section 7.
@@ -64,7 +73,10 @@ Roles do NOT dispatch each other. Multi-step work returns intermediate results t
 
 | Adapter | Output |
 |---|---|
-| Claude | `.claude/agents/<role>.md` with native frontmatter (`name`, `description`, `model`). |
-| Codex | `.codex/agents/<role>.toml` with sandbox and reasoning-effort profiles. |
-| Cursor / Copilot / Gemini | Native project agent files when emitted by that adapter; otherwise role-text fallback is stated explicitly. |
-| Windsurf | Rule/workflow fallback until a stable project-scoped custom-agent contract is verified. |
+| Claude | `.claude/agents/<role>.md` with exact native `tools`, `permissionMode`, and optional `maxTurns`. |
+| Cursor | `.cursor/agents/<role>.md`; native `readonly` enforces the read-only/writable boundary and finer distinctions remain explicit fallback. |
+| Copilot | `.github/agents/<role>.agent.md` with an exact native `tools` alias allowlist. |
+| Gemini | `.gemini/agents/<role>.md` with exact native tool names and optional `max_turns`; recursive subagent delegation is unsupported. |
+| Codex | `.codex/agents/<role>.toml`; `sandbox_mode` enforces a coarse read-only/workspace-write boundary and finer distinctions remain instructions. |
+| Windsurf | `.windsurf/workflows/<role>.md`; the complete capability contract is instruction-only because no verified per-workflow tool policy exists. |
+| OpenCode stable v1 | `.opencode/agents/<role>.md` with wildcard-deny `permission` frontmatter and only mapped native permissions re-allowed. |

@@ -829,14 +829,35 @@ elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
   # Claude family aliases intentionally track the provider's current model in
   # each family. Exact version pins remain opt-in and never alter difficulty.
   # Map each universal role's portable difficulty to Claude-native frontmatter.
+  claude_role_tools() {
+    local src="$1" tools=""
+    if conductor_role_has_capability "$src" read; then tools="Read"; fi
+    if conductor_role_has_capability "$src" search; then tools="${tools}${tools:+, }Grep, Glob"; fi
+    if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then
+      tools="${tools}${tools:+, }Edit, Write"
+    fi
+    if conductor_role_has_capability "$src" shell; then tools="${tools}${tools:+, }Bash"; fi
+    if conductor_role_has_capability "$src" delegate; then tools="${tools}${tools:+, }Agent"; fi
+    if conductor_role_has_capability "$src" mcp; then
+      echo "Error: Claude role '$src' grants abstract mcp without a named server/tool allowlist" >&2
+      return 1
+    fi
+    [ -n "$tools" ] || { echo "Error: Claude role '$src' compiles to an empty native tool allowlist" >&2; return 1; }
+    printf '%s' "$tools"
+  }
+
   declare_agent() {
     # declare_agent <role> <description>
-    local role="$1" desc="$2" tier model tier_label
+    local role="$1" desc="$2" tier model tier_label tools permission_mode capability_contract max_turns=""
     local src="$CORE_ROOT/roles/$role.md"
     local dest="$TARGET_ABS/.claude/agents/$role.md"
     [ -f "$src" ] || { echo "Warning: $src not found; skipping" >&2; return; }
     tier="$(conductor_role_difficulty_tier "$src")" || exit 1
     tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+    tools="$(claude_role_tools "$src")" || exit 1
+    capability_contract="$(conductor_role_capability_contract "$src")" || exit 1
+    if conductor_role_is_read_only "$src"; then permission_mode="plan"; else permission_mode="default"; fi
+    max_turns="$(conductor_role_max_turns "$src" 2>/dev/null || true)"
     case "$tier" in
       1) model="$CLAUDE_TIER_1_MODEL" ;;
       2) model="$CLAUDE_TIER_2_MODEL" ;;
@@ -852,11 +873,18 @@ elif [ "$WIZARD_APPLY_RULES" = "true" ]; then
 name: $role
 description: $desc
 model: $model
----
+tools: $tools
+permissionMode: $permission_mode
+${max_turns:+maxTurns: $max_turns
+}---
 
 > CONDUCTOR difficulty contract: **$tier_label**. The task triggers in
 > meta-discipline.md section 6 are authoritative; the model alias is only this
 > adapter's current translation.
+
+> CONDUCTOR capability contract: **$capability_contract**. Native enforcement:
+> Claude tools allowlist plus permissionMode; test never widens to Bash, and
+> edit-code / edit-docs share the provider's coarse Edit/Write tools.
 
 EOF
     # Strip the universal CONDUCTOR frontmatter from src body, append the rest.

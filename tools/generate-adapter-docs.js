@@ -12,6 +12,7 @@
  *   docs/ADAPTER-LIVE-VERIFICATION.md   <!-- generated:live-verification-table -->
  *   docs/ADAPTER-LIVE-VERIFICATION.md   <!-- generated:runtime-contract-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:adapter-outputs-table -->
+ *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:role-capabilities-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:portable-skills-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:hook-compiler-table -->
  *   docs/COMPATIBILITY-MATRIX.md        <!-- generated:extension-trust-table -->
@@ -121,6 +122,27 @@ function renderPortableSkillsTable(metas) {
   ].join('\n');
 }
 
+function renderRoleCapabilitiesTable(metas) {
+  const label = {
+    native: 'native',
+    'native-coarse': 'native coarse',
+    fallback: 'rule fallback',
+    unsupported: 'unsupported',
+  };
+  const order = ['read', 'search', 'test', 'edit-code', 'edit-docs', 'shell', 'delegate', 'mcp'];
+  const rows = metas.map((m) => {
+    const role = m.role_capabilities;
+    const reach = order.map((capability) => `${capability}: ${label[role.enforcement[capability]]}`).join('<br>');
+    const source = `[official](${role.source.url}) (${role.source.checked})`;
+    return `| ${m.display_name} | ${role.native_surface} | ${role.default_policy} | ${reach} | ${source} |`;
+  });
+  return [
+    '| Tool | Native role surface | Default policy | Portable capability projection | First-party basis |',
+    '|---|---|---|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
 function renderHookCompilerTable(metas) {
   const label = (m, policy) => m.hook_compiler.native_policies.includes(policy)
     ? '✅ native'
@@ -220,11 +242,17 @@ function main() {
     'adapter-outputs-table',
     renderOutputsTable(metas),
   );
+  const roleCapabilities = spliceRegion(
+    'docs/COMPATIBILITY-MATRIX.md',
+    'role-capabilities-table',
+    renderRoleCapabilitiesTable(metas),
+    outputs.next,
+  );
   const skills = spliceRegion(
     'docs/COMPATIBILITY-MATRIX.md',
     'portable-skills-table',
     renderPortableSkillsTable(metas),
-    outputs.next,
+    roleCapabilities.next,
   );
   const hooks = spliceRegion(
     'docs/COMPATIBILITY-MATRIX.md',

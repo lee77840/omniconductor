@@ -31,6 +31,10 @@ path. Recipes-only and Reflector-only do not emit the baseline set.
 `self-improvement` adds `propose-skill` at the same root, including
 Reflector-only; review preserves `applied: false`.
 
+Each emitted role derives `sandbox_mode` from the portable capability allowlist.
+This enforces the verified read-only versus workspace-write boundary; finer
+distinctions remain in `developer_instructions` and are not presented as native.
+
 > **Convention change (post-P0):** the canonical Codex project-rules file is **`AGENTS.md`** at the
 > project root — the established cross-agent standard adopted by OpenAI Codex / Codex CLI — NOT the
 > early-design `.codex/codex.md` guess. The implemented `transform.sh` emits `AGENTS.md`; references

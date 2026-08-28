@@ -7,6 +7,7 @@ Detailed matrix of which CONDUCTOR features Claude Code supports natively.
 | Feature | Claude support | Mechanism | Notes |
 |---|---|---|---|
 | **Sub-agent dispatch** | ✅ Native | `Agent` tool with `subagent_type` arg | Named personas live in `.claude/agents/*.md`. Each is isolated — does NOT inherit `CLAUDE.md`. Full/strict installs target the current `Agent` matcher contract; historical `Task`-name compatibility is not claimed. |
+| **Per-role least privilege** | ✅ Native allowlist | Agent `tools` + `permissionMode` | Exact mapped tool allowlists are emitted. Portable `test` does not grant `Bash`; provider edit remains coarser than `edit-code` versus `edit-docs`. |
 | **Per-call model routing** | ✅ Native | Agent `model` accepts family alias or exact ID | Orchestrator classifies the invariant Tier first, then passes the configured Claude translation. |
 | **Hooks (PreToolUse, Stop, etc.)** | ✅ Native | `.claude/settings.json` `hooks:` block | Stop hooks are CONDUCTOR's spec-as-you-go enforcement. PreToolUse for routing. |
 | **Lazy rule loading** | ✅ Native | `paths:` front-matter on `.claude/rules/*.md` | Rule loads when matching file path is touched. |

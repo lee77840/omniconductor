@@ -84,6 +84,11 @@ case "$ADAPTER" in
   *) echo "ERROR: unknown adapter '$ADAPTER'. Use cursor|copilot|claude|gemini|codex|windsurf|opencode." >&2; exit 2 ;;
 esac
 
+# Shared portable role schema; adapter validation below independently checks that
+# each native output is the expected projection of this authority (ADR-077).
+# shellcheck source=manifest-safety.sh
+. "$SCRIPT_ROOT/tools/manifest-safety.sh"
+
 PASS=0
 WARN=0
 FAIL=0
@@ -301,6 +306,114 @@ file_empty() {
   if ! grep -q '[^[:space:]]' "$1"; then echo "empty"; fi
 }
 
+expected_role_tool_allowlist() {
+  local adapter="$1" src="$2" items="" tool
+  case "$adapter" in
+    claude)
+      conductor_role_has_capability "$src" read && items="Read"
+      conductor_role_has_capability "$src" search && items="${items}${items:+, }Grep, Glob"
+      if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then items="${items}${items:+, }Edit, Write"; fi
+      conductor_role_has_capability "$src" shell && items="${items}${items:+, }Bash"
+      conductor_role_has_capability "$src" delegate && items="${items}${items:+, }Agent"
+      printf '%s' "$items"
+      ;;
+    copilot)
+      for tool in read search; do conductor_role_has_capability "$src" "$tool" && items="${items}${items:+, }\"$tool\""; done
+      if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then items="${items}${items:+, }\"edit\""; fi
+      conductor_role_has_capability "$src" shell && items="${items}${items:+, }\"execute\""
+      conductor_role_has_capability "$src" delegate && items="${items}${items:+, }\"agent\""
+      printf '[%s]' "$items"
+      ;;
+    gemini)
+      if conductor_role_has_capability "$src" read; then
+        for tool in read_file read_many_files list_directory; do items="${items}${items:+, }\"$tool\""; done
+      fi
+      if conductor_role_has_capability "$src" search; then
+        for tool in glob grep_search; do items="${items}${items:+, }\"$tool\""; done
+      fi
+      if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then
+        for tool in replace write_file; do items="${items}${items:+, }\"$tool\""; done
+      fi
+      conductor_role_has_capability "$src" shell && items="${items}${items:+, }\"run_shell_command\""
+      printf '[%s]' "$items"
+      ;;
+  esac
+}
+
+validate_role_capability_mapping() {
+  local adapter="$1" role="$2" file="$3" src="$SCRIPT_ROOT/core/roles/$2.md"
+  local contract readonly="false" expected_tools="" actual_tools="" problems=0 capability key expected expected_mode expected_box
+  contract="$(conductor_role_capability_contract "$src")" || {
+    emit_fail "core/roles/$role.md" "invalid portable capabilities allowlist"
+    return
+  }
+  if conductor_role_is_read_only "$src"; then readonly="true"; fi
+  if ! /usr/bin/grep -qF "CONDUCTOR capability contract: **$contract**" "$file"; then
+    emit_fail "${file#"$TARGET/"}" "missing or drifted portable capability contract"
+    problems=$((problems + 1))
+  fi
+  if conductor_role_has_capability "$src" delegate || conductor_role_has_capability "$src" mcp; then
+    emit_fail "core/roles/$role.md" "baseline flat-with-leader roles must deny delegate and mcp"
+    problems=$((problems + 1))
+  fi
+  case "$adapter" in
+    claude|copilot|gemini)
+      expected_tools="$(expected_role_tool_allowlist "$adapter" "$src")"
+      actual_tools="$(fm_field "$file" "tools")"
+      if [ "$actual_tools" != "$expected_tools" ]; then
+        emit_fail "${file#"$TARGET/"}" "native tools '$actual_tools' != compiled allowlist '$expected_tools'"
+        problems=$((problems + 1))
+      fi
+      if [ "$adapter" = "claude" ]; then
+        expected_mode="default"; [ "$readonly" = "true" ] && expected_mode="plan"
+        if [ "$(fm_field "$file" "permissionMode")" != "$expected_mode" ]; then
+          emit_fail "${file#"$TARGET/"}" "Claude permissionMode must be '$expected_mode'"
+          problems=$((problems + 1))
+        fi
+      fi
+      ;;
+    cursor)
+      if [ "$(fm_field "$file" "readonly")" != "$readonly" ]; then
+        emit_fail "${file#"$TARGET/"}" "Cursor readonly must compile to '$readonly'"
+        problems=$((problems + 1))
+      fi
+      ;;
+    codex)
+      expected_box="workspace-write"; [ "$readonly" = "true" ] && expected_box="read-only"
+      if ! /usr/bin/grep -qF "sandbox_mode = \"$expected_box\"" "$file"; then
+        emit_fail "${file#"$TARGET/"}" "Codex sandbox must compile to '$expected_box'"
+        problems=$((problems + 1))
+      fi
+      ;;
+    windsurf)
+      if ! /usr/bin/grep -qF 'Native enforcement: workflow fallback only' "$file"; then
+        emit_fail "${file#"$TARGET/"}" "Windsurf must disclose capability enforcement as workflow fallback"
+        problems=$((problems + 1))
+      fi
+      ;;
+    opencode)
+      if ! /usr/bin/grep -qF '  "*": deny' "$file"; then
+        emit_fail "${file#"$TARGET/"}" "OpenCode v1 role permissions must start from wildcard deny"
+        problems=$((problems + 1))
+      fi
+      for capability in edit shell delegate; do
+        case "$capability" in
+          edit) key=edit; expected="deny"; { conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; } && expected="allow" ;;
+          shell) key=bash; expected="deny"; conductor_role_has_capability "$src" shell && expected="allow" ;;
+          delegate) key=task; expected="deny"; conductor_role_has_capability "$src" delegate && expected="allow" ;;
+        esac
+        if [ "$expected" = "allow" ]; then
+          /usr/bin/grep -qF "  $key: allow" "$file" || { emit_fail "${file#"$TARGET/"}" "OpenCode capability '$capability' must allow '$key'"; problems=$((problems + 1)); }
+        elif /usr/bin/grep -qF "  $key: allow" "$file"; then
+          emit_fail "${file#"$TARGET/"}" "OpenCode denied capability '$capability' unexpectedly allows '$key'"
+          problems=$((problems + 1))
+        fi
+      done
+      ;;
+  esac
+  [ "$problems" -ne 0 ] || emit_pass "${file#"$TARGET/"} portable capability projection"
+}
+
 validate_role_set() {
   local adapter="$1" dir suffix="" role file missing=0
   if [ "$INSTALL_MODE" = "minimal" ]; then
@@ -391,9 +504,9 @@ validate_role_set() {
         emit_fail "${file#"$TARGET/"}" "OpenCode role must declare mode: subagent and its saved Tier translation"
         missing=$((missing + 1))
       elif [ "$adapter" = "opencode" ] && printf '%s\n' 'planner reviewer code-reviewer' | /usr/bin/grep -qw "$role" \
-        && { ! /usr/bin/grep -qE '^[[:space:]]+edit:[[:space:]]+deny$' "$file" \
-          || ! /usr/bin/grep -qE '^[[:space:]]+bash:[[:space:]]+deny$' "$file"; }; then
-        emit_fail "${file#"$TARGET/"}" "OpenCode read-only role must deny edit and bash through permission"
+        && { ! /usr/bin/grep -qF '  "*": deny' "$file" \
+          || /usr/bin/grep -qE '^[[:space:]]+(edit|bash):[[:space:]]+allow$' "$file"; }; then
+        emit_fail "${file#"$TARGET/"}" "OpenCode read-only role must inherit wildcard deny without edit/bash re-allow"
         missing=$((missing + 1))
       fi
       actual_model="$(fm_field "$file" "model")"
@@ -411,7 +524,19 @@ validate_role_set() {
       emit_fail "${file#"$TARGET/"}" "missing or drifted Tier $expected_tier difficulty contract"
       missing=$((missing + 1))
     fi
+    if [ -s "$file" ]; then
+      before_fail="$FAIL"
+      validate_role_capability_mapping "$adapter" "$role" "$file"
+      [ "$FAIL" -eq "$before_fail" ] || missing=$((missing + 1))
+    fi
   done
+  local reflector_file="$dir/reflector$suffix"
+  [ "$adapter" != "windsurf" ] || reflector_file="$TARGET/.devin/rules/reflector.md"
+  if [ -s "$reflector_file" ]; then
+    before_fail="$FAIL"
+    validate_role_capability_mapping "$adapter" reflector "$reflector_file"
+    [ "$FAIL" -eq "$before_fail" ] || missing=$((missing + 1))
+  fi
   [ "$missing" -eq 0 ] && emit_pass "native role set ($adapter: 8 roles including Tier 3 utility)"
 }
 

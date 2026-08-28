@@ -19,7 +19,7 @@ Every issue, discussion, and success story helps shape future releases.
 
 ## Why OMNICONDUCTOR stands out
 
-**7 adapters · 8 baseline roles · 5 universal rules · 17 policy-classified recipes · 5 portable skills · 15 metadata gates**
+**7 adapters · 8 baseline roles · 5 universal rules · 17 policy-classified recipes · 5 portable skills · 16 metadata gates**
 
 OMNICONDUCTOR brings **AI agent governance**, **multi-agent orchestration**,
 cross-tool **hooks**, portable **Agent Skills**, **MCP security auditing**, saved
@@ -31,12 +31,13 @@ into one reversible installer.
 |---|---|
 | **Define once, deploy to seven coding agents** | One universal policy layer compiles into Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex, Windsurf, and OpenCode project formats. You do not maintain seven drifting rule sets. |
 | **Native-first enforcement without fake parity** | Each adapter emits the strongest contract verified for that product—native hooks where they exist, explicit rule fallback where they do not. The generated compatibility matrix says exactly which is which. |
+| **Least-privilege roles without provider lock-in** | One fail-closed role capability allowlist compiles to exact native tool permissions where verified, coarse read-only/workspace boundaries where that is all the provider exposes, and an explicit instruction fallback otherwise. Omitted authority stays denied. |
 | **Token economy as a system, not a prompt tip** | Large-read prevention, an 8,000-token tool-result cap where store-time control exists, lazy/scoped instructions, bounded dispatches, prompt-cache discipline, context editing guidance, and local before/after measurement work together. [한국어 상세 설명](./docs/TOKEN-ECONOMY-KO.md). |
-| **Evidence instead of “it should work”** | `eval coverage`, runtime contracts, doctor checks, M1–M15 metadata gates, generated docs, adversarial regressions, and opt-in live probes separate emitted, contract-tested, and live-verified claims. |
+| **Evidence instead of “it should work”** | `eval coverage`, runtime contracts, doctor checks, M1–M16 metadata gates, generated docs, adversarial regressions, and opt-in live probes separate emitted, contract-tested, and live-verified claims. |
 | **Honest release evidence** | `evidence validate/check` preserves passed, failed, blocked, not-run, environment-limited, and verification-required outcomes instead of flattening every green-looking workflow into PASS. Strict DB, non-vacuous test, visual baseline, multi-surface, and release-provenance recipes use the same snapshot-bound contract. |
 | **Safe and reversible adoption** | Dry-run, strict conflict mode, SHA-256 ownership manifests, byte-preserving backup/restore, user-edit preservation, extension/MCP trust audit, and lossless uninstall make installation auditable. |
 | **Low-friction recipe onboarding** | Root-cause debugging and bounded agent loops are safe defaults. Project-shape rules are detected and recommended once. Data collection, generated data, Git strategy, and high-risk DB policy remain explicit consent. Updates preserve each adapter's current selection. |
-| **Built for parallel agent work** | Clone-local scope claims, exact-snapshot handoff, immutable release tombstones, multi-repo workspace diagnosis, and saved Tier routing reduce collisions without pretending to grant push or merge authority. |
+| **Built for parallel agent work** | Clone-local scope claims, exact-snapshot handoff, immutable release tombstones, read-only safe-bootstrap planning, multi-repo workspace diagnosis, and saved Tier routing reduce collisions without pretending to grant copy, execution, push, or merge authority. |
 
 ```bash
 # Preview one adapter without changing the project
@@ -46,9 +47,11 @@ npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-de
 The promise is not identical mechanics everywhere. It is **one portable discipline,
 compiled to the strongest verified native behavior each tool actually supports**.
 
-> **Status (v1.7.1 — 2026-08-24)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
+> **Status (v1.8.0 — 2026-08-27)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
 >
 > **New in 1.7.1**: npm discovery metadata now names the product's actual high-intent categories—coding-agent governance, guardrails, agentic workflows, token optimization, MCP security, and reversible cross-tool installation. Adapter runtime and install output are unchanged; Cursor validation now excludes preserved user-owned legacy rules while remaining fail-closed on manifest-owned output.
+>
+> **New in 1.8.0**: role authority is now a portable, deny-by-default capability allowlist compiled across all seven adapters. Exact provider tool allowlists are used only where verified; coarse and instruction-only boundaries remain visibly classified. A provider-independent workspace bootstrap checker rejects secrets, link/path escapes, and overwrite conflicts, while its `plan` command only displays inert copy and setup steps.
 >
 > **New in 1.6.0**: `--target=opencode` uses native v1 instructions, subagents, permissions, skills, commands, and a JavaScript commit-guard plugin without taking ownership of Codex's root `AGENTS.md`. Existing `opencode.json` is merged; JSONC is refused before writes; v2 beta and unverified review-stop/trajectory behavior are not overclaimed. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
@@ -212,7 +215,7 @@ npm 사용자에게 필요한 고정 경로가 아닙니다.
 
 ### 설치 방법 (3가지)
 
-- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions/instructions` · `eval coverage` · `evidence validate/check` · `work claim/status/handoff/release` · `workspace doctor` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
+- **Path A — `npx` (권장, 클론 불필요)**: `npx omniconductor init --target=<tool> <dir>` — 최초 실행에서 Tier 모델을 한 번 설정합니다. `models configure/show` · `list` · `doctor` · `audit extensions/instructions` · `eval coverage` · `evidence validate/check` · `work claim/status/handoff/release` · `workspace doctor` · `workspace bootstrap check/plan` · `skills propose/list/review` · `package` · `--dry-run` · `--recipes=A,B` · `--mode=<preset>` · `--uninstall` 지원.
 - **Path B — 로컬 bash 래퍼**: OMNICONDUCTOR 클론과 Node.js 필요. `bash adapters/<tool>/transform.sh <dir> [--recipes=...] [--dry-run]`은 동일한 Node CLI로 위임되므로 Path A와 같은 최초 Tier 설정·저장 절차를 실행합니다.
 - **Path C — 수동 복사**: 스크립트 없이 `cp`/`cat` 으로. [`docs/MANUAL-INSTALL.md`](./docs/MANUAL-INSTALL.md) 참조.
 - **Windows**: PowerShell/CMD에서 `npx`를 실행해도 되지만 **Git for Windows의 Git Bash가 설치되어 있어야** 합니다. 또는 Ubuntu/Debian WSL 안에서 Linux Node.js와 bash를 함께 사용하세요. [Cross-platform](#cross-platform-mac-and-windows) 참조.
@@ -267,6 +270,10 @@ npx omniconductor skills review <id> . --decision=accept
 
 # 명시한 출력 디렉터리에 선택형 provider package 생성
 npx omniconductor package --target=all ./dist/conductor-packages
+
+# 새 worktree manifest를 검사하고 복사·실행 없이 계획만 표시
+npx omniconductor workspace bootstrap check ./feature-worktree --source=./main-checkout
+npx omniconductor workspace bootstrap plan ./feature-worktree --source=./main-checkout
 ```
 
 `accept`는 실제 skill을 만들지 않습니다. 패키지의 `native-partial`은
@@ -376,15 +383,20 @@ npx omniconductor work status .
 
 # Read-only multi-repository policy and SHA aggregation
 npx omniconductor workspace doctor /path/to/workspace --json
+
+# Read-only isolated-worktree bootstrap validation and dry-run plan
+npx omniconductor workspace bootstrap plan ./feature-worktree --source=./main-checkout
 ```
 
 Coverage is an evidence inventory, not a model-generated score. Work claims are local
 coordination records and grant no push/merge/deploy authority. Workspace doctor has no
 install, update, checkout, or agent-execution path. See
 [`docs/PARALLEL-WORK.md`](./docs/PARALLEL-WORK.md) and
-[`docs/WORKSPACE-FEDERATION.md`](./docs/WORKSPACE-FEDERATION.md).
+[`docs/WORKSPACE-FEDERATION.md`](./docs/WORKSPACE-FEDERATION.md). Bootstrap planning
+likewise has no copy or execution path and rejects secrets, links, path escapes, and
+destination conflicts; see [`docs/PARALLEL-WORK.md`](./docs/PARALLEL-WORK.md).
 
-> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` preflights adapter dispatch, performs the one-time model setup, then runs the adapter scripts. `models configure/show`, `list`, `audit extensions/instructions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, diagnoses live/orphaned/incomplete routing locks in D15, and reports installer-platform support in D16.
+> **CLI wrapper**: `npx omniconductor init --target=<tool> <dir>` preflights adapter dispatch, performs the one-time model setup, then runs the adapter scripts. `models configure/show`, `list`, `audit extensions/instructions`, `eval coverage`, `work claim/status/handoff/release`, `workspace doctor`, `workspace bootstrap check/plan`, `skills propose/list/review`, `package`, `--dry-run`, `--recipes=`, and `--uninstall` are available. **`npx omniconductor doctor <dir>`** also distinguishes saved configuration from provider-enforced or advisory routing, checks local work claims in D14, diagnoses live/orphaned/incomplete routing locks in D15, and reports installer-platform support in D16.
 
 > **What you keep going Claude → other tools**: rule text, docs, workflow phases, the eight-role topology including Tier 3 utility, and the opt-in Reflector loop. Mechanical guard coverage is intentionally not claimed as identical: each adapter emits only contracts verified for that product.
 

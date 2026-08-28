@@ -244,12 +244,18 @@ has_recipe() {
 # slugs before this point; inherited environment values are internal transport
 # only and cannot override the saved mapping.
 emit_codex_agent() {
-  local role="$1" description="$2" sandbox="$3" tier effort tier_label
+  local role="$1" description="$2" sandbox tier effort tier_label capability_contract
   local src="$CORE_ROOT/roles/$role.md" dest="$TARGET_ABS/.codex/agents/$role.toml"
   local model=""
   tier="$(conductor_role_difficulty_tier "$src")" || exit 1
   effort="$(conductor_codex_effort_for_tier "$tier")" || exit 1
   tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+  capability_contract="$(conductor_role_capability_contract "$src")" || exit 1
+  if conductor_role_is_read_only "$src"; then sandbox="read-only"; else sandbox="workspace-write"; fi
+  if conductor_role_has_capability "$src" mcp; then
+    echo "Error: Codex role '$src' grants abstract mcp without a verified role-local server allowlist" >&2
+    exit 1
+  fi
   case "$tier" in
     1) model="$CODEX_TIER_1_MODEL" ;;
     2) model="$CODEX_TIER_2_MODEL" ;;
@@ -268,6 +274,7 @@ emit_codex_agent() {
     printf 'sandbox_mode = "%s"\n' "$sandbox"
     printf 'developer_instructions = """\n'
     printf 'CONDUCTOR difficulty contract: %s. The triggers in meta-discipline.md section 6 are authoritative; reasoning effort is only this adapter\x27s translation.\n\n' "$tier_label"
+    printf 'CONDUCTOR capability contract: **%s**. Native enforcement: Codex sandbox_mode enforces the read-only/workspace-write boundary; test, edit-code versus edit-docs, shell, delegation, and MCP distinctions remain explicit instruction fallbacks.\n\n' "$capability_contract"
     strip_frontmatter "$src"
     printf '\n"""\n'
   } > "$dest"
@@ -911,14 +918,14 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   log "Step: native Codex roles → .codex/agents/"
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.codex/agents"
-    emit_codex_agent planner "Architecture, gap analysis, and trade-off planning without implementation." read-only
-    emit_codex_agent reviewer "Read-only pre-implementation review of plans, architecture, and task decomposition." read-only
-    emit_codex_agent code-reviewer "Read-only post-implementation review for correctness, security, regressions, and tests." read-only
-    emit_codex_agent builder "Primary implementation owner for cross-cutting or high-risk changes." workspace-write
-    emit_codex_agent helper "Focused implementation owner for bounded, independent changes." workspace-write
-    emit_codex_agent designer "UI and interaction implementation owner with design-system discipline." workspace-write
-    emit_codex_agent scribe "Documentation, changelog, index, and session-state maintenance." workspace-write
-    emit_codex_agent utility "Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." workspace-write
+    emit_codex_agent planner "Architecture, gap analysis, and trade-off planning without implementation."
+    emit_codex_agent reviewer "Read-only pre-implementation review of plans, architecture, and task decomposition."
+    emit_codex_agent code-reviewer "Read-only post-implementation review for correctness, security, regressions, and tests."
+    emit_codex_agent builder "Primary implementation owner for cross-cutting or high-risk changes."
+    emit_codex_agent helper "Focused implementation owner for bounded, independent changes."
+    emit_codex_agent designer "UI and interaction implementation owner with design-system discipline."
+    emit_codex_agent scribe "Documentation, changelog, index, and session-state maintenance."
+    emit_codex_agent utility "Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows."
   fi
 fi
 
@@ -1023,7 +1030,7 @@ case ",$RECIPES_FOR_RUNTIME," in
       backup_and_remember "$sk"
       { printf -- '---\nname: reflect\ndescription: Run the CONDUCTOR Reflector — propose lessons from recent sessions (propose-only). Use when wrapping up work.\n---\n\n'; /bin/cat "$CORE_ROOT/reflector/reflect-brief.md"; } > "$sk"
       record_emit ".agents/skills/reflect/SKILL.md" "core/reflector/reflect-brief.md" "$MANIFEST_LAST_BACKUP"
-      emit_codex_agent reflector "Reads session trajectories and emits typed lesson proposal data. Read-only; never applies." read-only
+      emit_codex_agent reflector "Reads session trajectories and emits typed lesson proposal data. Read-only; never applies."
     fi
     ;;
 esac

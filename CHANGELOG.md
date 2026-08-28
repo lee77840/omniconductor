@@ -3,6 +3,27 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.8.0] — 2026-08-27
+
+### Added
+
+- Add one fail-closed role capability allowlist for all eight baseline roles and the
+  opt-in Reflector. Compile it across all seven adapters using verified native tool
+  permissions where available, honest coarse sandbox/read-only boundaries where not,
+  and explicit instruction fallback for Windsurf. Omitted authority is denied,
+  `test` does not imply arbitrary shell access, and baseline roles cannot delegate or
+  receive unnamed MCP authority.
+- Add M16 metadata validation, exact adapter-output assertions, a generated
+  role-capability compatibility table, and adversarial schema regressions.
+- Add provider-independent `workspace bootstrap check/plan` commands for a strict
+  `.conductor/bootstrap.json` manifest. They deny secret/key paths and known literal
+  credentials including credential-bearing URLs, symlink/hardlink/path escapes,
+  control metadata, binary/oversized inputs, cross-platform shell paths, indirect
+  wrappers, explicit interpreter-evaluation forms, and overwrite conflicts.
+- Keep bootstrap planning mechanically read-only: it can display same-path copy
+  candidates and direct argv setup steps, but has no copy, execution, cleanup,
+  network, or secret-resolution code path.
+
 ## [1.7.1] — 2026-08-24
 
 ### Changed

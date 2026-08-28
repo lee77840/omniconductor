@@ -85,6 +85,17 @@ Every adapter MUST honor:
 - On error: print to stderr, exit non-zero.
 - On partial success: report what was installed and what was skipped.
 
+### 8. Portable role authority
+
+- Parse each `core/roles/*.md` `capabilities` field through the shared fail-closed
+  compiler. Unknown, duplicate, missing, or empty declarations are installation
+  errors.
+- Emit only verified provider-native distinctions. Record coarser boundaries and
+  instruction fallbacks in both metadata and the generated role text.
+- Never map portable `test` to an unrestricted shell tool. Never grant baseline
+  `delegate`, and never translate abstract `mcp` without an explicit named server or
+  tool allowlist.
+
 ## Front-matter translation
 
 The Layer-1 universal-rules use `applies_to:` front-matter for routing hints. Each adapter translates it:

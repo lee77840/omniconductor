@@ -16,6 +16,7 @@
  *   omniconductor evidence validate|check <report.json> [--json]
  *   omniconductor work claim|status|handoff|release ...
  *   omniconductor workspace doctor [workspace-dir] [--json]
+ *   omniconductor workspace bootstrap check|plan [dir] [--source=<trusted-worktree>] [--json]
  *   omniconductor skills propose|list|review ...
  *   omniconductor package --target=<tool|all> <output-dir> [--force] [--strict-native]
  *   omniconductor list
@@ -69,6 +70,8 @@ Usage:
   omniconductor work handoff <task> [dir] --tool=<t> --session=<id> --to-tool=<t> --to-session=<id>
   omniconductor work release <task> [dir] --tool=<t> --session=<id>
   omniconductor workspace doctor [dir] [--json]               Validate a multi-repo workspace (read-only)
+  omniconductor workspace bootstrap check [dir] --source=<dir> Validate safe bootstrap inputs (read-only)
+  omniconductor workspace bootstrap plan [dir] --source=<dir>  Show copies/commands; execute nothing
   omniconductor skills propose [dir] --from=<file>             Add a pending, propose-only skill item
   omniconductor skills list [dir] [--json]                     List skill proposal inbox items
   omniconductor skills review <id> [dir] --decision=<d>        Record accept|reject; never auto-apply
@@ -104,6 +107,7 @@ Examples:
   omniconductor audit savings ./my-app --target=claude --sessions=/path/to/claude/sessions
   omniconductor eval coverage --json
   omniconductor evidence check ./verification-evidence.json
+  omniconductor workspace bootstrap plan ./worktree --source=./main-checkout
 
 Run:  npx omniconductor init --target=<tool> <dir>`;
 }
@@ -491,7 +495,31 @@ async function main(argv) {
   }
 
   if (cmd === 'workspace') {
-    if (args[1] !== 'doctor') fail("workspace expects 'doctor'");
+    if (args[1] === 'bootstrap') {
+      const action = args[2];
+      if (!['check', 'plan'].includes(action)) fail("workspace bootstrap expects 'check' or 'plan'");
+      const rest = args.slice(3);
+      const unknown = rest.filter((arg) => arg.startsWith('-') && arg !== '--json' && !arg.startsWith('--source='));
+      if (unknown.length) fail(`unknown workspace bootstrap option(s): ${unknown.join(', ')}`);
+      const sourceArgs = rest.filter((arg) => arg.startsWith('--source='));
+      if (sourceArgs.length > 1) fail('workspace bootstrap accepts one --source=<trusted-worktree>');
+      const positionals = rest.filter((arg) => !arg.startsWith('-'));
+      if (positionals.length > 1) fail('workspace bootstrap accepts at most one target directory');
+      try {
+        const bootstrap = require('./bootstrap-contract.js');
+        const report = bootstrap.inspect(positionals[0] || '.', {
+          source: sourceArgs.length ? sourceArgs[0].slice('--source='.length) : null,
+        });
+        process.stdout.write(rest.includes('--json')
+          ? `${JSON.stringify(report, null, 2)}\n`
+          : `${action === 'check' ? bootstrap.renderCheck(report) : bootstrap.renderPlan(report)}\n`);
+        return 0;
+      } catch (error) {
+        process.stderr.write(`omniconductor: workspace bootstrap ${action} failed: ${error.message}\n`);
+        return 2;
+      }
+    }
+    if (args[1] !== 'doctor') fail("workspace expects 'doctor' or 'bootstrap'");
     const rest = args.slice(2);
     const unknown = rest.filter((arg) => arg.startsWith('-') && arg !== '--json');
     if (unknown.length) fail(`unknown workspace doctor option(s): ${unknown.join(', ')}`);

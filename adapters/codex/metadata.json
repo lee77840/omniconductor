@@ -37,8 +37,16 @@
       "reflector_loop": "recipe",
       "role_agents": "full",
       "model_routing": "saved-tier-native+effort",
-      "skills": "full"
+      "skills": "full",
+      "role_capabilities": "sandbox-boundary+fallback"
     }
+  },
+  "role_capabilities": {
+    "schema_version": 1,
+    "native_surface": "agent sandbox_mode",
+    "default_policy": "coarse-boundary",
+    "enforcement": { "read": "fallback", "search": "fallback", "test": "fallback", "edit-code": "native-coarse", "edit-docs": "native-coarse", "shell": "native-coarse", "delegate": "fallback", "mcp": "fallback" },
+    "source": { "url": "https://learn.chatgpt.com/docs/config-file/config-reference", "checked": "2026-08-27" }
   },
   "agent_skills": {
     "schema_version": 1,

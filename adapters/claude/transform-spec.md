@@ -48,6 +48,10 @@ Reflector-only do not emit the baseline set.
 `self-improvement` adds `propose-skill` at the same root, including
 Reflector-only; review preserves `applied: false`.
 
+Each emitted role compiles `capabilities` into an exact native `tools` allowlist and
+`permissionMode`; `max_turns`, when present, becomes `maxTurns`. Portable `test`
+does not imply `Bash`, and unnamed abstract MCP authority fails closed.
+
 Writes to `<target-dir>` at conventional paths. Managed rules, roles, hooks, and
 the synthesized baseline use manifest-backed replacement. Existing Hookify rule
 files are preserved. Existing valid settings receive only the missing Hookify

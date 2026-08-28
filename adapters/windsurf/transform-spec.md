@@ -31,6 +31,10 @@ Recipes-only and Reflector-only do not emit the baseline set.
 `self-improvement` adds `propose-skill` at the same root, including
 Reflector-only; review preserves `applied: false`.
 
+Each emitted workflow includes the complete portable capability contract as an
+instruction fallback. No per-workflow native tool allowlist or sandbox field is
+claimed until a stable first-party contract is verified.
+
 ```
 <target-dir>/
 ├── .windsurfrules                              # Always-loaded baseline (orchestrator manual + ABSOLUTE rules + always-loaded rules)

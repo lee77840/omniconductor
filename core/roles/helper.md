@@ -2,6 +2,7 @@
 role: helper
 purpose: "Single-file or 1-2-file work where the pattern is already established"
 difficulty_tier: 2
+capabilities: [read, search, test, edit-code, edit-docs, shell]
 must_do:
   - read project rule index (AGENT.md or equivalent)
   - look at existing similar code for the established pattern

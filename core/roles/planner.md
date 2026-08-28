@@ -2,6 +2,7 @@
 role: planner
 purpose: "Architecture design, gap analysis, ADRs, trade-off decisions. No implementation code."
 difficulty_tier: 1
+capabilities: [read, search]
 must_do:
   - read project rule index (e.g., AGENT.md or equivalent) before producing output
   - read existing architecture docs and relevant specs in docs/specs/

@@ -11,8 +11,8 @@
 # compatibility projection for pre-v2 consumers.
 
 # Read the portable difficulty contract from a role source. Keeping this parser
-# shared prevents adapters from silently assigning different capability to
-# the same role. Only the three tiers defined by meta-discipline.md are valid.
+# shared prevents adapters from silently assigning different tiers to the same
+# role. Only the three tiers defined by meta-discipline.md are valid.
 conductor_role_difficulty_tier() {
   local src="$1" tier
   tier="$(/usr/bin/awk '
@@ -26,6 +26,93 @@ conductor_role_difficulty_tier() {
     1|2|3) printf '%s' "$tier" ;;
     *) echo "Error: role source '$src' has no valid difficulty_tier (expected 1, 2, or 3)" >&2; return 1 ;;
   esac
+}
+
+# Portable role authority is an allowlist. Adapters may compile only these
+# provider-neutral capabilities, and omission always means deny (ADR-077).
+CONDUCTOR_ROLE_CAPABILITY_CATALOG="read search test edit-code edit-docs shell delegate mcp"
+
+conductor_role_capabilities() {
+  local src="$1" raw="" cap="" result="" seen=" " old_ifs
+  raw="$(/usr/bin/awk '
+    BEGIN { in_fm=0 }
+    /^---$/ { if (!in_fm) { in_fm=1; next } else { exit } }
+    in_fm && /^capabilities:[[:space:]]*\[[^]]*\][[:space:]]*$/ {
+      sub(/^capabilities:[[:space:]]*\[/, ""); sub(/\][[:space:]]*$/, ""); print; exit
+    }
+  ' "$src")"
+  [ -n "$raw" ] || {
+    echo "Error: role source '$src' has no non-empty capabilities allowlist" >&2
+    return 1
+  }
+  old_ifs="$IFS"
+  IFS=','
+  for cap in $raw; do
+    cap="$(printf '%s' "$cap" | /usr/bin/sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    case " $CONDUCTOR_ROLE_CAPABILITY_CATALOG " in
+      *" $cap "*) : ;;
+      *) IFS="$old_ifs"; echo "Error: role source '$src' has unknown capability '$cap'" >&2; return 1 ;;
+    esac
+    case "$seen" in
+      *" $cap "*) IFS="$old_ifs"; echo "Error: role source '$src' repeats capability '$cap'" >&2; return 1 ;;
+    esac
+    seen="$seen$cap "
+    result="${result}${result:+ }$cap"
+  done
+  IFS="$old_ifs"
+  [ -n "$result" ] || {
+    echo "Error: role source '$src' has an empty capabilities allowlist" >&2
+    return 1
+  }
+  printf '%s' "$result"
+}
+
+conductor_role_has_capability() {
+  local src="$1" wanted="$2" capabilities
+  case " $CONDUCTOR_ROLE_CAPABILITY_CATALOG " in
+    *" $wanted "*) : ;;
+    *) echo "Error: unknown CONDUCTOR role capability '$wanted'" >&2; return 2 ;;
+  esac
+  capabilities="$(conductor_role_capabilities "$src")" || return 2
+  case " $capabilities " in *" $wanted "*) return 0 ;; *) return 1 ;; esac
+}
+
+conductor_role_is_read_only() {
+  local src="$1" capability
+  conductor_role_capabilities "$src" >/dev/null || return 2
+  for capability in edit-code edit-docs shell delegate mcp; do
+    if conductor_role_has_capability "$src" "$capability"; then return 1; fi
+  done
+  return 0
+}
+
+conductor_role_capability_contract() {
+  local src="$1" allowed denied="" capability
+  allowed="$(conductor_role_capabilities "$src")" || return 1
+  for capability in $CONDUCTOR_ROLE_CAPABILITY_CATALOG; do
+    case " $allowed " in
+      *" $capability "*) : ;;
+      *) denied="${denied}${denied:+ }$capability" ;;
+    esac
+  done
+  printf 'allow %s; deny %s' "$(printf '%s' "$allowed" | /usr/bin/sed 's/ /, /g')" "$(printf '%s' "$denied" | /usr/bin/sed 's/ /, /g')"
+}
+
+conductor_role_max_turns() {
+  local src="$1" turns
+  turns="$(/usr/bin/awk '
+    BEGIN { in_fm=0 }
+    /^---$/ { if (!in_fm) { in_fm=1; next } else { exit } }
+    in_fm && /^max_turns:[[:space:]]*[0-9]+[[:space:]]*$/ {
+      sub(/^max_turns:[[:space:]]*/, ""); sub(/[[:space:]]*$/, ""); print; exit
+    }
+  ' "$src")"
+  [ -z "$turns" ] && return 1
+  if [ "$turns" -lt 1 ] || [ "$turns" -gt 100 ]; then
+    echo "Error: role source '$src' has max_turns outside 1..100" >&2
+    return 2
+  fi
+  printf '%s' "$turns"
 }
 
 conductor_difficulty_label() {

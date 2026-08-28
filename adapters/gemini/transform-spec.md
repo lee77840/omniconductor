@@ -31,6 +31,10 @@ Recipes-only and Reflector-only do not emit the baseline set.
 `self-improvement` adds `propose-skill` at the same root, including
 Reflector-only; review preserves `applied: false`.
 
+Each emitted role compiles `capabilities` into exact Gemini tool names and carries
+`max_turns` when declared. Portable `test` does not imply `run_shell_command`;
+recursive subagent delegation is unsupported and unnamed MCP authority fails closed.
+
 ```
 <target-dir>/
 ├── GEMINI.md                                   # Bundled all-rules + orchestrator manual + universal rule TEXT

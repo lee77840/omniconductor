@@ -27,8 +27,8 @@
 - Emit five byte-identical complete universal-rule references and selected complete
   recipe references outside the always-active instruction surface.
 - In full/strict mode emit eight `.opencode/agents/*.md` subagents with saved models.
-  Planner, reviewer, and code-reviewer deny `edit` and `bash` through current
-  `permission` frontmatter.
+  Every role compiles its portable capability allowlist into stable-v1 `permission`
+  frontmatter using wildcard deny first and only explicit mapped re-allows.
 - In full/strict mode emit `.opencode/plugins/conductor-guards.js`, implementing only
   the two registry-approved commit guards through `tool.execute.before`.
 - Emit native `.opencode/skills`; self-improvement additionally emits the manual
@@ -50,7 +50,7 @@
 ## Required verification
 
 - Five install modes, config merge/restore, JSONC preflight, guard positive/negative,
-  model routing, path safety, validator, doctor, metadata M1-M15, generated docs,
+  model routing, path safety, validator, doctor, metadata M1-M16, generated docs,
   seven-tool coexistence/uninstall, package consumer, published-version upgrade, and
   exact public snapshot.
 - `opencode debug config`, `opencode debug agent`, and `opencode debug skill` prove

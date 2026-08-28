@@ -2,6 +2,7 @@
 role: designer
 purpose: "UI / UX implementation. Visual components, design tokens, responsive, accessible."
 difficulty_tier: 2
+capabilities: [read, search, test, edit-code, edit-docs, shell]
 must_do:
   - invoke the project's frontend-design skill (if available) at the start of every design task
   - read the project's design-system doc (docs/design-system.md or equivalent)

@@ -34,6 +34,10 @@ Recipes-only and Reflector-only do not emit the baseline set.
 `self-improvement` adds `propose-skill` at the same root, including
 Reflector-only; review preserves `applied: false`.
 
+Each emitted role carries the complete portable capability contract. Cursor's
+verified `readonly` field enforces only the read-only versus writable boundary;
+finer distinctions remain explicit instructions and are not presented as native.
+
 ```
 <target-dir>/
 ├── .cursorrules                                # From _native/cursorrules.tpl + always-loaded rules merged

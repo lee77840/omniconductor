@@ -34,6 +34,8 @@
 #        and per-adapter opt-in skill path
 #   M15: plugin_packaging validates native-partial versus direct-fallback
 #        manifests and the direct-installer ownership boundary
+#   M16: role_capabilities declares the exact portable vocabulary, honest native /
+#        coarse / fallback reach, dated first-party basis, and transform emission
 #
 # Dependency: node (already required by the CLI + CI). No jq.
 
@@ -64,7 +66,7 @@ flatten_metadata() {
     const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const die = (msg) => { console.error("INCOMPLETE: " + msg); process.exit(3); };
     const runtime = require("./bin/runtime-contract.js");
-    const req = ["tool","display_name","tier","outputs","reflector_outputs","legacy_paths","capabilities","runtime_contract","agent_skills","hook_compiler","extension_trust","skill_proposals","plugin_packaging","live_verification","headless_cli"];
+    const req = ["tool","display_name","tier","outputs","reflector_outputs","legacy_paths","capabilities","role_capabilities","runtime_contract","agent_skills","hook_compiler","extension_trust","skill_proposals","plugin_packaging","live_verification","headless_cli"];
     for (const k of req) if (!(k in m)) die("missing key " + k);
     const nonEmpty = (v, name) => { if (typeof v !== "string" || !v.trim()) die(name + " must be a non-empty string"); };
     nonEmpty(m.tool, "tool"); nonEmpty(m.display_name, "display_name"); nonEmpty(m.tier, "tier");
@@ -75,6 +77,18 @@ flatten_metadata() {
     if (!Array.isArray(m.legacy_paths)) die("legacy_paths must be an array");
     for (const l of m.legacy_paths) nonEmpty(l, "legacy_paths[]");
     if (!m.capabilities || !m.capabilities.tool_native || !m.capabilities.conductor_emitted) die("capabilities needs tool_native + conductor_emitted");
+    const role = m.role_capabilities;
+    if (!role || role.schema_version !== 1) die("role_capabilities.schema_version must be 1");
+    nonEmpty(role.native_surface, "role_capabilities.native_surface");
+    if (!["deny-unlisted","coarse-boundary","instruction-fallback"].includes(role.default_policy)) die("role_capabilities.default_policy invalid");
+    const roleVocabulary = ["read","search","test","edit-code","edit-docs","shell","delegate","mcp"];
+    if (!role.enforcement || JSON.stringify(Object.keys(role.enforcement).sort()) !== JSON.stringify([...roleVocabulary].sort())) die("role_capabilities.enforcement must name the exact portable vocabulary");
+    for (const [capability, state] of Object.entries(role.enforcement)) {
+      if (!["native","native-coarse","fallback","unsupported"].includes(state)) die(`role_capabilities.enforcement.${capability} invalid`);
+    }
+    if (!role.source) die("role_capabilities.source missing");
+    nonEmpty(role.source.url, "role_capabilities.source.url");
+    nonEmpty(role.source.checked, "role_capabilities.source.checked");
     if (!m.live_verification) die("live_verification missing");
     nonEmpty(m.live_verification.status, "live_verification.status");
     if (m.live_verification.status === "verified") nonEmpty(m.live_verification.date, "live_verification.date (required when verified)");
@@ -151,6 +165,11 @@ for tool in $TOOLS; do
   ok "M13" "$tool: extension/MCP trust audit contract valid"
   ok "M14" "$tool: propose-only skill inbox contract valid"
   ok "M15" "$tool: optional plugin packaging boundary valid"
+  if grep -qF 'CONDUCTOR capability contract' "$transform"; then
+    ok "M16" "$tool: role capability metadata + native projection present"
+  else
+    fail "M16" "$tool: transform does not emit the portable role capability contract"
+  fi
 
   tier="";     display=""
   live_status=""; live_date=""; headless=""; ala_carte=""

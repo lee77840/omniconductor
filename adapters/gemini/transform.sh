@@ -957,13 +957,41 @@ fi
 
 # ----- self-improvement (opt-in: self-improvement recipe) ------------------
 
+gemini_role_tools() {
+  local src="$1" items="" tool
+  if conductor_role_has_capability "$src" read; then
+    for tool in read_file read_many_files list_directory; do items="${items}${items:+, }\"$tool\""; done
+  fi
+  if conductor_role_has_capability "$src" search; then
+    for tool in glob grep_search; do items="${items}${items:+, }\"$tool\""; done
+  fi
+  if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then
+    for tool in replace write_file; do items="${items}${items:+, }\"$tool\""; done
+  fi
+  if conductor_role_has_capability "$src" shell; then items="${items}${items:+, }\"run_shell_command\""; fi
+  if conductor_role_has_capability "$src" delegate; then
+    echo "Error: Gemini role '$src' grants delegate, but Gemini subagents cannot call other subagents" >&2
+    return 1
+  fi
+  if conductor_role_has_capability "$src" mcp; then
+    echo "Error: Gemini role '$src' grants abstract mcp without a named server/tool allowlist" >&2
+    return 1
+  fi
+  [ -n "$items" ] || { echo "Error: Gemini role '$src' compiles to an empty native tool allowlist" >&2; return 1; }
+  printf '[%s]' "$items"
+}
+
 if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   log "Step: native roles → .gemini/agents/"
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.gemini/agents"
     for role in planner reviewer code-reviewer builder helper designer scribe utility; do
-      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      role_src="$CORE_ROOT/roles/$role.md"
+      tier="$(conductor_role_difficulty_tier "$role_src")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      role_tools="$(gemini_role_tools "$role_src")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$role_src")" || exit 1
+      max_turns="$(conductor_role_max_turns "$role_src" 2>/dev/null || true)"
       case "$tier" in
         1) model="$GEMINI_TIER_1_MODEL" ;;
         2) model="$GEMINI_TIER_2_MODEL" ;;
@@ -982,7 +1010,12 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
       esac
       ag="$TARGET_ABS/.gemini/agents/$role.md"
       backup_and_remember "$ag"
-      { printf -- '---\nname: %s\ndescription: %s\nmodel: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the Gemini adapter translation.\n\n' "$role" "$desc" "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$ag"
+      {
+        printf -- '---\nname: %s\ndescription: %s\nmodel: %s\ntools: %s\n' "$role" "$desc" "$model" "$role_tools"
+        [ -z "$max_turns" ] || printf 'max_turns: %s\n' "$max_turns"
+        printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the Gemini adapter translation.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: Gemini `tools` is an isolated allowlist; test never widens to `run_shell_command`, edit-code / edit-docs share replace/write_file, and MCP requires a separately named grant.\n\n' "$tier_label" "$model" "$capability_contract"
+        strip_frontmatter "$role_src"
+      } > "$ag"
       record_emit ".gemini/agents/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
     done
   fi
@@ -1057,7 +1090,9 @@ case ",$RECIPES_FOR_RUNTIME," in
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
       model="$GEMINI_TIER_1_MODEL"
       conductor_validate_model_slug "$model" "Gemini model for reflector" || exit 1
-      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the Gemini adapter translation.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      role_tools="$(gemini_role_tools "$CORE_ROOT/roles/reflector.md")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$CORE_ROOT/roles/reflector.md")" || exit 1
+      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: %s\ntools: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the Gemini adapter translation.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: Gemini `tools` is an isolated allowlist; test never widens to `run_shell_command`, edit-code / edit-docs share replace/write_file, and MCP requires a separately named grant.\n\n' "$model" "$role_tools" "$tier_label" "$model" "$capability_contract"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
       record_emit ".gemini/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;

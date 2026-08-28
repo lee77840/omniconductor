@@ -37,8 +37,16 @@
       "reflector_loop": "recipe-manual-command",
       "role_agents": "full",
       "model_routing": "saved-tier-native-with-provider-fallback",
-      "skills": "full"
+      "skills": "full",
+      "role_capabilities": "native-wildcard-deny"
     }
+  },
+  "role_capabilities": {
+    "schema_version": 1,
+    "native_surface": "v1 agent permission",
+    "default_policy": "deny-unlisted",
+    "enforcement": { "read": "native", "search": "native", "test": "fallback", "edit-code": "native-coarse", "edit-docs": "native-coarse", "shell": "native", "delegate": "native", "mcp": "native" },
+    "source": { "url": "https://opencode.ai/docs/agents/", "checked": "2026-08-27" }
   },
   "agent_skills": {
     "schema_version": 1,

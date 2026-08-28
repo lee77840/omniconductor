@@ -97,6 +97,26 @@ Compatibility tiers reflect **how completely CONDUCTOR can map the full workflow
 
 Source of truth: `adapters/<tool>/metadata.json` (ADR-040) — CI regenerates and fails on drift.
 
+## Role capability enforcement (generated)
+
+Every `core/roles/*.md` file carries the same fail-closed allowlist vocabulary:
+`read`, `search`, `test`, `edit-code`, `edit-docs`, `shell`, `delegate`, and `mcp`.
+The table distinguishes exact native filtering, coarse native boundaries, explicit
+instruction fallback, and unsupported behavior. `test` does not imply arbitrary shell,
+and no baseline role receives `delegate` or `mcp`.
+
+<!-- generated:role-capabilities-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->
+| Tool | Native role surface | Default policy | Portable capability projection | First-party basis |
+|---|---|---|---|---|
+| Claude Code | agent tools + permissionMode | deny-unlisted | read: native<br>search: native<br>test: rule fallback<br>edit-code: native coarse<br>edit-docs: native coarse<br>shell: native<br>delegate: native<br>mcp: native | [official](https://code.claude.com/docs/en/sub-agents) (2026-08-27) |
+| Cursor | agent readonly | coarse-boundary | read: rule fallback<br>search: rule fallback<br>test: rule fallback<br>edit-code: native coarse<br>edit-docs: native coarse<br>shell: native coarse<br>delegate: rule fallback<br>mcp: rule fallback | [official](https://prod.cursor.com/docs/subagents) (2026-08-27) |
+| Copilot | custom-agent tools aliases | deny-unlisted | read: native<br>search: native<br>test: rule fallback<br>edit-code: native coarse<br>edit-docs: native coarse<br>shell: native<br>delegate: native<br>mcp: native | [official](https://docs.github.com/en/copilot/reference/custom-agents-configuration) (2026-08-27) |
+| Gemini CLI | subagent tools allowlist | deny-unlisted | read: native<br>search: native<br>test: rule fallback<br>edit-code: native coarse<br>edit-docs: native coarse<br>shell: native<br>delegate: unsupported<br>mcp: native | [official](https://geminicli.com/docs/core/subagents/) (2026-08-27) |
+| Codex | agent sandbox_mode | coarse-boundary | read: rule fallback<br>search: rule fallback<br>test: rule fallback<br>edit-code: native coarse<br>edit-docs: native coarse<br>shell: native coarse<br>delegate: rule fallback<br>mcp: rule fallback | [official](https://learn.chatgpt.com/docs/config-file/config-reference) (2026-08-27) |
+| Windsurf | workflow instructions | instruction-fallback | read: rule fallback<br>search: rule fallback<br>test: rule fallback<br>edit-code: rule fallback<br>edit-docs: rule fallback<br>shell: rule fallback<br>delegate: rule fallback<br>mcp: rule fallback | [official](https://docs.windsurf.com/windsurf/cascade/workflows) (2026-08-27) |
+| OpenCode | v1 agent permission | deny-unlisted | read: native<br>search: native<br>test: rule fallback<br>edit-code: native coarse<br>edit-docs: native coarse<br>shell: native<br>delegate: native<br>mcp: native | [official](https://opencode.ai/docs/agents/) (2026-08-27) |
+<!-- /generated:role-capabilities-table -->
+
 ## Portable Agent Skills contract (generated)
 
 <!-- generated:portable-skills-table — edit adapters/*/metadata.json + run tools/generate-adapter-docs.js; do not hand-edit (ADR-042) -->

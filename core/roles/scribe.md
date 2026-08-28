@@ -2,6 +2,7 @@
 role: scribe
 purpose: "Documentation sync after implementation. No code edits."
 difficulty_tier: 2
+capabilities: [read, search, edit-docs]
 must_do:
   - read the implementation summary provided in the dispatch brief
   - read the docs that need updating before writing

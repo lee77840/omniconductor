@@ -9,7 +9,7 @@ API receives a separate adapter contract.
 | Always-loaded project rules | Native, emitted | `opencode.json` registers only `.opencode/rules/conductor-kernel.md`. Complete rules remain under `.opencode/conductor/rules/` for explicit Read routing. CONDUCTOR does not own root `AGENTS.md`. |
 | Selected recipes | Native, opt-in | Full installs route from the bounded kernel to `.opencode/conductor/recipes/`; recipes-only modes register compact `.opencode/rules/recipes/*.md` pointers. |
 | Named subagents | Native, emitted | Eight `.opencode/agents/*.md` profiles use `mode: subagent` and saved `provider/model` Tier translations. |
-| Read-only review roles | Native, emitted | `planner`, `reviewer`, and `code-reviewer` deny `edit` and `bash` through current `permission` frontmatter. |
+| Per-role least privilege | Native, emitted | Every agent starts from `permission: { "*": "deny" }` and re-allows only mapped stable-v1 permissions. `test` does not grant `bash`; provider edit remains coarser than code versus docs. |
 | Agent Skills | Native, emitted | `.opencode/skills/*/SKILL.md`; automatic discovery and explicit invocation follow OpenCode's skill contract. |
 | Custom command | Native, recipe-gated | `.opencode/commands/reflect.md` is emitted only with `self-improvement`. |
 | Commit CURRENT_WORK guard | Native v1 plugin | `tool.execute.before` checks staged files and blocks the matching Bash `git commit` call by throwing. |

@@ -2,6 +2,7 @@
 role: builder
 purpose: "Multi-file or cross-cutting code implementation (3+ files, cross-cutting changes)"
 difficulty_tier: 1
+capabilities: [read, search, test, edit-code, edit-docs, shell]
 must_do:
   - read project rule index (AGENT.md or equivalent) before any code edit
   - read the dispatch brief carefully — it contains full scope

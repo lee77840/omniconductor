@@ -13,6 +13,7 @@ Detailed matrix of which CONDUCTOR features Cursor supports natively.
 | **In-IDE chat / completion** | ✅ Native | Cursor's primary feature set | Inline completion + chat — Cursor's strength. |
 | **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Project hooks require Cursor ≥1.7 only when `.cursor/hooks.json` is emitted; account/policy eligibility remains provider-controlled. |
 | **Sub-agent dispatch** | ✅ Emitted | Eight named agents in `.cursor/agents/*.md` | Includes separate reviewer, code-reviewer, and Tier 3 utility roles. |
+| **Per-role least privilege** | ⚠️ Native coarse | Agent `readonly` + explicit capability contract | Read-only versus writable is enforced natively. Finer read/search/test/edit/shell/delegate/MCP distinctions remain instructions because no verified exact project-agent tool allowlist is claimed. |
 | **Hooks (stop)** | ✅ Native (2026) | `.cursor/hooks.json` + `.cursor/hooks/stop-r6-review-check.sh` | Full/strict emits verified review continuation; commit soft-confirmations remain rule fallbacks because Cursor's verified shell decision does not expose `ask`. Reflector is recipe-gated. |
 | **Per-task model routing** | ✅ Configured native | Emitted agents use the saved Tier model | Cursor may still apply account, plan, Max Mode, or administrator fallback; `doctor` does not misreport that as guaranteed. |
 | **Custom agent personas** | ✅ Native (2026) | `.cursor/agents/*.md` named agents | Previously a `.cursorrules` paste-in workaround; now first-class. |

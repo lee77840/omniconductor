@@ -789,13 +789,34 @@ if [ "$MODE" = "recipes-only" ] && [ -z "${INSTALLED_RECIPES// /}" ] && [ "$DRY_
   exit 1
 fi
 
+copilot_role_tools() {
+  local src="$1" items="" tool
+  for tool in read search; do
+    if conductor_role_has_capability "$src" "$tool"; then items="${items}${items:+, }\"$tool\""; fi
+  done
+  if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then
+    items="${items}${items:+, }\"edit\""
+  fi
+  if conductor_role_has_capability "$src" shell; then items="${items}${items:+, }\"execute\""; fi
+  if conductor_role_has_capability "$src" delegate; then items="${items}${items:+, }\"agent\""; fi
+  if conductor_role_has_capability "$src" mcp; then
+    echo "Error: Copilot role '$src' grants abstract mcp without a named server/tool allowlist" >&2
+    return 1
+  fi
+  [ -n "$items" ] || { echo "Error: Copilot role '$src' compiles to an empty native tool allowlist" >&2; return 1; }
+  printf '[%s]' "$items"
+}
+
 if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   log "Step 2.5/4: native roles → .github/agents/"
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.github/agents"
     for role in planner reviewer code-reviewer builder helper designer scribe utility; do
-      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      role_src="$CORE_ROOT/roles/$role.md"
+      tier="$(conductor_role_difficulty_tier "$role_src")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      role_tools="$(copilot_role_tools "$role_src")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$role_src")" || exit 1
       case "$tier" in
         1) model="$COPILOT_TIER_1_MODEL" ;;
         2) model="$COPILOT_TIER_2_MODEL" ;;
@@ -816,13 +837,15 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
       {
         printf -- '---\nname: %s\ndescription: "%s"\n' "$role" "$desc"
         [ -z "$model" ] || printf 'model: %s\n' "$model"
+        printf 'tools: %s\n' "$role_tools"
         printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; ' "$tier_label"
         if [ -n "$model" ]; then
           printf 'the saved Copilot translation is `model: %s`. Account, plan, and administrator policy remain authoritative.\n\n' "$model"
         else
           printf 'the omitted model inherits Copilot default/Auto selection.\n\n'
         fi
-        strip_frontmatter "$CORE_ROOT/roles/$role.md"
+        printf '> CONDUCTOR capability contract: **%s**. Native enforcement: Copilot tool aliases form an allowlist; test never widens to execute, edit-code / edit-docs share coarse edit, and unlisted MCP tools remain unavailable.\n\n' "$capability_contract"
+        strip_frontmatter "$role_src"
       } > "$ag"
       record_emit ".github/agents/$role.agent.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
     done
@@ -880,12 +903,16 @@ case ",$RECIPES_FOR_RUNTIME," in
       backup_if_exists "$ag"
       tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      role_tools="$(copilot_role_tools "$CORE_ROOT/roles/reflector.md")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$CORE_ROOT/roles/reflector.md")" || exit 1
       case "$tier" in 1) model="$COPILOT_TIER_1_MODEL" ;; 2) model="$COPILOT_TIER_2_MODEL" ;; 3) model="$COPILOT_TIER_3_MODEL" ;; esac
       {
         printf -- '---\nname: reflector\ndescription: "Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies."\n'
         [ -z "$model" ] || printf 'model: %s\n' "$model"
+        printf 'tools: %s\n' "$role_tools"
         printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; ' "$tier_label"
         [ -n "$model" ] && printf 'the saved Copilot translation is `model: %s`. Account, plan, and administrator policy remain authoritative.\n\n' "$model" || printf 'the omitted model inherits Copilot default/Auto selection.\n\n'
+        printf '> CONDUCTOR capability contract: **%s**. Native enforcement: Copilot tool aliases form an allowlist; test never widens to execute, edit-code / edit-docs share coarse edit, and unlisted MCP tools remain unavailable.\n\n' "$capability_contract"
         strip_frontmatter "$CORE_ROOT/roles/reflector.md"
       } > "$ag"
       record_emit ".github/agents/reflector.agent.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"

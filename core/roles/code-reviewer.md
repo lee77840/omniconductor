@@ -2,8 +2,7 @@
 role: code-reviewer
 description: Read-only post-implementation reviewer for correctness, security, regressions, and missing tests.
 difficulty_tier: 1
-tools: [read, search, test]
-write_access: false
+capabilities: [read, search, test]
 ---
 
 # Role — Code Reviewer

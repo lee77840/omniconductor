@@ -1,8 +1,7 @@
 ---
 name: utility
 difficulty_tier: 3
-tools: [read, edit]
-disallowed_tools: [agent_dispatch]
+capabilities: [read, search, edit-code, edit-docs]
 max_turns: 8
 ---
 

@@ -32,6 +32,10 @@ do not emit the baseline set.
 `self-improvement` adds `propose-skill` at the same root, including
 Reflector-only; review preserves `applied: false`.
 
+Each emitted role compiles `capabilities` into an exact native `tools` alias
+allowlist. Portable `test` does not imply `execute`, edit remains provider-coarse,
+and unnamed abstract MCP authority fails closed.
+
 ```
 <target-dir>/
 ├── .github/

@@ -2706,3 +2706,93 @@ legacy eager files; adopter-modified files and original backups remain protected
 Read references instead of preloading; the OpenAI Codex configuration reference
 documents `tool_output_token_limit`; OpenAI model guidance reports directional token
 reductions from lean coding-agent prompts but requires workload-specific evaluation.
+
+## ADR-077 — Compile one fail-closed role capability contract to honest provider boundaries
+
+**Status**: Accepted (2026-08-27)
+
+**Context**: Roles already shared stable purposes and immutable difficulty Tiers, but
+authority was inconsistent. Some adapters hard-coded read-only roles, some emitted
+provider defaults, and role sources used provider-shaped fields such as `tools` or
+`write_access`. A role description saying “read-only” is not an allowlist, while
+pretending every provider has exact per-role tool controls would create false parity.
+
+**Decision**:
+
+1. Add one portable `capabilities` allowlist to every baseline role and the opt-in
+   Reflector. The exact vocabulary is `read`, `search`, `test`, `edit-code`,
+   `edit-docs`, `shell`, `delegate`, and `mcp`; omission means deny. Unknown,
+   duplicate, missing, or empty declarations fail before role emission.
+2. Keep difficulty and authority orthogonal. A Tier or model change never widens
+   capability. Preserve the immutable Tier 1/2/3 definitions, eight baseline roles,
+   optional Reflector, and flat-with-leader topology.
+3. Compile exact native tool allowlists for Claude Code, GitHub Copilot, Gemini CLI,
+   and OpenCode stable v1. Use Cursor's verified `readonly` and Codex's verified
+   `sandbox_mode` only as coarse read-only/writable boundaries. Keep Windsurf as an
+   explicit workflow-instruction fallback until a stable native permission surface is
+   verified.
+4. Never translate portable `test` into arbitrary shell execution. Report
+   `edit-code` versus `edit-docs` as coarse when a provider exposes one edit tool.
+   Baseline roles receive no `delegate`; abstract `mcp` fails closed unless a future
+   project contract names the allowed server or tool.
+5. Record the native/coarse/fallback/unsupported state in adapter metadata, enforce
+   it as M16, generate the public compatibility table, and validate exact emitted
+   mappings for all baseline roles and Reflector.
+
+**Consequences**: Role authority now has one auditable source and fail-closed default
+without overstating provider equivalence. Providers with exact allowlists gain
+mechanical least privilege; providers with coarser surfaces still expose the gap in
+the generated role and compatibility matrix. Future vocabulary or MCP/delegation
+support requires an explicit schema and adapter-contract change.
+
+**First-party basis**: Claude Code documents subagent `tools`, `permissionMode`, and
+turn limits; GitHub Copilot documents custom-agent `tools` aliases; Gemini CLI
+documents subagent tool allowlists and recursion protection; OpenCode stable v1
+documents agent `permission`; Cursor documents project-agent `readonly`; OpenAI
+Codex documents agent configuration and sandbox modes; Windsurf documents workflows
+as prompt procedures rather than a per-workflow permission manifest. Dated links and
+per-capability classifications are generated from `adapters/*/metadata.json` into
+`docs/COMPATIBILITY-MATRIX.md`.
+
+## ADR-078 — Isolated workspace bootstrap begins as a read-only deny-by-default plan
+
+**Status**: Accepted (2026-08-27)
+
+**Context**: New worktrees sometimes need a small set of ignored local defaults and
+repeatable setup commands. Blindly copying a parent workspace or automatically running
+setup is unsafe: credentials can cross boundaries, links can redirect writes, stale
+files can be overwritten, and a command described as setup can execute arbitrary
+code. Provider-specific bootstrap hooks also differ and cannot support an honest
+universal execution claim.
+
+**Decision**:
+
+1. Define one strict schema-v1 `.conductor/bootstrap.json` containing only a bounded
+   `copy_allowlist` and direct-argv `setup_steps`. Unknown fields and empty manifests
+   fail closed; copy entries require an explicitly named trusted source worktree.
+2. Reject `.env`, credential/key, repository-control, and CONDUCTOR-control paths.
+   Scan eligible small text files and setup arguments for known private-key and
+   credential literals or credential-bearing URLs, while allowing explicit
+   environment placeholders. Never return detected values in an error. Keep every
+   `.env*` path, including `.env.example`, denied by default; use a clearly non-secret
+   template path instead.
+3. Require portable relative paths, real directory ancestry, and single-link regular
+   files. Preserve the same relative destination, reject symlinks, hardlinks, binary
+   or oversized input, unsafe setup cwd, and every differing destination; never
+   overwrite.
+4. Expose only `workspace bootstrap check` and `workspace bootstrap plan`. Both are
+   read-only; `plan` displays hashes and direct argv but has no apply, file-copy,
+   command-execution, cleanup, network, or secret-resolution code path. Direct shell
+   paths are normalized across `/` and `\\`; known indirect wrappers and explicit
+   interpreter-evaluation flags are refused. This is not a claim that an otherwise
+   allowed package manager cannot execute project code if a human runs it. Any future
+   mutating executor requires a separate decision and authorization model.
+5. Keep this as a provider-independent CLI and shared `coordinate-work` workflow for
+   all seven adapters. Do not claim a native bootstrap hook, change adapter metadata,
+   or alter the immutable Tier definitions, roles, or model routing.
+
+**Consequences**: Teams gain an auditable preflight for the three highest-value
+bootstrap risks without creating an unattended executor. Users still perform any
+approved copy or setup manually, and unknown credential formats remain a reason to
+review the displayed manifest rather than a guarantee that heuristic detection can
+identify every secret.

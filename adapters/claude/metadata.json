@@ -37,8 +37,16 @@
       "reflector_loop": "recipe",
       "role_agents": "full",
       "model_routing": "full",
-      "skills": "full"
+      "skills": "full",
+      "role_capabilities": "native-allowlist"
     }
+  },
+  "role_capabilities": {
+    "schema_version": 1,
+    "native_surface": "agent tools + permissionMode",
+    "default_policy": "deny-unlisted",
+    "enforcement": { "read": "native", "search": "native", "test": "fallback", "edit-code": "native-coarse", "edit-docs": "native-coarse", "shell": "native", "delegate": "native", "mcp": "native" },
+    "source": { "url": "https://code.claude.com/docs/en/sub-agents", "checked": "2026-08-27" }
   },
   "agent_skills": {
     "schema_version": 1,

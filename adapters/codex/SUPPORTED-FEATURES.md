@@ -11,6 +11,7 @@ Detailed matrix of which CONDUCTOR features Codex supports.
 | **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Local prompt-input verification does not require authentication or a network model call. |
 | **Per-pattern rule scoping** | ❌ | explicit Read routing | Only the bounded kernel is always loaded; complete references are on demand. |
 | **Sub-agent dispatch** | ✅ Native (2026) | Custom named agents in `.codex/agents/*.toml` | See `docs/COMPATIBILITY-MATRIX.md` / ADR-031. |
+| **Per-role least privilege** | ⚠️ Native coarse | Agent `sandbox_mode` + developer instructions | Read-only versus workspace-write is enforced natively. Finer read/search/test/edit/shell/delegate/MCP distinctions remain explicit instructions; model Tier never widens authority. |
 | **Hooks (Stop etc.)** | ✅ Emitted subset | `.codex/hooks.json` + `.codex/hooks/*.sh` | Commit/current-work/test, session/spec, pre-merge review, and recipe-gated guards. |
 | **Per-task model routing** | ✅ Configured native (2026) | Saved model + `model_reasoning_effort` | Recommended Sol/Terra/Luna; Tier 1/2/3 independently maps to high/medium/low. |
 | **Custom slash commands** | ✅ Native (2026) | Skills at `.agents/skills/*/SKILL.md` | ADR-031. |

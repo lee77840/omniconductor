@@ -733,35 +733,58 @@ fi
 
 # Native OpenCode role profiles. These are emitted only with the complete runtime;
 # minimal and à-la-carte modes remain intentionally text-only.
+emit_opencode_role_permissions() {
+  local src="$1"
+  if conductor_role_has_capability "$src" mcp; then
+    echo "Error: OpenCode role '$src' grants abstract mcp without a named server/tool allowlist" >&2
+    return 1
+  fi
+  printf '%s\n' 'permission:' '  "*": deny'
+  if conductor_role_has_capability "$src" read; then printf '%s\n' '  read: allow'; fi
+  if conductor_role_has_capability "$src" search; then
+    printf '%s\n' '  glob: allow' '  grep: allow' '  list: allow' '  lsp: allow'
+  fi
+  if conductor_role_has_capability "$src" edit-code || conductor_role_has_capability "$src" edit-docs; then
+    printf '%s\n' '  edit: allow'
+  fi
+  if conductor_role_has_capability "$src" shell; then printf '%s\n' '  bash: allow'; fi
+  if conductor_role_has_capability "$src" delegate; then printf '%s\n' '  task: allow'; fi
+  # Skill loading and user clarification do not grant project mutation authority.
+  printf '%s\n' '  skill: allow' '  question: allow'
+}
+
 if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   log "Step 2.5/4: native roles → .opencode/agents/"
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.opencode/agents"
     for role in planner reviewer code-reviewer builder helper designer scribe utility; do
-      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      role_src="$CORE_ROOT/roles/$role.md"
+      tier="$(conductor_role_difficulty_tier "$role_src")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$role_src")" || exit 1
       case "$tier" in
         1) model="$OPENCODE_TIER_1_MODEL" ;;
         2) model="$OPENCODE_TIER_2_MODEL" ;;
         3) model="$OPENCODE_TIER_3_MODEL" ;;
       esac
       case "$role" in
-        planner) desc="Architecture, gap analysis, and trade-off planning without implementation."; readonly=true ;;
-        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks."; readonly=true ;;
-        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests."; readonly=true ;;
-        builder) desc="Primary implementation owner for cross-cutting or high-risk changes."; readonly=false ;;
-        helper) desc="Focused implementation owner for bounded, independent changes."; readonly=false ;;
-        designer) desc="UI and interaction implementation owner with design-system discipline."; readonly=false ;;
-        scribe) desc="Documentation, changelog, index, and session-state maintenance."; readonly=false ;;
-        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows."; readonly=false ;;
+        planner) desc="Architecture, gap analysis, and trade-off planning without implementation." ;;
+        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks." ;;
+        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests." ;;
+        builder) desc="Primary implementation owner for cross-cutting or high-risk changes." ;;
+        helper) desc="Focused implementation owner for bounded, independent changes." ;;
+        designer) desc="UI and interaction implementation owner with design-system discipline." ;;
+        scribe) desc="Documentation, changelog, index, and session-state maintenance." ;;
+        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." ;;
       esac
       ag="$TARGET_ABS/.opencode/agents/$role.md"
       backup_and_remember "$ag"
-      if [ "$readonly" = "true" ]; then
-        { printf -- '---\ndescription: %s\nmode: subagent\nmodel: %s\npermission:\n  edit: deny\n  bash: deny\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n' "$desc" "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$ag"
-      else
-        { printf -- '---\ndescription: %s\nmode: subagent\nmodel: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n' "$desc" "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$ag"
-      fi
+      {
+        printf -- '---\ndescription: %s\nmode: subagent\nmodel: %s\n' "$desc" "$model"
+        emit_opencode_role_permissions "$role_src"
+        printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: OpenCode v1 starts from wildcard deny and re-allows only mapped read/search/edit/bash/task tools; test never widens to bash, edit-code / edit-docs share coarse edit, and unnamed MCP tools remain denied.\n\n' "$tier_label" "$model" "$capability_contract"
+        strip_frontmatter "$role_src"
+      } > "$ag"
       record_emit ".opencode/agents/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
     done
   fi
@@ -820,7 +843,8 @@ case ",$RECIPES_FOR_RUNTIME," in
       tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
       case "$tier" in 1) model="$OPENCODE_TIER_1_MODEL" ;; 2) model="$OPENCODE_TIER_2_MODEL" ;; 3) model="$OPENCODE_TIER_3_MODEL" ;; esac
-      { printf -- '---\ndescription: Reads session trajectories and emits typed lesson proposal data. Read-only; never applies.\nmode: subagent\nmodel: %s\npermission:\n  edit: deny\n  bash: deny\n  task: deny\n  webfetch: deny\n  websearch: deny\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      capability_contract="$(conductor_role_capability_contract "$CORE_ROOT/roles/reflector.md")" || exit 1
+      { printf -- '---\ndescription: Reads session trajectories and emits typed lesson proposal data. Read-only; never applies.\nmode: subagent\nmodel: %s\n' "$model"; emit_opencode_role_permissions "$CORE_ROOT/roles/reflector.md"; printf -- '---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved OpenCode translation. OpenCode may still apply account, plan, or administrator fallback.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: OpenCode v1 starts from wildcard deny and re-allows only mapped read/search/edit/bash/task tools; test never widens to bash, edit-code / edit-docs share coarse edit, and unnamed MCP tools remain denied.\n\n' "$tier_label" "$model" "$capability_contract"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
       record_emit ".opencode/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;

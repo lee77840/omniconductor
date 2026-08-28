@@ -5,6 +5,11 @@ that difficulty to its own native model controls. The detailed Tier triggers in
 `core/universal-rules/meta-discipline.md` remain authoritative; setup never changes
 them.
 
+Role authority is a separate invariant. `difficulty_tier` chooses the saved model
+and reasoning profile; `capabilities` limits what that role may do. Adapters must not
+infer additional capability from a stronger model or higher Tier, and changing a
+model mapping never widens the role allowlist.
+
 ## First installation
 
 The recommended entry point is interactive:

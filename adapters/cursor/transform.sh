@@ -792,26 +792,29 @@ if [ "$MODE" = "full" ] || [ "$MODE" = "strict" ]; then
   if [ "$DRY_RUN" != "true" ]; then
     /bin/mkdir -p "$TARGET_ABS/.cursor/agents"
     for role in planner reviewer code-reviewer builder helper designer scribe utility; do
-      tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/$role.md")" || exit 1
+      role_src="$CORE_ROOT/roles/$role.md"
+      tier="$(conductor_role_difficulty_tier "$role_src")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$role_src")" || exit 1
+      if conductor_role_is_read_only "$role_src"; then readonly=true; else readonly=false; fi
       case "$tier" in
         1) model="$CURSOR_TIER_1_MODEL" ;;
         2) model="$CURSOR_TIER_2_MODEL" ;;
         3) model="$CURSOR_TIER_3_MODEL" ;;
       esac
       case "$role" in
-        planner) desc="Architecture, gap analysis, and trade-off planning without implementation."; readonly=true ;;
-        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks."; readonly=true ;;
-        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests."; readonly=true ;;
-        builder) desc="Primary implementation owner for cross-cutting or high-risk changes."; readonly=false ;;
-        helper) desc="Focused implementation owner for bounded, independent changes."; readonly=false ;;
-        designer) desc="UI and interaction implementation owner with design-system discipline."; readonly=false ;;
-        scribe) desc="Documentation, changelog, index, and session-state maintenance."; readonly=false ;;
-        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows."; readonly=false ;;
+        planner) desc="Architecture, gap analysis, and trade-off planning without implementation." ;;
+        reviewer) desc="Read-only pre-implementation review of plans, architecture, and tasks." ;;
+        code-reviewer) desc="Read-only post-implementation review for correctness, security, regressions, and tests." ;;
+        builder) desc="Primary implementation owner for cross-cutting or high-risk changes." ;;
+        helper) desc="Focused implementation owner for bounded, independent changes." ;;
+        designer) desc="UI and interaction implementation owner with design-system discipline." ;;
+        scribe) desc="Documentation, changelog, index, and session-state maintenance." ;;
+        utility) desc="Bounded Tier 3 lookup or trivial one-file edit; escalate immediately if scope grows." ;;
       esac
       ag="$TARGET_ABS/.cursor/agents/$role.md"
       backup_and_remember "$ag"
-      { printf -- '---\nname: %s\ndescription: %s\nmodel: %s\nreadonly: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved Cursor translation. Cursor may still apply account, plan, or administrator fallback.\n\n' "$role" "$desc" "$model" "$readonly" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/$role.md"; } > "$ag"
+      { printf -- '---\nname: %s\ndescription: %s\nmodel: %s\nreadonly: %s\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved Cursor translation. Cursor may still apply account, plan, or administrator fallback.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: Cursor `readonly` enforces the read-only/writable boundary only; tool, test, delegation, and MCP distinctions remain instruction fallbacks.\n\n' "$role" "$desc" "$model" "$readonly" "$tier_label" "$model" "$capability_contract"; strip_frontmatter "$role_src"; } > "$ag"
       record_emit ".cursor/agents/$role.md" "core/roles/$role.md" "$MANIFEST_LAST_BACKUP"
     done
   fi
@@ -869,8 +872,9 @@ case ",$RECIPES_FOR_RUNTIME," in
       backup_and_remember "$ag"
       tier="$(conductor_role_difficulty_tier "$CORE_ROOT/roles/reflector.md")" || exit 1
       tier_label="$(conductor_difficulty_label "$tier")" || exit 1
+      capability_contract="$(conductor_role_capability_contract "$CORE_ROOT/roles/reflector.md")" || exit 1
       case "$tier" in 1) model="$CURSOR_TIER_1_MODEL" ;; 2) model="$CURSOR_TIER_2_MODEL" ;; 3) model="$CURSOR_TIER_3_MODEL" ;; esac
-      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: %s\nreadonly: true\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved Cursor translation. Cursor may still apply account, plan, or administrator fallback.\n\n' "$model" "$tier_label" "$model"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
+      { printf -- '---\nname: reflector\ndescription: Reads session trajectories and proposes atomic lesson deltas. Propose-only; never applies.\nmodel: %s\nreadonly: true\n---\n\n> CONDUCTOR difficulty contract: **%s**. The Tier is invariant; `model: %s` is the saved Cursor translation. Cursor may still apply account, plan, or administrator fallback.\n\n> CONDUCTOR capability contract: **%s**. Native enforcement: Cursor `readonly` enforces the read-only/writable boundary only; tool, test, delegation, and MCP distinctions remain instruction fallbacks.\n\n' "$model" "$tier_label" "$model" "$capability_contract"; strip_frontmatter "$CORE_ROOT/roles/reflector.md"; } > "$ag"
       record_emit ".cursor/agents/reflector.md" "core/roles/reflector.md" "$MANIFEST_LAST_BACKUP"
     fi
     ;;

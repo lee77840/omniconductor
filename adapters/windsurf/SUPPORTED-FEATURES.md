@@ -12,6 +12,7 @@ Detailed matrix of which CONDUCTOR features Windsurf supports.
 | **Runtime compatibility diagnosis** | ✅ Offline | metadata `runtime_contract` + doctor D13 | Product lifecycle records Devin Desktop as canonical while retaining the stable Windsurf adapter identifier and legacy paths. |
 | **Per-pattern rule scoping** | ⚠️ Directory-based only | — | Whole `.devin/rules/` directory loads; no per-file glob filtering. |
 | **Role entry points** | ✅ Emitted workflows | Eight `.windsurf/workflows/*.md` files | Includes Tier 3 utility; no unverified project custom-agent profile contract is claimed. |
+| **Per-role least privilege** | ⚠️ Instruction fallback | Capability contract inside each workflow | No verified per-workflow tool permission surface is claimed. Omitted capabilities are stated as denied, but mechanical enforcement remains provider/user controlled. |
 | **Hooks** | ✅ Native (2026) | `.windsurf/hooks.json` | CONDUCTOR uses the verified asynchronous `post_cascade_response_with_transcript` Reflector hook; it cannot continue the completed turn, so the three portable guards remain rule fallbacks. |
 | **Per-task model routing** | ⚠️ Advisory-session | Cascade Adaptive selector | Setup saves Adaptive and workflows display a preflight; no workflow model field or selector-state API exists. |
 | **Custom slash commands** | ✅ Native (2026) | Workflows at `.windsurf/workflows/*.md` | ADR-031. |
