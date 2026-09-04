@@ -104,6 +104,21 @@ check('all seven metadata runtime contracts validate', () => {
   assert.strictEqual(result.status, 0, result.stdout + result.stderr);
 });
 
+check('doctor rejects uninstall and unknown options instead of silently ignoring them', () => {
+  let result = runNode(['bin/omniconductor.js', 'doctor', '--uninstall']);
+  assert.strictEqual(result.status, 2, result.stdout + result.stderr);
+  assert.match(result.stderr, /doctor is read-only and cannot uninstall/);
+  assert.match(result.stderr, /init --target=<tool\|all> <dir> --uninstall/);
+
+  result = runNode(['bin/omniconductor.js', 'doctor', '--not-a-real-option']);
+  assert.strictEqual(result.status, 2, result.stdout + result.stderr);
+  assert.match(result.stderr, /unknown doctor option/);
+
+  result = runNode(['bin/omniconductor.js', 'doctor', 'one', 'two']);
+  assert.strictEqual(result.status, 2, result.stdout + result.stderr);
+  assert.match(result.stderr, /at most one project directory/);
+});
+
 check('schema validation rejects an incomplete contract', () => {
   const bad = {
     ...runtime.loadMetadata('claude'),

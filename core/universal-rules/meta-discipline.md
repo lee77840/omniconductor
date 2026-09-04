@@ -140,6 +140,11 @@ This rule is restated here because meta-discipline is the file most adopters rea
 
 ### 5.1 Read discipline (large files)
 
+- **Set an evidence boundary first.** Begin with the files and surfaces named by the
+  user or active artifact. Expand into source code or repo-wide search only when a
+  material claim cannot be resolved inside that boundary. Stop discovery once the
+  acceptance criteria have concrete evidence; “read everything” is not a quality
+  gate.
 - **Check size first** before opening. Use `wc -l` or grep with line numbers.
 - **Prefer Grep over Read** for symbol lookup. Use `-A` / `-B` context. Read only when 50+ contiguous lines are needed.
 - **Range reads (offset / limit) are mandatory** for files > 200 lines. Default `limit: 100`; expand only if proven necessary.
@@ -157,6 +162,12 @@ Some tools auto-inject skill / library docs when certain file paths are touched.
 - Cap dispatch briefs at ~2K tokens. Reference files by path; do not paste content.
 - Tell the dispatched role the EXACT files to read. Don't make the role grep blindly.
 - Specify background execution for any task expected to take > 2 minutes wall-clock.
+- Treat dispatch as an isolation/parallelism tool, not a guaranteed reduction in the
+  provider's total billed tokens. Keep tightly coupled or sequential small work in the
+  orchestrator thread when a second context would duplicate the same reads.
+- Pure documentation work does not receive a `code-reviewer` dispatch. Use a plan
+  `reviewer` only for system-shaping decisions or when independent review is an
+  explicit requirement; otherwise run bounded document validation in-thread.
 
 ### 5.4 Cache-friendly prompt order (Claude adapter)
 

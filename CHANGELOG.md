@@ -3,6 +3,31 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.8.1] — 2026-09-04
+
+### Changed
+
+- Bound planning discovery to the user-named evidence surface and expand into source
+  or repository-wide search only when a material claim remains unresolved. Keep
+  tightly coupled small work in one thread and reserve independent plan review for
+  system-shaping decisions or an explicit requirement.
+- Keep docs-only planning revisions outside the code-review and full-test lifecycle;
+  use targeted contradiction and document validation instead.
+- Document OpenCode + GitHub Copilot correctly: install the OpenCode adapter, select
+  the exact Copilot-backed `provider/model` identifiers visible in OpenCode, and do
+  not accept the direct-OpenAI defaults for that provider connection.
+- Record the version-specific OpenCode 1.18.27 DB observation and require schema
+  fingerprinting, main/subagent/model attribution, large-input share, terminal-task
+  ownership, cohort median, and a non-circular user-smoke evidence sequence before a
+  future local usage collector is implemented.
+
+### Fixed
+
+- Make the read-only `doctor` command reject `--uninstall`, `--rollback`, unknown
+  flags, and multiple target directories instead of silently ignoring them. The
+  diagnostic points Windows and POSIX users to
+  `init --target=<tool|all> <dir> --uninstall`.
+
 ## [1.8.0] — 2026-08-27
 
 ### Added

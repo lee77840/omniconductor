@@ -2796,3 +2796,49 @@ bootstrap risks without creating an unattended executor. Users still perform any
 approved copy or setup manually, and unknown credential formats remain a reason to
 review the displayed manifest rather than a guarantee that heuristic detection can
 identify every secret.
+
+## ADR-079 — Bound discovery and treat dispatch as an isolation cost, not free savings
+
+**Status**: Accepted (2026-09-04)
+
+**Context**: GitHub's token-priced AI credits make repeated broad reads, tool output,
+and duplicated agent contexts visible as direct cost. A multi-document planning edit
+can look like a Large implementation merely because it spans several files, causing
+source-wide inspection, an independent reviewer, a code reviewer, and broad tests
+even when the requested artifact is documentation-only. Dispatch can keep the leader
+context clean, but a second agent still pays for its own instructions, reads, and
+output. Separately, the read-only `doctor` command silently ignored unknown flags, so
+`doctor --uninstall` appeared to run while performing no removal.
+
+**Decision**:
+
+1. Set an evidence boundary before discovery. Start with user-named artifacts and
+   expand to implementation source or repo-wide search only when a material claim
+   cannot be resolved inside that boundary. Stop when acceptance criteria have
+   concrete evidence.
+2. Distinguish semantic difficulty from lifecycle size. Multi-document synthesis may
+   remain Tier 1 without automatically acquiring a Large implementation workflow.
+   Docs-only work remains exempt from code review; plan-review dispatch is reserved
+   for system-shaping decisions, another explicit rule, or a user request.
+3. Treat role dispatch as context isolation or parallelism, never as guaranteed total
+   token savings. Keep small, tightly coupled, sequential work in one thread when a
+   second context would duplicate reads.
+4. Keep provider credit controls honest. GitHub Copilot CLI session limits are not
+   claimed for OpenCode's GitHub Copilot provider connection. Use billing evidence for
+   cost attribution and structural scope controls where the client exposes no native
+   credit cap.
+5. Fail closed on `doctor` options. Reject `--uninstall`, `--rollback`, unknown flags,
+   and multiple directories with a command that points to
+   `init --target=<tool|all> <dir> --uninstall`.
+
+**Consequences**: Planning and documentation sessions avoid unnecessary source scans,
+review contexts, and test ladders while preserving review for actual architecture
+decisions. Windows users receive an actionable uninstall command instead of a silent
+read-only run. The change does not weaken code/config review gates, immutable Tier
+definitions, or any adapter's verified native contract.
+
+**First-party basis**: GitHub's AI-usage guidance recommends lean context, stable
+model/tool configuration, phase-separated sessions, cheaper focused subagents, and
+Copilot-CLI session limits; GitHub billing attributes third-party coding-agent input,
+output, and cache tokens by model. OpenCode documents GitHub Copilot as a provider
+connection but does not document forwarding Copilot CLI's session-limit commands.

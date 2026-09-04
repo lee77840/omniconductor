@@ -91,6 +91,11 @@ account-verified when no catalog is exposed. `doctor` reports this distinction.
 OpenCode validates the `provider/model` shape and emits it into native agent
 frontmatter. `opencode debug agent <name>` proves local resolution; authenticated
 provider availability remains OpenCode policy and is not inferred from syntax.
+The recommended `openai/...` rows assume a direct OpenAI provider. When OpenCode is
+authenticated through GitHub Copilot, inspect `/models` and save the exact
+Copilot-backed identifiers with
+`omniconductor models configure --target=opencode`; do not use
+`--accept-model-defaults` merely because the underlying model names look similar.
 
 Windsurf workflows have no model field and expose no project API for reading the
 current Cascade selector. CONDUCTOR therefore writes an explicit “select

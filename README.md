@@ -47,11 +47,11 @@ npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-de
 The promise is not identical mechanics everywhere. It is **one portable discipline,
 compiled to the strongest verified native behavior each tool actually supports**.
 
-> **Status (v1.8.0 — 2026-08-27)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
+> **Status (v1.8.1 — 2026-09-04)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
 >
 > **New in 1.7.1**: npm discovery metadata now names the product's actual high-intent categories—coding-agent governance, guardrails, agentic workflows, token optimization, MCP security, and reversible cross-tool installation. Adapter runtime and install output are unchanged; Cursor validation now excludes preserved user-owned legacy rules while remaining fail-closed on manifest-owned output.
 >
-> **New in 1.8.0**: role authority is now a portable, deny-by-default capability allowlist compiled across all seven adapters. Exact provider tool allowlists are used only where verified; coarse and instruction-only boundaries remain visibly classified. A provider-independent workspace bootstrap checker rejects secrets, link/path escapes, and overwrite conflicts, while its `plan` command only displays inert copy and setup steps.
+> **New in 1.8.1**: planning and documentation work now starts from an explicit evidence boundary instead of automatically expanding into source-wide reads or duplicate review contexts. OpenCode + GitHub Copilot setup distinguishes the OpenCode client adapter from its model provider, and `doctor` rejects mistaken `--uninstall` usage with the correct cross-platform command.
 >
 > **New in 1.6.0**: `--target=opencode` uses native v1 instructions, subagents, permissions, skills, commands, and a JavaScript commit-guard plugin without taking ownership of Codex's root `AGENTS.md`. Existing `opencode.json` is merged; JSONC is refused before writes; v2 beta and unverified review-stop/trajectory behavior are not overclaimed. Earlier releases: [`CHANGELOG.md`](./CHANGELOG.md).
 >
@@ -209,6 +209,21 @@ npx omniconductor@latest init --target=opencode .
 npx omniconductor@latest doctor .
 opencode debug config
 ```
+
+OpenCode가 **GitHub Copilot provider**로 인증된 경우에는 CONDUCTOR의 OpenCode
+모델 기본값을 그대로 승인하지 마세요. 현재 기본값은 direct `openai/...`
+provider용입니다. 먼저 OpenCode `/models`에서 계정에 실제 표시되는 Copilot-backed
+`provider/model` 식별자를 확인한 뒤 정확한 세 값을 저장합니다.
+
+```bash
+npx omniconductor@latest models configure --target=opencode .
+npx omniconductor@latest init --target=opencode . --no-prompt
+npx omniconductor@latest doctor .
+```
+
+GitHub Copilot이 모델을 공급해도 client는 OpenCode이므로 설치 target은
+`opencode`입니다. 같은 프로젝트를 `.github/*`를 읽는 Copilot Chat에서도 사용할
+때만 `--target=copilot`을 추가합니다.
 
 `C:\c\conductor` 같은 경로는 저장소를 직접 복제해 개발할 때의 예시일 뿐,
 npm 사용자에게 필요한 고정 경로가 아닙니다.
@@ -700,6 +715,18 @@ rule-only, or provider guidance—see the
 All seven adapters ship `--uninstall` with adapter-scoped manifest ownership
 (ADR-020/047). Use the adapter that owns the surface you want to remove, or
 `omniconductor init --target=all . --uninstall` for the aggregate teardown.
+
+`doctor` is read-only. `doctor --uninstall` is invalid; use `init` with
+`--uninstall`. On Windows, PowerShell or CMD may launch the Node CLI, which then
+locates Git Bash for the adapter runtime:
+
+```powershell
+# One adapter
+npx omniconductor init --target=opencode "C:\path\to\project" --uninstall
+
+# Every installed adapter in the project
+npx omniconductor init --target=all "C:\path\to\project" --uninstall
+```
 
 ```bash
 # Preview

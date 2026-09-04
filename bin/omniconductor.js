@@ -283,8 +283,15 @@ async function main(argv) {
 
   if (cmd === 'doctor') {
     const rest = args.slice(1);
+    const unknown = rest.filter((arg) => arg.startsWith('-') && arg !== '--json');
+    if (unknown.includes('--uninstall') || unknown.includes('--rollback')) {
+      fail('doctor is read-only and cannot uninstall. Use `omniconductor init --target=<tool|all> <dir> --uninstall`');
+    }
+    if (unknown.length) fail(`unknown doctor option(s): ${unknown.join(', ')}`);
+    const positionals = rest.filter((arg) => !arg.startsWith('-'));
+    if (positionals.length > 1) fail('doctor accepts at most one project directory');
     const jsonOut = rest.includes('--json');
-    const dir = rest.find((a) => !a.startsWith('-')) || '.';
+    const dir = positionals[0] || '.';
     return require('./doctor.js').run(dir, { json: jsonOut });
   }
 

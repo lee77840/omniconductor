@@ -182,6 +182,71 @@ context를 중복시키므로 flat-with-leader 구조를 사용한다.
 
 ## 7. 로컬 측정과 진단
 
+### OpenCode + GitHub Copilot의 AI credits 경계
+
+OpenCode의 공식 provider 연결로 GitHub Copilot 구독을 사용할 수 있지만, 실제
+모델 호출의 과금 단위와 가격은 GitHub가 소유한다. 현재 GitHub usage-based billing은
+input, output, cache read/write token과 선택 모델을 AI credits로 환산하며, third-party
+coding agent 사용도 과금 범위에 포함한다. 따라서 “문서 4개 수정”이라는 파일 수만으로
+200~300 credits가 적정한지 판정할 수 없다. 사용량 보고서의 모델별 token breakdown과
+실제 호출 수가 있어야 한다.
+
+GitHub의 비용 절감 권고 중 OpenCode에서도 그대로 적용 가능한 것은 다음과 같다.
+
+- 작업 전 모델을 정하고 중간에 불필요하게 바꾸지 않아 cache 재구축을 피한다.
+- 조사·계획·구현을 분리하되, phase가 바뀌면 새 세션을 사용해 이전 tool result를
+  다음 phase마다 다시 보내지 않는다.
+- 먼저 사용자 지정 파일 범위를 정하고, 문서만으로 해결되지 않는 주장에 한해서만
+  source를 연다.
+- 사용하지 않는 MCP/tool server를 끄고, 큰 출력은 파일에 저장한 뒤 필요한 범위만
+  읽는다.
+- docs-only 작업에는 code-reviewer와 전체 테스트를 자동으로 붙이지 않는다. 설계를
+  바꾸는 plan에만 reviewer를 쓰고, 나머지는 대상 문서 contradiction check로 끝낸다.
+
+GitHub Copilot CLI의 `/context`, `/compact`, `/limits set max-ai-credits ...` 및
+`--max-ai-credits=...`는 **Copilot CLI 기능**이다. OpenCode가 Copilot provider로
+인증됐다는 이유만으로 이 session-limit 계약이 OpenCode에 전달되지는 않는다.
+CONDUCTOR도 OpenCode에 존재하지 않는 credit cap을 설치했다고 주장하지 않는다.
+OpenCode 세션 비용은 GitHub의 AI usage/billing report에서 모델별 input/output/cache
+token을 확인하고, OpenCode에서는 작업 범위·모델·도구 수를 미리 제한하는 방식으로
+관리한다.
+
+CONDUCTOR의 현재 OpenCode 권장 기본값은 direct `openai/...` provider/model이다.
+OpenCode에서 GitHub Copilot provider를 쓰는 사용자는
+`--accept-model-defaults`로 이 값을 확정하지 않는다. 먼저 OpenCode `/models`에서
+계정에 실제 표시되는 Copilot-backed `provider/model` 세 값을 확인한 뒤 다음처럼
+저장한다.
+
+```powershell
+npx omniconductor@latest models configure --target=opencode "C:\path\to\project"
+npx omniconductor@latest init --target=opencode "C:\path\to\project" --no-prompt
+npx omniconductor@latest doctor "C:\path\to\project"
+```
+
+OpenCode가 GitHub Copilot 모델을 호출하더라도 읽는 project contract는 OpenCode
+형식이므로 `--target=opencode`가 맞다. `--target=copilot`은 같은 프로젝트를 VS Code
+등의 Copilot Chat client에서도 열어 `.github/*` 지침을 소비할 때만 추가한다.
+
+로컬 OpenCode DB를 보조 증거로 분석할 때는 버전별 schema를 먼저 확인하고 SQL을
+고정해야 한다. Windows adopter의 OpenCode `1.18.27` 관측에서는 `message`가
+`time_created`와 `data`를 사용하고, 작업 경로는 `session.directory`, 비용은 message
+JSON의 숫자 `$.cost`에 있었다. `created_at`, `role`, `tokens`, `session.cwd`,
+`$.cost.total` 같은 추정 필드를 그대로 사용하면 안 된다. 이 관측을 다른 버전의
+영구 계약으로 승격하지 말고, `PRAGMA table_info(...)`와 대표 JSON shape를 읽은 뒤
+버전·schema fingerprint와 함께 query를 선택한다.
+
+비교 보고서의 최소 증거는 총액 하나가 아니라 다음을 포함한다.
+
+- 100K 이상 대형 입력 호출 비율
+- main agent와 subagent 분리 및 역할별 실제 provider/model
+- terminal task/session 귀속
+- 포함·제외 기준이 고정된 cohort median
+- 자동 smoke 한 호출의 고유 식별자와 사용자가 판정할 호출의 명확한 구분
+
+Smoke 순서는 `사용자 호출 → 자동 DB 증거 추출 → 증거 제시 → 사용자 PASS`다.
+사용자 호출 전에 그 호출의 PASS를 요구하는 순환 gate는 만들지 않는다. 자동 smoke와
+사용자 smoke를 모두 실행한다면 어느 한 호출만 최종 증거인지 사전에 고정한다.
+
 ### 빠른 세션 측정
 
 ```bash
@@ -295,6 +360,10 @@ npx omniconductor init --target=claude . --check-anti-patterns --dry-run
   프로젝트가 승인한 모델/effort 매핑을 사용한다. 애매하면 한 Tier 올린다.
 - **“측정값이 곧 npm/provider 청구서다.”** 아니다. 로컬 JSONL과 휴리스틱 기반의
   비교·진단 지표다.
+- **“Copilot CLI의 AI-credit limit가 OpenCode에도 적용된다.”** 아니다. 동일한
+  GitHub 계정을 쓰더라도 client 기능 계약은 별개다.
+- **“OpenCode에서 Copilot을 쓰므로 `--target=copilot`을 설치한다.”** 아니다.
+  client가 OpenCode이면 `--target=opencode`이고, Copilot은 그 뒤의 model provider다.
 
 ## 관련 문서
 
@@ -305,3 +374,7 @@ npx omniconductor init --target=claude . --check-anti-patterns --dry-run
 - Prompt caching: [`PROMPT-CACHING-GUIDE.md`](./PROMPT-CACHING-GUIDE.md)
 - Context editing: [`CONTEXT-EDITING-GUIDE.md`](./CONTEXT-EDITING-GUIDE.md)
 - 설계 근거: `DESIGN-DECISIONS.md` ADR-035, ADR-036, ADR-051, ADR-058
+- GitHub AI usage 최적화: <https://docs.github.com/en/copilot/tutorials/optimize-ai-usage>
+- GitHub AI usage 확인: <https://docs.github.com/en/copilot/how-tos/manage-and-track-spending/monitor-ai-usage>
+- Copilot CLI session limit: <https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/set-session-limit>
+- OpenCode GitHub Copilot 연결: <https://opencode.ai/docs/providers/#github-copilot>

@@ -47,6 +47,15 @@ code. Use `builder` for 3+ files, cross-cutting behavior, or when a Tier 1 trigg
 `meta-discipline.md` applies. Security, authentication, billing, database, and
 architecture risk still override file count.
 
+**Planning-only boundary:** revising several planning/specification documents can be
+Tier 1 synthesis without becoming a Large implementation lifecycle. A separate
+`reviewer` dispatch is required only when the artifact makes a system-shaping design
+decision, when another applicable rule requires it, or when the user explicitly asks
+for independent review. A docs-only planning revision does not trigger
+`code-reviewer`; `quality-gates.md` keeps docs-only diffs exempt from Q1/Q2. Use
+targeted document checks and contradiction searches instead of source/test sweeps
+unless a material plan statement cannot be resolved from the named documents.
+
 ### 1.2 Why this rule exists (origin)
 
 The originating project counted **6+ violations** of this order during early production work. Each violation produced rework (wrong file touched, missed test, broken dependency). The rule was promoted to ABSOLUTE after the 6th catch.

@@ -112,7 +112,13 @@ implementation owner the only reviewer of its work.
 ## Token and context discipline
 
 - Search before broad reads; use ranges for large files.
+- Set an evidence boundary before discovery: start with the user-named files and
+  surfaces, and inspect implementation source only when those artifacts cannot
+  resolve a material claim. Stop expanding once the acceptance criteria are
+  supported by concrete evidence.
 - Do not paste full files into dispatches when a path and bounded range suffice.
+- Dispatch for independent work or context isolation, not as a presumed
+  total-token saving. Keep small, tightly coupled, sequential work in one thread.
 - Keep stable instructions before changing history and tool results.
 - Load only the rule and recipe references relevant to the current activity.
 - Preserve user requirements and acceptance criteria when reducing context.
