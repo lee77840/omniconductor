@@ -85,7 +85,8 @@ function auditAdapter(target, adapter, options = {}) {
   const baselineMode = ['full', 'minimal', 'strict'].includes(manifest.mode);
   const missingEager = baselineMode ? expectedEagerFiles.filter((file) => !safeFile(file)) : [];
   const validEager = baselineMode ? expectedEagerFiles.filter(safeFile) : [];
-  const pointers = pointerFiles(target, adapter, metadata);
+  const pointers = pointerFiles(target, adapter, metadata).filter(file => adapter !== 'windsurf'
+    || !/^trigger:\s*(manual|model_decision|glob)\s*$/m.test(fs.readFileSync(file, 'utf8')));
   const references = referenceFiles(target, metadata);
   const eagerBytes = sum(validEager);
   const pointerBytes = sum(pointers);
@@ -100,6 +101,8 @@ function auditAdapter(target, adapter, options = {}) {
   ];
   if (baselineMode && eagerBytes > KERNEL_BUDGET) problems.push(`kernel ${eagerBytes} bytes exceeds ${KERNEL_BUDGET}-byte budget`);
   if (baselineMode && activeBytes > ACTIVE_BUDGET) problems.push(`always-active instructions ${activeBytes} bytes exceed ${ACTIVE_BUDGET}-byte budget`);
+  const exposure = require('./instruction-exposure.js').inspect(target, adapter,
+    [...validEager, ...(pointersAlwaysActive ? pointers : [])]);
   return {
     adapter,
     strategy: metadata.instruction_loading.strategy,
@@ -118,6 +121,8 @@ function auditAdapter(target, adapter, options = {}) {
     estimated_avoided_context_tokens_for_requests: options.requests && avoidedTokens !== null ? avoidedTokens * options.requests : null,
     budgets: { kernel_bytes: KERNEL_BUDGET, always_active_bytes: ACTIVE_BUDGET },
     problems,
+    project_exposure: exposure,
+    savings_status: 'initial all-policy-eager counterfactual only; not realized savings across a session',
   };
 }
 
@@ -153,8 +158,12 @@ function render(report) {
     lines.push(`${item.adapter.padEnd(9)} active=${String(item.always_active_bytes).padStart(5)} B (~${String(item.estimated_always_active_tokens).padStart(4)} tokens)  avoided=${avoided}  ${item.problems.length ? 'FAIL' : 'OK'}`);
     if (report.requests && item.estimated_avoided_context_tokens_for_requests !== null) lines.push(`          ${report.requests.toLocaleString()} requests: ≈${item.estimated_avoided_context_tokens_for_requests.toLocaleString()} context tokens avoided`);
     for (const problem of item.problems) lines.push(`  - ${problem}`);
+    lines.push(`          Known project exposure: ${item.project_exposure.bytes_lower_bound} B (lower bound; global/history excluded)`);
+    for (const warning of item.project_exposure.warnings) lines.push(`  WARN: ${warning}`);
+    for (const unknown of item.project_exposure.unresolved) lines.push(`  UNVERIFIED: ${unknown}`);
   }
   lines.push('', `Summary: ${report.summary.adapters} adapters, ${report.summary.problems} problems`);
+  lines.push('Avoidance estimates compare initial managed instructions only, not total model usage, credits, or money.');
   return lines.join('\n');
 }
 

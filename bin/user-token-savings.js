@@ -38,12 +38,17 @@ function create(options) {
       since: options.since || null,
       thresholds: options.thresholds ? [...new Set(options.thresholds)].sort((a, b) => a - b) : [3000, 4000, 6000, 8000, 12000],
     });
+    if (!options.requests && session.request_count_status !== 'identity-deduplicated') {
+      throw new Error('session usage lacks reliable identities/counters; provide a verified --requests=N instead of inferring model calls');
+    }
     inferredRequests = session.model_calls_with_usage;
     observed = {
       source_kind: 'local-claude-jsonl',
       files_scanned: session.files_scanned,
       files_matched: session.files_matched,
       model_calls_with_usage: session.model_calls_with_usage,
+      request_count_status: session.request_count_status,
+      duplicate_usage_records: session.duplicate_usage_records,
       truncation_markers: session.conductor_truncation_markers,
       output_tokens_elided_lower_bound: session.observed_declared_elided_tokens,
       cache_read_share_percent: session.cache_read_share_percent,
@@ -64,7 +69,7 @@ function create(options) {
     generated_from: 'local files only; no telemetry or external transmission',
     target,
     request_count: requests,
-    request_count_basis: options.requests ? 'user-supplied' : 'usage-bearing Claude model calls in selected sessions',
+    request_count_basis: options.requests ? 'user-supplied' : 'identity-deduplicated Claude model calls in selected sessions',
     observed_output_savings: observed,
     estimated_instruction_context_savings: {
       comparison: item.comparison,
@@ -72,10 +77,14 @@ function create(options) {
       avoided_context_tokens_per_request: item.estimated_avoided_context_tokens_per_request,
       avoided_context_tokens_for_requests: item.estimated_avoided_context_tokens_for_requests,
       estimate_method: 'installed byte footprint / 4 heuristic; logical context, not billing or money',
+      savings_status: item.savings_status,
+      known_project_instruction_bytes: item.project_exposure.bytes_lower_bound,
     },
     total_savings: null,
     total_note: 'No grand total: observed output elision and estimated input-context avoidance have different evidence strength; provider caching is excluded.',
     problems: item.problems,
+    warnings: item.project_exposure.warnings,
+    unmeasured_scope: item.project_exposure.scope,
   };
 }
 
@@ -86,7 +95,7 @@ function render(report) {
     lines.push('', 'Observed output savings (lower bound)',
       `  Tokens explicitly marked elided: ${report.observed_output_savings.output_tokens_elided_lower_bound.toLocaleString()}`,
       `  Truncation markers: ${report.observed_output_savings.truncation_markers.toLocaleString()}`,
-      `  Cache-read token share: ${report.observed_output_savings.cache_read_share_percent.toFixed(2)}% (health only; not credited as savings)`);
+      `  Cache-read token share: ${report.observed_output_savings.cache_read_share_percent == null ? 'unknown' : report.observed_output_savings.cache_read_share_percent.toFixed(2) + '%'} (health only; not credited as savings)`);
   } else {
     lines.push('', 'Observed output savings: unavailable for this report (no compatible local session evidence supplied)');
   }
@@ -98,6 +107,8 @@ function render(report) {
     '', report.total_note,
     report.generated_from);
   for (const problem of report.problems) lines.push(`PROBLEM: ${problem}`);
+  for (const warning of report.warnings) lines.push(`WARNING: ${warning}`);
+  lines.push('Estimate applies to the initial managed baseline. Loaded references and repeated history can reduce or reverse this avoidance.');
   return lines.join('\n');
 }
 

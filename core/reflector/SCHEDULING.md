@@ -12,6 +12,28 @@ It auto-detects the first supported CLI on `PATH`
 (`claude` → `codex` → `gemini` → `cursor-agent` → `copilot` → `opencode`).
 Force one with `CONDUCTOR_REFLECT_CLI=<cli>`; preview with `CONDUCTOR_REFLECT_DRYRUN=1`.
 
+## Bounded runner (Node.js 18+)
+
+The runner uses the selected CLI's saved Tier 1 mapping from
+`.conductor/model-routing.json`; it does not silently inherit a session model.
+It reads at most 12 recent session metadata entries (14 days), 20 commit subjects,
+and a 16 KiB active-state prefix, with a 32 KiB total evidence ceiling. It does not
+follow arbitrary transcript pointers. Missing trajectories fall back to git/state;
+no evidence means no model call. Manual deep reflection is a separate scoped task.
+
+Identical evidence, model and brief skip the model call after a successful import.
+The local watermark is `.conductor/reflect/last-success.json`. Failed/invalid runs
+do not advance it. `run.lock` prevents overlapping runs; after an interrupted host,
+confirm that no runner remains before removing a stale lock. These are local state,
+not portable rules; deleting the watermark intentionally allows another analysis.
+
+Execution defaults to 120 seconds (`CONDUCTOR_REFLECT_TIMEOUT_SECONDS=1..300`),
+with at most 1 MiB captured output. These are local runner bounds, **not** provider
+billing, hidden-context, or remote-job cancellation guarantees. Direct skill calls
+and app automation prompts do not automatically inherit the runner's deduplication
+or deadline: schedule this script to obtain those protections. A wiring dry-run
+does not validate model availability or consume a paid smoke call.
+
 Windsurf/Devin remains a manual `/reflect` workflow until its CLI exposes an
 equivalent verified headless read-only contract. The runner fails closed rather
 than granting broad workspace writes.

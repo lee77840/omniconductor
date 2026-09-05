@@ -42,7 +42,16 @@ Run weekly (batch), or on demand via `/reflect`. To automate the weekly run, reg
 
 ## Trajectory sources (precedence)
 
-1. Session transcript (richest) — via `.conductor/trajectories/index.jsonl`.
+The scheduled runner uses a bounded subset: at most 12 session metadata entries
+from 14 days, 20 commit subjects and a 16 KiB active-state prefix, no more than
+32 KiB evidence total. It never follows arbitrary transcript pointers. Saved
+Tier 1 routing, a 120-second default deadline, 1 MiB captured-output limit, a
+concurrency lock and an unchanged-evidence watermark limit redundant local work.
+Failed imports remain retryable. These are not provider billing or hidden-context
+caps. Manual calls can inspect trusted transcript ranges within a declared budget
+but do not inherit the runner's execution controls.
+
+1. Session transcript (richest, explicit manual scope) — via `.conductor/trajectories/index.jsonl`.
 2. git history — universal.
 3. Retro artifact — `docs/CURRENT_WORK.md`, `docs/sessions/*`.
 
@@ -51,7 +60,8 @@ Run weekly (batch), or on demand via `/reflect`. To automate the weekly run, reg
 - **All seven adapters**: emit a native or portable `/reflect` entry point,
   reflector agent/workflow, deterministic pruning utility, runner, brief, and
   scheduling guide. The nearest verified lifecycle hook is added only when it can
-  supply the required trajectory evidence. OpenCode remains manual/propose-only;
+  supply the required trajectory evidence. OpenCode has no automatic trajectory
+  capture; its optional scheduled runner uses the bounded git/state fallback;
   Windsurf's response hook is not represented as identical to a Stop event.
 - **Proposal skill**: all seven adapters emit `propose-skill` only with this recipe.
   Claude and OpenCode use their native skill roots; the other adapters share

@@ -111,7 +111,9 @@ implementation owner the only reviewer of its work.
 
 ## Token and context discipline
 
-- Search before broad reads; use ranges for large files.
+- Search before broad reads; use ranges for large files. Read active continuity
+  sections first, then only needed history. If CURRENT_WORK exceeds 32 KiB,
+  propose archiving completed history while preserving decisions and requirements.
 - Set an evidence boundary before discovery: start with the user-named files and
   surfaces, and inspect implementation source only when those artifacts cannot
   resolve a material claim. Stop expanding once the acceptance criteria are

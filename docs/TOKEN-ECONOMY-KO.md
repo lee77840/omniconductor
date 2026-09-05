@@ -17,6 +17,54 @@ tool result와 저신호 고정 컨텍스트를 먼저 줄이는 것**이다.
 
 ## 한눈에 보는 적용 수준
 
+### 체감 개선을 확인하는 순서
+
+1. `omniconductor doctor <project>`로 활성 프로젝트 지침과 CURRENT_WORK 비대화를
+   먼저 확인합니다. 16 KiB 이상의 알려진 프로젝트 지침, 32 KiB 이상의 상태 문서는
+   범위를 줄일 후보이지, 자동 삭제 대상으로 취급하지 않습니다.
+2. `omniconductor audit instructions <project>`의 managed kernel과 project exposure를
+   따로 봅니다. OpenCode/Windsurf가 함께 읽는 루트 AGENTS.md와 사용자 추가 지침은
+   kernel 숫자만으로 설명할 수 없습니다. 전역 지침·도구 목록·히스토리는 미측정입니다.
+3. Claude 사용량은 같은 session/message의 스트리밍 행을 합산하지 않고 카운터별
+   최댓값으로 정규화합니다. ID가 없어 호출 수를 검증할 수 없으면 개인 절감 보고서의
+   자동 요청 수 계산을 거부합니다. 이전보다 작아진 수치는 측정 오류 수정일 수 있습니다.
+4. OpenCode는 다음 명령으로 **기존 DB**를 읽습니다. 새 세션, 로그인, 유료 호출이
+   필요하지 않습니다. Python 3/sqlite3가 필요하고, 원본 DB와 WAL의 안정된 복사본만
+   SQLite로 엽니다. 원문 대화는 결과에 포함하지 않습니다.
+
+```powershell
+omniconductor audit opencode "C:\Projects\app" --database="C:\path\opencode.db" --since=2026-09-01 --until=2026-09-08 --json
+```
+
+명시한 경로의 DB 스키마를 fingerprint로 확인합니다. 관측된
+`message(time_created,data)` / `session.directory` / 숫자형 `data.cost` 계약을
+사용하며, 다른 스키마는 추정 SQL로 강행하지 않습니다. 메인·자식 세션, 역할·공급자·모델,
+캐시 포함 입력 100K 이상 비중, 같은 조건의 작업별 중앙값을 제공합니다. 세션의
+parent_id가 없거나 부모가 다른 프로젝트면 작업 귀속을 검증하지 못했다고 표시합니다.
+DB 비용은 청구 크레딧이 아닙니다. 비용 필드가 없는 호출을 무료로 단정하지 않습니다.
+작업별 집계 단위는 루트 세션의 대리값이며, 실제 업무 완료나 품질 통과를 판정하지 않습니다.
+기간 필터가 세션의 일부만 포함할 수 있으므로 전후 비교에서는 같은 선정 기준을 유지해야 합니다.
+입력은 캐시와 별도, 출력은 reasoning과 별도로 집계하며 reasoning의 관측 범위도 표시합니다.
+이 분리는 [OpenCode 사용량 정규화 코드](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/session/session.ts)의
+관례를 따릅니다. 스키마가 같더라도 공급자 원본 카운터의 정확성까지 보증하지는 않습니다.
+DB+WAL 256 MiB, 전체 50,000개 메시지, 파싱할 JSON 64 MiB, 검사 실행 30초가 상한이며,
+초과·변경 중인 DB·복구 journal은 실패로 표시합니다. 더 작은 내보내기 DB가 필요할 수 있습니다.
+
+OpenCode 안의 GitHub Copilot 연결은 `--target=opencode` 대상입니다. 저장된 모델
+매핑의 공급자가 실제 사용하는 연결과 맞는지도 확인하세요. `openai/...` 기본값을
+Copilot 연결로 자동 해석하지 않습니다. 사용권·모델 가용성은 설치 성공만으로 보장하지 않습니다.
+
+5. 셀프 인프루브 예약 실행은 `.conductor/reflect/run-weekly.sh`를 사용합니다.
+   같은 근거·모델·brief의 재실행은 모델 호출을 건너뜁니다. 최근 14일/12세션 메타데이터,
+   git/state fallback, 32 KiB 근거 상한, 기본 120초/출력 1 MiB 제한이 있습니다.
+   저장된 Tier 1 매핑을 쓰며, 제안은 여전히 사람 승인 전 적용되지 않습니다.
+   수동 스킬 호출에는 runner의 반복 방지·시간 제한이 자동 적용되지 않습니다.
+
+이 한도는 공급자 전체 입력·출력 토큰이나 청구 금액의 강제 상한이 아닙니다.
+전체 규칙을 매 요청에 넣는 가상 기준 대비 작은 초기 kernel의 구조적 차이를
+실제 전체 세션 절감률로 표시하지 않습니다. 품질을 유지한 비용·시간 개선은 같은 작업,
+공급자·모델, 완료 기준을 맞춘 전후 표본이 있어야 주장할 수 있습니다.
+
 Token Economy 기능은 모두 같은 강도로 동작하지 않는다.
 
 | 분류 | 의미 | 대표 기능 |

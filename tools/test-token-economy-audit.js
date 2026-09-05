@@ -11,7 +11,7 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-token-audit-'));
 try {
   const records = [
     { timestamp: '2026-07-27T23:59:00Z', message: { content: [{ type: 'tool_result', content: 'x'.repeat(80000) }] } },
-    { timestamp: '2026-07-28T01:00:00Z', gitBranch: 'feature/old', message: {
+    { timestamp: '2026-07-28T01:00:00Z', gitBranch: 'feature/old', message: { id: 'response-one',
       usage: { cache_read_input_tokens: 900, cache_creation_input_tokens: 100, input_tokens: 5, output_tokens: 7 },
       content: [
         { type: 'tool_result', content: 'x'.repeat(20000) },
@@ -57,6 +57,13 @@ try {
   });
   assert.strictEqual(hook.status, 0, hook.stderr || hook.stdout);
   assert.match(hook.stderr, /cache-read token share: 89\.6%/);
+  const currentHook = runBash('core/hooks/stop-cache-hit-baseline-check.sh.template', [], {
+    cwd: path.resolve(__dirname, '..'), encoding: 'utf8', stdio: 'pipe',
+    input: JSON.stringify({ transcript_path: path.join(temp, 'session.jsonl') }),
+    env: { CONDUCTOR_CACHE_TOTAL_FLOOR: '1', CONDUCTOR_CACHE_HIT_FLOOR_PERCENT: '95' },
+  });
+  assert.strictEqual(currentHook.status, 0);
+  assert.match(currentHook.stderr, /cache-read token share: 89\.6%/);
 
   const gapFile = path.join(temp, 'gap.jsonl');
   fs.writeFileSync(gapFile, `${JSON.stringify({
@@ -68,6 +75,31 @@ try {
   })}\n`);
   const gapReport = audit({ sessions: gapFile, since: '2026-07-28T00:00:00Z', thresholds: [4000] });
   assert.deepStrictEqual(gapReport.findings.map((finding) => finding.code), ['CAP_MARKER_GAP', 'LOW_COST_ROLE_GAP']);
+  const identityFile = path.join(temp, 'identities.jsonl');
+  const response = { sessionId: 'one', message: { id: 'shared', usage: { input_tokens: 100, output_tokens: 4 } } };
+  fs.writeFileSync(identityFile, [response, { ...response, message: { ...response.message, usage: { input_tokens: 100, output_tokens: 9 } } },
+    { ...response, sessionId: 'two' }, { message: { model: '<synthetic>', usage: { input_tokens: 9000 } } },
+  ].map(JSON.stringify).join('\n'));
+  const ids = audit({ sessions: identityFile, thresholds: [8000] });
+  assert.strictEqual(ids.model_calls_with_usage, 2);
+  assert.strictEqual(ids.uncached_input_tokens, 200);
+  assert.strictEqual(ids.output_tokens, 13);
+  assert.strictEqual(ids.duplicate_usage_records, 1);
+  assert.strictEqual(ids.synthetic_usage_records, 1);
+  assert.strictEqual(ids.request_count_status, 'identity-deduplicated');
+  const dedupMeasured = runBash('tools/measure-tokens.sh', [`--session=${bashPath(identityFile)}`], {
+    cwd: path.resolve(__dirname, '..'), encoding: 'utf8', stdio: 'pipe',
+  });
+  assert.strictEqual(dedupMeasured.status, 0, dedupMeasured.stderr);
+  assert.match(dedupMeasured.stdout, /Turns\s+: 2/);
+  assert.match(dedupMeasured.stdout, /Input tokens \(uncached\)\s+: 200/);
+  assert.match(dedupMeasured.stdout, /Output tokens\s+: 13/);
+  fs.appendFileSync(identityFile, '\n' + JSON.stringify({ message: { usage: { input_tokens: -5, output_tokens: '900' } } }));
+  const invalid = audit({ sessions: identityFile, thresholds: [8000] });
+  assert.strictEqual(invalid.request_count_status, 'unverified');
+  assert.strictEqual(invalid.uncached_input_tokens, 200);
+  assert.strictEqual(invalid.output_tokens, 13);
+  assert(invalid.findings.some(x => x.code === 'USAGE_IDENTITY_GAP'));
   process.stdout.write('PASS: token-economy session audit and three-reporter cache formula parity\n');
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });

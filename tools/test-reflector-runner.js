@@ -25,11 +25,12 @@ function fixture() {
   const bin = path.join(dir, 'fake-bin');
   fs.mkdirSync(reflect, { recursive: true });
   fs.mkdirSync(bin);
-  for (const file of ['run-weekly.sh', 'reflect-brief.md', 'reflection-proposals.js']) {
+  for (const file of ['run-weekly.sh', 'runner.js', 'reflect-brief.md', 'reflection-proposals.js']) {
     fs.copyFileSync(path.join(root, 'core', 'reflector', file), path.join(reflect, file));
   }
   fs.mkdirSync(path.join(dir, '.conductor', 'trajectories'));
-  fs.writeFileSync(path.join(dir, '.conductor', 'trajectories', 'index.jsonl'), '{"session_id":"s1"}\n');
+  fs.writeFileSync(path.join(dir, '.conductor', 'trajectories', 'index.jsonl'), JSON.stringify({ session_id: 's1', ts: new Date().toISOString() }) + '\n');
+  fs.writeFileSync(path.join(dir, '.conductor', 'model-routing.json'), JSON.stringify({ adapters: Object.fromEntries(supported.map(c => [c === 'cursor-agent' ? 'cursor' : c, { tiers: { '1': { requested: 'test-model', resolved: 'test-model' } } }])) }));
   return { dir, reflect, bin };
 }
 
@@ -51,6 +52,13 @@ for (const cli of supported) {
   assert.strictEqual(result.status, 0, `${cli}: ${result.stderr}`);
   assert.ok(fs.existsSync(path.join(f.dir, 'docs', 'REFLECTION-PROPOSALS.md')), `${cli}: proposal not imported`);
   const args = fs.readFileSync(argLog, 'utf8');
+  assert.match(args, /--model\ntest-model/);
+  fs.unlinkSync(argLog);
+  const again = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], { cwd: f.dir,
+    env: { ...process.env, PATH: `${f.bin}:${process.env.PATH}`, CONDUCTOR_REFLECT_CLI: cli, CONDUCTOR_ARG_LOG: argLog }, encoding: 'utf8' });
+  assert.strictEqual(again.status, 0, again.stderr);
+  assert.match(again.stdout, /unchanged evidence/);
+  assert(!fs.existsSync(argLog), 'unchanged run invoked model');
   for (const expected of expectedArgs[cli]) assert.ok(args.includes(expected), `${cli}: missing ${expected}`);
   process.stdout.write(`PASS: ${cli} uses read-only analysis then trusted import\n`);
 }
@@ -92,4 +100,56 @@ for (const cli of supported) {
   process.stdout.write('PASS: worktree drift blocks proposal import\n');
 }
 
-process.stdout.write('PASS: reflector runner contract 8/8\n');
+{
+  const f = fixture();
+  fs.unlinkSync(path.join(f.dir, '.conductor/trajectories/index.jsonl'));
+  fs.mkdirSync(path.join(f.dir, 'docs'));
+  fs.writeFileSync(path.join(f.dir, 'docs/CURRENT_WORK.md'), 'Active task: test fallback.\n' + 'x'.repeat(100000));
+  const log = path.join(f.dir, 'args.log');
+  const options = { cwd: f.dir, env: { ...process.env, PATH: `${f.bin}:${process.env.PATH}`, CONDUCTOR_REFLECT_CLI: 'codex', CONDUCTOR_ARG_LOG: log }, encoding: 'utf8' };
+  fake(f.bin, 'codex', `printf '%s\\n' '${payload}'`);
+  const result = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], options);
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert(fs.statSync(log).size < 25000, 'state fallback was not bounded');
+  fs.unlinkSync(path.join(f.reflect, 'last-success.json'));
+  fake(f.bin, 'codex', 'printf invalid-envelope');
+  const invalid = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], options);
+  assert.strictEqual(invalid.status, 2);
+  assert(!fs.existsSync(path.join(f.reflect, 'last-success.json')));
+  assert(!fs.existsSync(path.join(f.reflect, 'run.lock')));
+  fake(f.bin, 'codex', `exec node -e 'setTimeout(() => {}, 10000)'`);
+  const started = Date.now();
+  const timeout = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], { ...options,
+    env: { ...options.env, CONDUCTOR_REFLECT_TIMEOUT_SECONDS: '1' } });
+  assert.strictEqual(timeout.status, 2);
+  assert.match(timeout.stderr, /timed out/);
+  assert(Date.now() - started < 6000);
+  assert(!fs.existsSync(path.join(f.reflect, 'last-success.json')));
+  assert(!fs.existsSync(path.join(f.reflect, 'run.lock')));
+  fs.writeFileSync(path.join(f.reflect, 'run.lock'), 'busy');
+  fs.unlinkSync(log);
+  const locked = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], options);
+  assert.strictEqual(locked.status, 2);
+  assert(!fs.existsSync(log));
+  process.stdout.write('PASS: bounded state fallback, invalid output retry, deadline and concurrent lock safety\n');
+}
+
+{
+  const f = fixture();
+  fs.writeFileSync(path.join(f.dir, '.conductor/trajectories/index.jsonl'), JSON.stringify({ session: 'old', ts: '2000-01-01', transcript: '/must/not/read' }) + '\n');
+  const log = path.join(f.dir, 'args.log');
+  fake(f.bin, 'codex', 'exit 99');
+  const options = { cwd: f.dir, env: { ...process.env, PATH: `${f.bin}:${process.env.PATH}`, CONDUCTOR_REFLECT_CLI: 'codex', CONDUCTOR_ARG_LOG: log }, encoding: 'utf8' };
+  const result = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], options);
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert(!fs.existsSync(log));
+  fs.writeFileSync(path.join(f.dir, 'CURRENT_WORK.md'), 'Current active task');
+  fs.unlinkSync(path.join(f.dir, '.conductor/model-routing.json'));
+  const missing = spawnSync(BASH, [path.join(f.reflect, 'run-weekly.sh')], options);
+  assert.strictEqual(missing.status, 2);
+  assert.match(missing.stderr, /saved Tier 1/);
+  assert(!fs.existsSync(log));
+  process.stdout.write('PASS: stale-only/no evidence skips and missing model fails without a paid call\n');
+}
+
+process.stdout.write('PASS: reflector runner contract 10/10\n');

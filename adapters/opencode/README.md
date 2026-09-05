@@ -62,7 +62,7 @@ own `AGENTS.md` in the same repository.
   no verified continuation/deny contract for session completion.
 - The adapter supports stable OpenCode v1. OpenCode v2 beta uses a breaking plugin
   contract and is not claimed compatible.
-- The optional Reflector is manual/propose-only on OpenCode: `/reflect` or the
+- The optional Reflector is propose-only on OpenCode: `/reflect` or the
   `reflect` skill can analyze available project evidence, but CONDUCTOR does not
   claim automatic OpenCode trajectory capture.
 

@@ -73,6 +73,11 @@ for (const requiredGovernanceAsset of [
   'bin/install-conflicts.js',
   'bin/instruction-footprint.js',
   'bin/user-token-savings.js',
+  'bin/instruction-exposure.js',
+  'bin/opencode-usage.js',
+  'tools/opencode-snapshot.py',
+  'tools/test-opencode-usage.js',
+  'core/reflector/runner.js',
   'adapters/opencode/transform.sh',
   'adapters/opencode/metadata.json',
   'adapters/opencode/conductor-guards.js',
@@ -148,6 +153,9 @@ for (let run = 0; run < 2; run += 1) {
   // parent state.
   delete fixtureEnv.CONDUCTOR_REGISTRY_LATEST_VERSION;
   delete fixtureEnv.CONDUCTOR_REGISTRY_VERSIONS_JSON;
+  // A caller-supplied release cache is valid, but this fixture specifically
+  // proves the default per-invocation cache contract, not that override.
+  delete fixtureEnv.CONDUCTOR_NPM_CACHE;
   const result = spawnSync(BASH, ['tools/release-verify-local.sh'], {
     cwd: root,
     encoding: 'utf8',

@@ -1266,11 +1266,11 @@ case ",$RECIPES_FOR_RUNTIME," in
     fi
     # scheduling assets → .conductor/reflect/ (weekly runner + brief + registration guide)
     if [ "$DRY_RUN" = "true" ]; then
-      log "  would emit .conductor/reflect/{run-weekly.sh,reflection-proposals.js,reflect-brief.md,SCHEDULING.md}"
+      log "  would emit .conductor/reflect/{run-weekly.sh,runner.js,reflection-proposals.js,reflect-brief.md,SCHEDULING.md}"
     else
       /bin/mkdir -p "$TARGET_ABS/.conductor/reflect"
       conductor_install_trajectory_ignore
-      for f in run-weekly.sh reflect-brief.md SCHEDULING.md; do
+      for f in run-weekly.sh runner.js reflect-brief.md SCHEDULING.md; do
         [ -f "$CORE_ROOT/reflector/$f" ] || continue
         dest="$TARGET_ABS/.conductor/reflect/$f"
         backup_and_remember "$dest"
@@ -1289,12 +1289,21 @@ case ",$RECIPES_FOR_RUNTIME," in
     # opted-in install, so a recipe-less re-install is fully dormant (the always-on
     # trajectory hook gates on .conductor/reflect/, and /reflect must not dangle).
     if [ "$DRY_RUN" != "true" ] && [ -d "$TARGET_ABS/.conductor/reflect" ]; then
-      /bin/rm -f "$TARGET_ABS/.conductor/reflect/prune-lessons.sh" "$TARGET_ABS/.conductor/reflect/run-weekly.sh" "$TARGET_ABS/.conductor/reflect/reflection-proposals.js" "$TARGET_ABS/.conductor/reflect/reflect-brief.md" "$TARGET_ABS/.conductor/reflect/SCHEDULING.md"
-      /bin/rm -f "$TARGET_ABS/.claude/commands/reflect.md" "$TARGET_ABS/.claude/agents/reflector.md" 2>/dev/null || true
+      for rel in .conductor/reflect/prune-lessons.sh .conductor/reflect/run-weekly.sh \
+        .conductor/reflect/runner.js .conductor/reflect/reflection-proposals.js \
+        .conductor/reflect/reflect-brief.md .conductor/reflect/SCHEDULING.md \
+        .claude/commands/reflect.md .claude/agents/reflector.md; do
+        if conductor_manifest_path_needed_elsewhere "$rel"; then
+          conductor_manifest_stage_drop_path "$rel"
+          log "  preserving shared $rel required by another adapter"
+        else
+          conductor_retire_owned_path "$rel" "self-improvement opt-out"
+        fi
+      done
       if /bin/rmdir "$TARGET_ABS/.conductor/reflect" 2>/dev/null; then
         log "Step 4.6: self-improvement not selected — cleared stale .conductor/reflect gate + /reflect artifacts"
       else
-        log "Step 4.6: WARNING — .conductor/reflect not empty; trajectory hook stays ACTIVE (remove that dir manually to disable)"
+        log "Step 4.6: preserved local reflection state, shared runtime, or user-owned files; check any adopter-owned scheduler separately"
       fi
     fi
     ;;

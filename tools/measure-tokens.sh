@@ -106,6 +106,8 @@ tool_calls = 0
 dispatches = 0
 turns = 0
 turn_costs = []
+usage_by_message = {}
+seen_tools = set()
 
 with open(path, "r", errors="replace") as f:
     for line in f:
@@ -120,27 +122,36 @@ with open(path, "r", errors="replace") as f:
         msg = obj.get("message") or {}
         usage = msg.get("usage") or {}
 
-        inp = usage.get("input_tokens") or 0
-        out = usage.get("output_tokens") or 0
-        cr  = usage.get("cache_read_input_tokens") or 0
-        cw  = usage.get("cache_creation_input_tokens") or 0
-
-        if inp > 0 or out > 0:
-            turns += 1
-            total_input += inp
-            total_output += out
-            total_cache_read += cr
-            total_cache_write += cw
-            turn_costs.append({"turn": turns, "role": msg.get("role", "?"), "input": inp, "output": out, "total": inp + out})
+        fields = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+        if any(k in usage for k in fields) and msg.get("model") != "<synthetic>" and obj.get("isSynthetic") is not True:
+            identity = msg.get("id") or obj.get("requestId") or obj.get("request_id") or ("unidentified", len(usage_by_message))
+            key = (obj.get("sessionId") or obj.get("session_id") or "", identity)
+            previous = usage_by_message.setdefault(key, dict.fromkeys(fields, 0))
+            for k in fields:
+                value = usage.get(k)
+                if type(value) is int and 0 <= value <= 9007199254740991:
+                    previous[k] = max(previous[k], value)
 
         content = msg.get("content") or []
         if isinstance(content, list):
             for item in content:
                 if isinstance(item, dict) and item.get("type") == "tool_use":
+                    identity = (obj.get("sessionId") or obj.get("session_id") or "", item.get("id"))
+                    if item.get("id") and identity in seen_tools:
+                        continue
+                    seen_tools.add(identity)
                     tool_calls += 1
                     if item.get("name") == "Agent":
                         dispatches += 1
 
+for usage in usage_by_message.values():
+    turns += 1
+    inp, out, cr, cw = (usage[k] for k in fields)
+    total_input += inp
+    total_output += out
+    total_cache_read += cr
+    total_cache_write += cw
+    turn_costs.append({"turn": turns, "role": "model", "input": inp, "output": out, "total": inp + out})
 total_eff = total_input + total_cache_read + total_cache_write
 cache_read_share = (total_cache_read / total_eff * 100) if total_eff > 0 else 0.0
 

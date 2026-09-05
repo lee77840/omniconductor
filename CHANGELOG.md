@@ -3,6 +3,29 @@
 All notable changes to CONDUCTOR are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
 
+## [1.9.0] — 2026-09-05
+
+### Fixed
+
+- Deduplicate streamed Claude usage snapshots before reporting calls, cache shares,
+  or request-scaled estimates. Missing identities are explicit, not false certainty.
+- Inspect only the current hook session for the cache baseline; remove the global
+  newest-transcript scan from every Stop event.
+- Distinguish managed kernel size from known native co-loaded project instructions;
+  flag oversized instructions and continuity notes without editing adopter files.
+- Bound optional scheduled reflection, pin its saved Tier 1 model, skip unchanged
+  evidence, prevent overlapping runs, and support bounded git/state fallback.
+- Exercise private/public release safety with disposable local remotes even from a
+  release-preparation branch or a changelog without an Unreleased section.
+
+### Added
+
+- Local-only `audit opencode` with bounded DB/WAL snapshots, observed-schema checks,
+  exact project/cohort filters, session ancestry, actual role/provider/model groups,
+  large-input share and root-session proxy medians. Unknown cost is never billed-credit savings.
+- Adversarial coverage for duplicate usage, unknown metrics, native instruction
+  co-loading, source noninterference including WAL, and safe reflection retries.
+
 ## [1.8.1] — 2026-09-04
 
 ### Changed

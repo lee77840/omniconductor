@@ -37,6 +37,23 @@ test('all seven adapters use bounded kernels within fail-closed budgets', () => 
   }
 });
 
+test('native co-loaded AGENTS and user instructions are included as project exposure', () => {
+  const inspect = require('../bin/instruction-exposure.js').inspect;
+  const f = fs.mkdtempSync(path.join(os.tmpdir(), 'conductor-exposure-'));
+  fs.writeFileSync(path.join(f, 'AGENTS.md'), 'a'.repeat(8000));
+  fs.writeFileSync(path.join(f, 'extra.md'), 'b'.repeat(42000));
+  fs.writeFileSync(path.join(f, 'opencode.json'), JSON.stringify({ instructions: ['extra.md', 'https://example.invalid/rules'] }));
+  const r = inspect(f, 'opencode', []);
+  assert.strictEqual(r.bytes_lower_bound, 50000);
+  assert(r.unresolved.length);
+  assert(r.warnings.length);
+  fs.mkdirSync(path.join(f, '.devin/rules'), { recursive: true });
+  fs.writeFileSync(path.join(f, '.devin/rules/manual.md'), '---\ntrigger: manual\n---\nnot eager');
+  assert.strictEqual(inspect(f, 'windsurf', []).bytes_lower_bound, 8000);
+  fs.writeFileSync(path.join(f, 'AGENTS.override.md'), 'override');
+  assert.strictEqual(inspect(f, 'codex', [path.join(f, 'AGENTS.md')]).bytes_lower_bound, 8);
+});
+
 test('complete rule and selected-recipe references are byte-identical', () => {
   const report = footprint.audit(target, { requests: 100 });
   for (const item of report.adapters) assert.deepStrictEqual(item.problems, [], item.adapter);
@@ -109,4 +126,4 @@ test('reference drift is detected and makes the CLI audit non-zero', () => {
   assert.strictEqual(cli.status, 1, cli.stderr || cli.stdout);
 });
 
-if (!process.exitCode) process.stdout.write(`PASS: instruction footprint contract ${passed}/8\n`);
+if (!process.exitCode) process.stdout.write(`PASS: instruction footprint contract ${passed}/9\n`);

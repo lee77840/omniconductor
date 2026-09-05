@@ -889,6 +889,9 @@ case ",$RECIPES_FOR_RUNTIME," in
       d="$TARGET_ABS/.conductor/reflect/reflection-proposals.js"
       backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/reflection-proposals.js" "$d"
       record_emit ".conductor/reflect/reflection-proposals.js" "core/reflector/reflection-proposals.js" "$MANIFEST_LAST_BACKUP"
+      d="$TARGET_ABS/.conductor/reflect/runner.js"
+      backup_if_exists "$d"; /bin/cp "$CORE_ROOT/reflector/runner.js" "$d"
+      record_emit ".conductor/reflect/runner.js" "core/reflector/runner.js" "$MANIFEST_LAST_BACKUP"
       # scheduling assets: run-weekly.sh needs the brief; SCHEDULING.md documents registration
       for m in reflect-brief SCHEDULING; do
         d="$TARGET_ABS/.conductor/reflect/$m.md"

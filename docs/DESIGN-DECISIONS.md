@@ -2842,3 +2842,50 @@ model/tool configuration, phase-separated sessions, cheaper focused subagents, a
 Copilot-CLI session limits; GitHub billing attributes third-party coding-agent input,
 output, and cache tokens by model. OpenCode documents GitHub Copilot as a provider
 connection but does not document forwarding Copilot CLI's session-limit commands.
+
+## ADR-080 — Evidence-correct usage diagnostics and bounded optional reflection
+
+**Date**: 2026-09-05. **Status**: accepted; supersedes unbounded scheduled discovery
+in ADR-033; preserves the read-only boundary in ADR-074 and narrows the measurement interpretation of ADR-076/079. Difficulty
+definitions, role ownership, and native permission contracts remain unchanged.
+
+**Decision**: Deduplicate Claude usage by session/message identity, taking maximum
+observed counters rather than summing streaming snapshots. Expose missing identities
+and reject unverified automatic request counts in personal estimates. Report managed
+instruction bytes separately from a bounded lower bound of known native co-loaded
+project files; global catalogs, history and deferred reads remain unmeasured.
+
+Add a local OpenCode diagnostic that snapshots an explicit DB+WAL without opening
+the source in SQLite. Python 3/sqlite3 is an optional diagnostic dependency, not a
+new installation or runtime dependency for every user. Validate the observed schema
+and numeric cost representation, omit transcript text, disclose unknown counters,
+and group assistant calls by exact project, interval, session ancestry and actual
+role/provider/model. Terminal-task medians are descriptive, not a controlled A/B or
+a Copilot credit conversion. No paid smoke or fresh user PASS is required to audit.
+
+All seven adapters emit one shared Node Reflector runner. Scheduled discovery is
+metadata plus bounded git/state prefixes (no arbitrary transcript pointer reads),
+at most 12 recent sessions/14 days and 32 KiB evidence; execution is 120 seconds by
+default (1–300 configurable) and 1 MiB captured output. Use the saved Tier 1 mapping.
+Skip identical evidence/model/brief after validated import, reject overlapping runs,
+and keep failures retryable. Direct manual skills do not inherit runner protections.
+Devin stays manual until a verified native headless read-only contract is available.
+Local termination does not guarantee remote billing cancellation. No global token
+or spend cap is claimed. Human approval remains required before applying proposals.
+
+**Adapter impact**: Claude/Codex/Cursor/Copilot/Gemini/OpenCode retain their native
+read-only invocation and gain explicit model selection plus the bounded shared
+runner. Windsurf emits the runtime but automated Devin use continues to fail closed.
+OpenCode/Windsurf co-loaded AGENTS and user instruction exposure are diagnostic only;
+the installer never strips another adapter's or an adopter's rules to lower a number.
+
+**Trade-off**: Bounded scheduled metadata is intentionally less detailed than a
+manual transcript analysis. Unsupported schemas/large or unstable databases stop
+instead of fabricating measurements. Existing applications and publication state
+are untouched. Validate source noninterference, identity cases, ancestry, unknown
+metrics, repeat skips, failure/timeout safety, all adapter modes and package assets.
+
+**Native model flag references**: [OpenCode CLI](https://opencode.ai/docs/cli/),
+[Gemini CLI](https://geminicli.com/docs/cli/cli-reference/),
+[Cursor parameters](https://cursor.com/docs/cli/reference/parameters),
+[Copilot CLI](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference).

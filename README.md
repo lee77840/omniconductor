@@ -6,6 +6,30 @@ Write your project's rules, workflow, and discipline ONCE. Install into any AI c
 
 > Born from one year of production iteration at LFamily Labs — the rules, agents, hooks, and memory patterns that survived real shipping pressure.
 
+## Local usage checks / 로컬 사용량 진단
+
+`omniconductor doctor <project>` now flags oversized project instructions and
+continuity notes. `omniconductor audit instructions <project>` separates managed
+kernel size from known co-loaded project files. These are context diagnostics,
+not a claim of measured savings across whole sessions.
+
+OpenCode users can inspect an existing SQLite database without a model call:
+
+```sh
+omniconductor audit opencode <project> --database=<existing-db-path> --json
+```
+
+Requires Python 3 with sqlite3. Optional `--since=2026-09-01`, `--until=2026-09-08`
+and `--session=<id>` define a cohort. It reports schema verification, main/child
+sessions, role/provider/model, ≥100K-input share and task medians. Unknown costs
+stay unknown; DB cost is not a Copilot credit invoice. No transcript text is
+exported and the source database is not opened by SQLite or modified.
+
+설정 파일이 작다는 것과 실제 세션 비용이 줄었다는 것을 구분합니다. OpenCode는
+기존 DB만으로 진단하며, Copilot 연결이어도 설치 대상은 `--target=opencode`입니다.
+진단을 위해 새 유료 호출을 만들 필요가 없습니다. 자세한 범위·한계는
+[한국어 가이드](docs/TOKEN-ECONOMY-KO.md)를 참고하세요.
+
 ## Community & Feedback
 
 If OMNICONDUCTOR improves your workflow, I'd love to hear from you.
@@ -47,7 +71,9 @@ npx omniconductor init --target=claude . --dry-run --no-prompt --accept-model-de
 The promise is not identical mechanics everywhere. It is **one portable discipline,
 compiled to the strongest verified native behavior each tool actually supports**.
 
-> **Status (v1.8.1 — 2026-09-04)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, and D16 verifies the installer platform. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
+> **Status (v1.9.0 — 2026-09-05)**: All 7 adapters ship a working `transform.sh` plus one-time, project-saved Tier-model setup — **Claude Code**, **Cursor**, **GitHub Copilot**, **Gemini CLI**, **Codex**, **Windsurf / Devin Desktop**, and **OpenCode stable v1**. Full/minimal/strict installs emit three baseline instruction-only Agent Skills (`plan-change`, `verify-change`, `review-change`); `self-improvement` and `git-hygiene` add `propose-skill` and `coordinate-work`. Output is emit-verified on all seven; **Claude Code, Codex, Windsurf/Devin for Terminal, and OpenCode stable v1 are additionally live-verified** by their recorded probes. These historical probes do not imply a fresh live verification of every v1.9.0 change. Devin Desktop UI consumption remains a separate manual smoke boundary. Read-only doctor D13 checks runtime floors, D14 checks local work claims, D15 diagnoses model-routing locks, D16 verifies the installer platform, and D17 flags known project instruction exposure. Windsurf model routing remains advisory-session; OpenCode v2 beta is not claimed compatible. See [`docs/ADAPTER-LIVE-VERIFICATION.md`](./docs/ADAPTER-LIVE-VERIFICATION.md).
+>
+> **New in 1.9.0 / 주요 개선**: local OpenCode DB/WAL usage diagnostics, deduplicated Claude usage, co-loaded instruction warnings, and bounded, repeat-safe optional reflection. OpenCode 사용량 진단·중복 집계 수정·중복 로딩 경고·반복 성찰 비용 제어를 제공합니다. Reported counters and modeled savings are not a guarantee of reduced billed credits or unchanged task quality.
 >
 > **New in 1.7.1**: npm discovery metadata now names the product's actual high-intent categories—coding-agent governance, guardrails, agentic workflows, token optimization, MCP security, and reversible cross-tool installation. Adapter runtime and install output are unchanged; Cursor validation now excludes preserved user-owned legacy rules while remaining fail-closed on manifest-owned output.
 >

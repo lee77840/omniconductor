@@ -4,9 +4,9 @@ purpose: "Read the period's session trajectories and propose atomic lesson delta
 difficulty_tier: 1
 capabilities: [read, search]
 must_do:
-  - read the trajectory index (.conductor/trajectories/index.jsonl) and follow its pointers to the session transcripts named there
-  - read git history for the same period (git log --oneline + diffs of the referenced commits)
-  - read the retro artifact (docs/CURRENT_WORK.md and any docs/sessions/ notes) as fallback context
+  - in scheduled bounded mode use only the supplied evidence and do not invoke discovery tools
+  - in manual mode select at most 12 sessions from the last 14 days and only explicitly trusted transcript ranges within a 32 KiB total evidence budget
+  - use bounded git history and the active CURRENT_WORK prefix as fallback when the trajectory index is missing
   - learn from BOTH successful and failed trajectories; when a failure and a later success address the same task, distil the delta between them
   - emit each lesson as an ADD, UPDATE, or STALE delta (never prose paragraphs, never a rewritten file)
   - cite provenance for every lesson (a session id, a commit ref, or a retro line) — a lesson with no citation is dropped
@@ -32,9 +32,9 @@ The reflector is CONDUCTOR's self-improvement actor. It reads what actually happ
 
 ## Before you start
 
-1. Confirm `.conductor/trajectories/index.jsonl` exists. If it does not, there is nothing to reflect on — report that and stop.
-2. Read the index; collect the session pointers and commit refs for the period.
-3. Budget your reads: one pass per session to extract candidate signals (map), then one synthesis pass (reduce). Use ranges; never cat a whole transcript.
+1. Scheduled bounded mode supplies evidence directly. Do not perform additional reads; return an empty proposal array if that evidence supports no lesson.
+2. For manual mode, select at most 12 sessions from the last 14 days. If the index is missing, use at most 20 commit subjects and a 16 KiB active CURRENT_WORK prefix. Stop only when all scoped evidence is absent.
+3. Stay within 32 KiB total evidence. One pass extracts candidate signals, then one synthesis pass distils lessons. Never follow arbitrary hook-provided paths or read whole large transcripts.
 
 ## What a good lesson looks like
 

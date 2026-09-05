@@ -44,9 +44,14 @@ fi
 echo "[release] full local regression suite"
 npm test
 
+if [ -f scripts/test-sync-public-release.sh ]; then
+  echo "[release] private/public release safety (temporary local remotes only)"
+  bash scripts/test-sync-public-release.sh
+fi
+
 echo "[release] static, metadata, generated-doc, and source checks"
 for required_tracked_file in \
-  bin/adapter-dispatch.js bin/installer-platform.js bin/opencode-config.js bin/instruction-footprint.js bin/user-token-savings.js \
+  bin/adapter-dispatch.js bin/installer-platform.js bin/opencode-config.js bin/instruction-footprint.js bin/user-token-savings.js bin/instruction-exposure.js bin/opencode-usage.js tools/opencode-snapshot.py core/reflector/runner.js \
   bin/recipe-onboarding.js bin/install-conflicts.js \
   adapters/opencode/transform.sh adapters/opencode/metadata.json \
   adapters/opencode/conductor-guards.js adapters/opencode/README.md \
@@ -66,7 +71,7 @@ for required_tracked_file in \
   tools/run-bash.js tools/test-install-modes-all.js \
   tools/test-hook-python-runtime.js tools/test-opencode-adapter.js \
   tools/test-recipe-docs.js tools/test-recipe-onboarding.js tools/test-install-conflicts.js \
-  tools/test-reflection-proposals.js tools/test-reflector-runner.js tools/test-instruction-footprint.js tools/test-user-token-savings.js \
+  tools/test-reflection-proposals.js tools/test-reflector-runner.js tools/test-instruction-footprint.js tools/test-user-token-savings.js tools/test-opencode-usage.js \
   tools/test-work-contract.js tools/test-workspace-contract.js tools/test-bootstrap-contract.js; do
   git ls-files --error-unmatch "$required_tracked_file" >/dev/null 2>&1 || {
     echo "release-required runtime file is not tracked by Git: $required_tracked_file" >&2
@@ -98,9 +103,9 @@ else
   echo "          rerun with CONDUCTOR_RELEASE_REQUIRE_CLEAN=1 after the release commit"
   SNAPSHOT_STATUS="DEFERRED (uncommitted working tree)"
 fi
-for file in bin/{omniconductor,doctor,model-routing,path-safety,adapter-dispatch,installer-platform,claude-hookify,runtime-contract,portable-skills,hook-config,opencode-config,recipe-onboarding,install-conflicts,instruction-footprint,user-token-savings}.js \
+for file in bin/{omniconductor,doctor,model-routing,path-safety,adapter-dispatch,installer-platform,claude-hookify,runtime-contract,portable-skills,hook-config,opencode-config,recipe-onboarding,install-conflicts,instruction-footprint,user-token-savings,instruction-exposure,opencode-usage}.js \
   bin/{assurance-coverage,evidence-contract,extension-trust,plugin-packager,skill-proposals,work-contract,workspace-contract,bootstrap-contract}.js \
-  core/reflector/reflection-proposals.js \
+  core/reflector/reflection-proposals.js core/reflector/runner.js tools/test-opencode-usage.js \
   tools/{run-bash,test-install-modes-all,test-model-routing,test-path-safety,test-installer-platform,test-windows-installer,test-hookify-posttool,test-hook-python-runtime,test-runtime-contract,test-portable-skills,test-hook-compiler,test-opencode-adapter,test-recipe-docs,test-recipe-onboarding,test-install-conflicts,test-reflection-proposals,test-reflector-runner,test-instruction-footprint,test-user-token-savings,test-release-version,check-release-version,check-recipe-docs}.js \
   tools/{generate-assurance-coverage,test-assurance-coverage,test-evidence-contract,test-extension-trust,test-plugin-packager,test-skill-proposals,test-work-contract,test-workspace-contract,test-bootstrap-contract}.js; do
   node --check "$file"
@@ -119,6 +124,8 @@ npm_config_cache="$CACHE" npm install --prefix "$FRESH/consumer" "$CURRENT_PACKA
   --ignore-scripts --no-audit --no-fund >/dev/null
 CLI="$FRESH/consumer/node_modules/.bin/omniconductor"
 PKG="$FRESH/consumer/node_modules/omniconductor"
+echo "[release] packaged OpenCode diagnostic and Python helper"
+node "$PKG/tools/test-opencode-usage.js"
 "$CLI" init --target=all "$FRESH/project" --no-prompt --accept-model-defaults \
   --recipes=self-improvement,git-hygiene,loop-engineering >/dev/null 2>&1
 for tool in claude cursor copilot gemini codex windsurf opencode; do

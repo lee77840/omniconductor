@@ -19,8 +19,8 @@ assert.strictEqual(install.status, 0, install.stderr || install.stdout);
 const sessions = path.join(fixture, 'sessions');
 fs.mkdirSync(sessions);
 const records = [
-  { timestamp: '2026-08-20T10:00:00Z', message: { usage: { input_tokens: 10, output_tokens: 5 }, content: [] } },
-  { timestamp: '2026-08-20T10:01:00Z', message: { usage: { cache_read_input_tokens: 80, cache_creation_input_tokens: 10, input_tokens: 10 }, content: [
+  { timestamp: '2026-08-20T10:00:00Z', message: { id: 'one', usage: { input_tokens: 10, output_tokens: 5 }, content: [] } },
+  { timestamp: '2026-08-20T10:01:00Z', message: { id: 'two', usage: { cache_read_input_tokens: 80, cache_creation_input_tokens: 10, input_tokens: 10 }, content: [
     { type: 'tool_result', content: '[CONDUCTOR] output truncated — 321 tokens elided; re-run scoped' },
   ] } },
 ];
@@ -51,4 +51,10 @@ assert.strictEqual(cli.status, 0, cli.stderr || cli.stdout);
 assert.strictEqual(JSON.parse(cli.stdout).observed_output_savings.output_tokens_elided_lower_bound, 321);
 console.log('PASS: packaged CLI path returns machine-readable local evidence');
 
-console.log('PASS: personal token-savings contract 4/4');
+fs.appendFileSync(path.join(sessions, 'one.jsonl'), JSON.stringify(records[0]) + '\n');
+assert.strictEqual(savings.create({ project, target: 'claude', sessions }).request_count, 2);
+fs.appendFileSync(path.join(sessions, 'one.jsonl'), JSON.stringify({ message: { usage: { input_tokens: 5 } } }) + '\n');
+assert.throws(() => savings.create({ project, target: 'claude', sessions }), /verified --requests/);
+assert.strictEqual(savings.create({ project, target: 'claude', sessions, requests: 3 }).request_count, 3);
+console.log('PASS: duplicate records do not multiply estimates; unknown identities require explicit evidence');
+console.log('PASS: personal token-savings contract 5/5');

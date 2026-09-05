@@ -62,6 +62,7 @@ Usage:
   omniconductor audit extensions [target-dir] [options]       Audit extension/MCP trust (read-only)
   omniconductor audit instructions [dir] [--requests=N]       Estimate avoided eager context (read-only)
   omniconductor audit savings [dir] --target=<tool> [options] Personal local savings report (read-only)
+  omniconductor audit opencode [dir] --database=<file>       Inspect local OpenCode usage (read-only)
   omniconductor eval coverage [--json] [--compare=<file>]     Report evidence-backed policy coverage
   omniconductor evidence validate <report.json> [--json]      Validate evidence schema without judging completion
   omniconductor evidence check <report.json> [--json]         Fail when any valid claim remains non-passed
@@ -297,7 +298,26 @@ async function main(argv) {
 
   if (cmd === 'audit') {
     const action = args[1];
-    if (!['extensions', 'instructions', 'savings'].includes(action)) fail("audit expects 'extensions', 'instructions', or 'savings'");
+    if (!['extensions', 'instructions', 'savings', 'opencode'].includes(action)) fail("audit expects 'extensions', 'instructions', 'savings', or 'opencode'");
+    if (action === 'opencode') {
+      const rest = args.slice(2), options = {}, positions = [];
+      for (const arg of rest) {
+        if (arg === '--json') { if (options.json) fail('duplicate --json'); options.json = true; }
+        else if (/^--(database|since|until|session)=/.test(arg)) {
+          const split = arg.indexOf('='), name = arg.slice(2, split);
+          if (options[name] !== undefined || !arg.slice(split + 1)) fail(`invalid or duplicate --${name}`);
+          options[name] = arg.slice(split + 1);
+        } else if (arg.startsWith('-')) fail(`unknown OpenCode audit option: ${arg}`);
+        else positions.push(arg);
+      }
+      if (positions.length > 1) fail('audit opencode accepts one project directory');
+      options.project = positions[0] || '.';
+      try {
+        const usage = require('./opencode-usage.js'), report = usage.audit(options);
+        process.stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : `${usage.render(report)}\n`);
+        return 0;
+      } catch (error) { process.stderr.write(`omniconductor: ${error.message}\n`); return 2; }
+    }
     if (action === 'savings') {
       const rest = args.slice(2);
       const allowed = ['--json'];

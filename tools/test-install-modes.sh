@@ -154,8 +154,10 @@ if [ "$TOOL" = "claude" ]; then
   d="$BASE/full-trajectory-user-edit"; mkdir -p "$d"
   run_adapter "$d" --no-prompt --recipes=self-improvement >/dev/null 2>&1
   printf '\n# adopter customization\n' >> "$d/.claude/hooks/stop-trajectory-log.sh"
+  printf '\n// adopter runner customization\n' >> "$d/.conductor/reflect/runner.js"
   if run_adapter "$d" --no-prompt --recipes= >/dev/null 2>&1 \
     && /usr/bin/grep -q 'adopter customization' "$d/.claude/hooks/stop-trajectory-log.sh" \
+    && /usr/bin/grep -q 'adopter runner customization' "$d/.conductor/reflect/runner.js" \
     && /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.claude/settings.json" \
     && ! /usr/bin/grep -q 'stop-trajectory-log.sh' "$d/.conductor/manifests/claude.json"; then
     ok "full: disabling self-improvement preserves adopter-modified trajectory runtime"
@@ -425,6 +427,9 @@ d="$BASE/reflonly"; mkdir -p "$d"
 run_adapter "$d" --mode=reflector-only >/dev/null 2>&1
 okay=true
 [ -s "$d/.conductor/reflect/reflection-proposals.js" ] || okay=false
+[ -s "$d/.conductor/reflect/runner.js" ] || okay=false
+cmp -s core/reflector/runner.js "$d/.conductor/reflect/runner.js" || okay=false
+/usr/bin/grep -q '"path": ".conductor/reflect/runner.js"' "$d/.conductor/manifests/$TOOL.json" || okay=false
 if [ "$TOOL" = "claude" ]; then
   # Claude's trajectory logger is the Stop hook, not the portable stdin logger.
   [ -x "$d/.claude/hooks/stop-trajectory-log.sh" ] || okay=false

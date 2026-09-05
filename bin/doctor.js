@@ -25,6 +25,7 @@
  *   D14 parallel work state — local clone/worktree claim ledger integrity
  *   D15 model-routing lock — live, orphaned, incomplete, or unsafe lock diagnosis
  *   D16 installer platform — supported Node/shell pairing and Windows/WSL guidance
+ *   D17 context exposure — known project instruction bytes and continuity bloat
  *
  * D5 checks effective registration, not only manifest-owned syntax. This is
  * intentional: an older branch or a preserved user config can have a valid
@@ -958,6 +959,13 @@ function run(targetDir, opts) {
     } catch (error) {
       add('D14', 'FAIL', `parallel-work state is unsafe or invalid: ${error.message}`);
     }
+  }
+
+  for (const source of manifestSources) {
+    try {
+      const exposure = require('./instruction-exposure.js').inspect(targetAbs, source.adapter, []);
+      add('D17', exposure.warnings.length ? 'WARN' : 'OK', `${source.adapter}: known project instruction lower bound ${exposure.bytes_lower_bound} bytes; excludes global/parent context and on-demand reads. ${exposure.warnings.join(' ')}${exposure.unresolved.length ? ' Unresolved: ' + exposure.unresolved.join('; ') : ''}`);
+    } catch (error) { add('D17', 'WARN', `${source.adapter}: context exposure could not be safely resolved: ${error.message}`); }
   }
 
   return finish();

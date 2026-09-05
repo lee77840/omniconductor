@@ -3,7 +3,7 @@
 # CONDUCTOR universal hook template
 # hook_id: stop-cache-hit-baseline-check
 # trigger: stop
-# action: Read latest Claude Code session JSONL, compute cache-read token share, emit
+# action: Read current Claude Code session JSONL, compute cache-read token share, emit
 #         a non-blocking diagnostic reminder when below baseline.
 # compile_targets: claude
 # fallback: rule-text-reminder
@@ -14,8 +14,8 @@
 #   - meta-discipline.md token-economy section (cache hit baseline)
 #
 # Behavior:
-#   1. Locate latest session JSONL under ~/.claude/projects/<encoded>/*.jsonl.
-#   2. Sum cache-read, cache-write, and uncached input tokens via Python 3.
+#   1. Use the current hook payload transcript_path; never scan other projects.
+#   2. Deduplicate usage snapshots and sum cache-read/write and uncached input.
 #   3. If cache-read share < ${CONDUCTOR_CACHE_HIT_FLOOR_PERCENT}% AND total
 #      effective input tokens >= ${CONDUCTOR_CACHE_TOTAL_FLOOR}, emit a
 #      stderr reminder listing the 5 candidate anti-patterns.
@@ -68,29 +68,34 @@ if [ -n "$FIXTURE" ]; then
   [ -f "$FIXTURE" ] || exit 0
   SESSION_PATH="$FIXTURE"
 else
-  # Find newest *.jsonl under ~/.claude/projects/.
-  if [ ! -d "$HOME/.claude/projects" ]; then
-    exit 0
-  fi
-  SESSION_PATH=$(/usr/bin/find "$HOME/.claude/projects" -name '*.jsonl' -type f 2>/dev/null \
-    | while IFS= read -r f; do
-        m=$(/usr/bin/stat -f '%m' "$f" 2>/dev/null || /usr/bin/stat -c '%Y' "$f" 2>/dev/null || echo 0)
-        printf '%s\t%s\n' "$m" "$f"
-      done \
-    | /usr/bin/sort -rn \
-    | /usr/bin/head -n 1 \
-    | /usr/bin/cut -f2-)
+  # Hook payload belongs to this session. A newest-global-file fallback could
+  # inspect another project and adds O(all sessions) work to every Stop event.
+  [ -t 0 ] && exit 0
+  PAYLOAD="$(/usr/bin/head -c 65537)"
+  SESSION_PATH="$(printf '%s' "$PAYLOAD" | "$PYTHON_BIN" -c 'import json,sys
+raw=sys.stdin.read(65537)
+if len(raw.encode()) > 65536: sys.exit(0)
+try:
+    obj=json.loads(raw)
+    value=obj.get("transcript_path")
+    if isinstance(value,str) and not any(c in value for c in "\n\r\0"): print(value)
+except Exception: pass
+' 2>/dev/null)"
   [ -n "$SESSION_PATH" ] && [ -f "$SESSION_PATH" ] || exit 0
 fi
 
 # Parse + decide. Python prints a single line: "<hit_rate> <total_eff>".
 RESULT=$(SESSION="$SESSION_PATH" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
-import json, os, sys
+import json, os, sys, stat
 path = os.environ.get("SESSION", "")
 total_input = 0
 total_cache_read = 0
 total_cache_write = 0
+messages = {}
 try:
+    info = os.lstat(path)
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 16 * 1024 * 1024:
+        sys.exit(0)
     with open(path, "r", errors="replace") as f:
         for line in f:
             line = line.strip()
@@ -100,12 +105,24 @@ try:
                 obj = json.loads(line)
             except Exception:
                 continue
-            usage = (obj.get("message") or {}).get("usage") or {}
-            total_input += usage.get("input_tokens") or 0
-            total_cache_read += usage.get("cache_read_input_tokens") or 0
-            total_cache_write += usage.get("cache_creation_input_tokens") or 0
+            msg = obj.get("message") or {}
+            usage = msg.get("usage") or {}
+            if msg.get("model") == "<synthetic>" or obj.get("isSynthetic") is True:
+                continue
+            identity = msg.get("id") or obj.get("requestId") or obj.get("request_id") or ("unidentified", len(messages))
+            key = (obj.get("sessionId") or obj.get("session_id") or "", identity)
+            fields = ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+            previous = messages.setdefault(key, dict.fromkeys(fields, 0))
+            for k in fields:
+                value = usage.get(k)
+                if type(value) is int and 0 <= value <= 9007199254740991:
+                    previous[k] = max(previous[k], value)
 except Exception:
     sys.exit(0)
+for usage in messages.values():
+    total_input += usage["input_tokens"]
+    total_cache_read += usage["cache_read_input_tokens"]
+    total_cache_write += usage["cache_creation_input_tokens"]
 total_eff = total_input + total_cache_read + total_cache_write
 hit = (total_cache_read / total_eff * 100.0) if total_eff > 0 else 100.0
 print(f"{hit:.1f} {total_eff}")
@@ -136,7 +153,7 @@ Likely causes (top 5 anti-patterns):
   1. Dynamic prompt prefix — values change every turn, breaking cache key.
   2. Large-file Read without offset/limit — pulls entire file into context.
   3. Monolithic rule file edited mid-session — invalidates cached system prompt.
-  4. No sub-agent isolation — long-running task accumulates context in main thread.
+  4. Long-running task context — consider a phase boundary or scoped isolation; dispatch itself adds tokens.
   5. Frequent CLAUDE.md / settings edits during session — busts the prefix cache.
 
 Diagnostic guide: ${ANTI_PATTERNS_DOC}

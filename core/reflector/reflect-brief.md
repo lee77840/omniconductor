@@ -2,7 +2,7 @@ Run the CONDUCTOR Reflector over recent sessions — **propose-only, apply nothi
 
 Adopt the reflector persona for this task (the reflector agent/rule installed alongside this command defines it). Then:
 
-1. Read `.conductor/trajectories/index.jsonl` and follow each `transcript` pointer it names; read `git log --oneline -30` and the diffs of referenced commits; read `docs/CURRENT_WORK.md`.
+1. For a manual run, select at most 12 sessions from the last 14 days in `.conductor/trajectories/index.jsonl`. Inspect only explicitly relevant, trusted transcript ranges, at most 32 KiB total evidence. If no index exists, use `git log --oneline -20` and the first 16 KiB of `docs/CURRENT_WORK.md` (or the project's root override). Do not read full histories or follow arbitrary hook-supplied paths. Scheduled bounded mode supplies evidence directly and overrides these discovery steps.
 2. Distil atomic lessons from BOTH successes and failures (prefer a failure→later-success contrast). Every lesson MUST cite provenance (a session id, commit, or retro line); drop any lesson you cannot ground.
 3. Emit one machine-readable proposal envelope to stdout. Do not write it to a
    file. Use this exact shape and no additional envelope:
